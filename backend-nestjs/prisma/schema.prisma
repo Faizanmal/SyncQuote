@@ -1,0 +1,2121 @@
+// SyncQuote Database Schema
+// Production-ready schema with all relationships
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  VIEWED
+  APPROVED
+  DECLINED
+  SIGNED
+}
+
+enum Currency {
+  USD
+  EUR
+  GBP
+  CAD
+  AUD
+  JPY
+  CHF
+  CNY
+  INR
+}
+
+enum PricingItemType {
+  FIXED
+  OPTIONAL
+  QUANTITY
+}
+
+enum ProposalBlockType {
+  RICH_TEXT
+  IMAGE
+  VIDEO
+  PRICING_TABLE
+}
+
+enum TemplateCategory {
+  BUSINESS
+  CONSULTING
+  CREATIVE
+  TECHNOLOGY
+  MARKETING
+  SALES
+  LEGAL
+  FINANCE
+  HEALTHCARE
+  EDUCATION
+  REAL_ESTATE
+  OTHER
+}
+
+model User {
+  id                String              @id @default(uuid())
+  email             String              @unique
+  firstName         String?             // Added for first name
+  lastName          String?             // Added for last name
+  password          String?             // Null for OAuth users
+  passwordChangedAt DateTime?           // Added for password change tracking
+  name              String?
+  companyName       String?
+  companyLogo       String?             // S3/R2 URL
+  role              UserRole            @default(USER)
+  emailVerified     Boolean             @default(false)
+  emailVerifiedAt   DateTime?
+  
+  // OAuth
+  googleId          String?             @unique
+  externalId        String?             @unique // Added for SCIM/SSO
+  
+  // Subscription (SaaS Revenue)
+  subscriptionStatus SubscriptionStatus @default(TRIAL)
+  stripeCustomerId  String?             @unique
+  stripeSubscriptionId String?          @unique
+  trialEndsAt       DateTime?
+  subscriptionEndsAt DateTime?
+  
+  // Stripe Connect (User's Revenue)
+  stripeConnectId   String?             @unique
+  stripeConnectEnabled Boolean          @default(false)
+  
+  // Security
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  refreshToken      String?             // Store hashed
+  
+  // Branding (White-labeling)
+  brandColor        String?             // Primary brand color hex
+  brandColorSecondary String?           // Secondary color
+  customDomain      String?             @unique
+  localizationSettings Json?          // Added
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  lastLoginAt       DateTime?
+  
+  // Relations
+  proposals         Proposal[]
+  activities        Activity[]
+  templates         Template[]
+  notifications     Notification[]
+  snippets          Snippet[]
+  automationWorkflows AutomationWorkflow[]
+  teamMemberships   TeamMember[]        // Added for team relation
+  securityPolicy    SecurityPolicy?     // Added
+  marketplaceSeller TemplateMarketplace[] @relation("MarketplaceSeller") // Added
+  templateReviews   TemplateReview[]    @relation("TemplateReviews") // Added
+  securityAuditLogs SecurityAuditLog[]  // Added
+  sessions          UserSession[]       // Added
+  respondedSuggestions ProposalSuggestion[] @relation("SuggestionResponder") // Added
+  reviewedChanges     ProposalChange[]      @relation("ChangeReviewer")      // Added
+  suggestions       ProposalSuggestion[] // Added
+  changes           ProposalChange[]     // Added
+  
+  // New Relations
+  abTests           ABTest[]
+  createdReviewCycles ReviewCycle[]     @relation("CycleCreator")
+  reviewAssignments ReviewCycleReviewer[]
+  
+  // Back-relations for validation
+  collaborations    ProposalCollaborator[]
+  proposalComments  ProposalComment[]
+  resolvedComments  ProposalComment[]   @relation("CommentResolver")
+  
+  @@index([email])
+  @@index([stripeCustomerId])
+  @@index([stripeConnectId])
+}
+
+model Proposal {
+  id                String            @id @default(uuid())
+  title             String
+  slug              String            @unique // For public URL: /v/{slug}
+  status            ProposalStatus    @default(DRAFT)
+  
+  // Owner
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Recipient info (captured when sent)
+  recipientEmail    String?
+  recipientName     String?
+  
+  // Pricing settings
+  currency          Currency          @default(USD)
+  exchangeRate      Float             @default(1.0) // Rate at time of creation
+  taxRate           Float             @default(0) // Percentage (e.g., 10 = 10%)
+  depositRequired   Boolean           @default(false)
+  depositAmount     Float?            // Fixed amount
+  depositPercentage Float?            // Or percentage of total
+  
+  // Tracking
+  viewCount         Int               @default(0)
+  viewedAt          DateTime?         // Added to match controller usage
+  firstViewedAt     DateTime?
+  lastViewedAt      DateTime?
+  
+  // Approval workflow
+  approvalRequired  Boolean           @default(false)
+  approvers         Json?             // Array of approver user IDs
+  approvals         Json?             // Array of approval records
+  
+  // Closure
+  approvedAt        DateTime?
+  declinedAt        DateTime?
+  signedAt          DateTime?
+  signatureData     Json?             // { name, timestamp, ipAddress, signatureUrl }
+  signerName        String?
+  signerEmail       String?
+  pdfUrl            String?           // Generated PDF after approval
+  locked            Boolean           @default(false) // Lock after approval
+  
+  // Versioning
+  version           Int               @default(1)
+  parentVersionId   String?
+  isLatestVersion   Boolean           @default(true)
+  
+  // Expiration
+  expiresAt         DateTime?
+  
+  // Payment (if deposit required)
+  depositPaid       Boolean           @default(false)
+  depositPaidAt     DateTime?
+  stripePaymentIntentId String?
+  
+  // Additional fields for service compatibility
+  clientId          String?             // Added for client tracking
+  content           Json?               // Added for proposal content
+  metadata          Json?               // Added for customization
+  totalAmount       Float?              // Added for pricing/revenue
+  
+  // Timestamps
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sentAt            DateTime?
+  
+  // Template reference
+  templateId        String?
+  template          Template?         @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  
+  // Pipeline stage for forecasting
+  pipelineStageId   String?
+  estimatedValue    Float?            // Estimated deal value
+  trackingMode      String?           // Added for collaboration ('track_changes', etc)
+  
+  // Relations
+  blocks            ProposalBlock[]
+  comments          Comment[]
+  activities        Activity[]
+  versions          ProposalVersion[]
+  clientFeedback    ClientFeedback[]
+  viewSessions      ProposalViewSession[]
+  payments          ProposalPayment[]
+  dealLinks         CrmDealLink[]         // Added
+  suggestions       ProposalSuggestion[]  // Added
+  changes           ProposalChange[]      // Added
+  lineItems         PricingItem[]         // Added for direct access
+  collaborators     ProposalCollaborator[] // Added
+  proposalComments  ProposalComment[]     // Added
+  
+  @@index([userId])
+  @@index([slug])
+  @@index([status])
+  @@index([templateId])
+  @@index([parentVersionId])
+  @@index([pipelineStageId])
+}
+
+model ProposalBlock {
+  id                String              @id @default(uuid())
+  type              ProposalBlockType
+  order             Int                 // For ordering blocks
+  content           Json                // Block-specific content
+  
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations (for PRICING_TABLE type)
+  pricingItems      PricingItem[]
+  
+  @@index([proposalId])
+  @@index([order])
+}
+
+model PricingItem {
+  id                String              @id @default(uuid())
+  name              String
+  description       String?
+  price             Float
+  type              PricingItemType
+  order             Int
+  
+  // For QUANTITY type
+  minQuantity       Int                 @default(1)
+  maxQuantity       Int                 @default(10)
+  
+  blockId           String
+  block             ProposalBlock       @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  
+  proposalId        String?             // Added for direct link
+  proposal          Proposal?           @relation(fields: [proposalId], references: [id])
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([blockId])
+  @@index([order])
+}
+
+model Comment {
+  id                String              @id @default(uuid())
+  content           String
+  authorName        String              // Client name (not a User)
+  authorEmail       String?
+  
+  // Collaboration features
+  parentId          String?             // For threaded comments
+  parent            Comment?            @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies           Comment[]           @relation("CommentReplies")
+  
+  mentions          Json?               // Array of mentioned user IDs
+  resolved          Boolean             @default(false)
+  resolvedBy        String?
+  resolvedAt        DateTime?
+  
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([proposalId])
+  @@index([parentId])
+}
+
+model Activity {
+  id                String              @id @default(uuid())
+  type              String              // 'proposal_viewed', 'comment_added', 'proposal_approved', etc.
+  metadata          Json?               // Additional data (IP, user agent, etc.)
+  
+  proposalId        String?
+  proposal          Proposal?           @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  
+  userId            String?
+  user              User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model Template {
+  id                String              @id @default(uuid())
+  name              String
+  title             String?             // Added for alternative name
+  description       String?
+  category          TemplateCategory    @default(OTHER)
+  thumbnail         String?             // S3/R2 URL for preview image
+  isPublic          Boolean             @default(false) // Public templates available to all users
+  
+  // Owner
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Template content (JSON structure of blocks)
+  content           Json                // Serialized proposal blocks
+  
+  // Marketplace source tracking
+  sourceMarketplaceId String?           // Added for tracking template marketplace origin
+  
+  // Usage tracking
+  useCount          Int                 @default(0)
+  
+  // Timestamps
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  // Relations
+  proposals         Proposal[]
+  marketplaceListings TemplateMarketplace[] // Added
+  
+  @@index([userId])
+  @@index([category])
+  @@index([isPublic])
+  @@index([sourceMarketplaceId])
+}
+
+model Notification {
+  id                String              @id @default(uuid())
+  type              String              // 'proposal_viewed', 'comment_added', 'proposal_signed', etc.
+  title             String
+  message           String
+  read              Boolean             @default(false)
+  
+  // Metadata
+  proposalId        String?
+  metadata          Json?               // Additional context data
+  
+  // Owner
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id                String              @id @default(uuid())
+  action            String              // 'create', 'update', 'delete', 'view', 'sign', etc.
+  entityType        String              // 'proposal', 'comment', 'user', etc.
+  entityId          String
+  
+  // Actor info
+  userId            String?
+  userEmail         String?
+  ipAddress         String?
+  userAgent         String?
+  
+  // Change details
+  changes           Json?               // Before/after data for updates
+  metadata          Json?               // Additional context
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model StripeWebhookEvent {
+  id                String              @id @default(uuid())
+  eventId           String              @unique // Stripe event ID
+  type              String
+  processed         Boolean             @default(false)
+  data              Json
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([eventId])
+  @@index([processed])
+}
+
+model ProposalVersion {
+  id                String              @id @default(uuid())
+  version           Int
+  versionNumber     Int?                // Added for version tracking
+  changeDescription String?
+  snapshotData      Json                // Complete proposal state
+  content           Json?               // Added for full content storage
+  title             String?             // Added for version title
+  status            String?             // Added for proposal status at version
+  isAutoSnapshot    Boolean             @default(false) // Added for auto-snapshot flag
+  
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  
+  createdBy         String?
+  createdById       String?             // Added for alternative field name
+  createdAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+  @@index([version])
+}
+
+model ClientFeedback {
+  id                String              @id @default(uuid())
+  rating            Int?                // 1-5 stars
+  comment           String?
+  clientName        String
+  clientEmail       String
+  
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+}
+
+model CurrencyRate {
+  id                String              @id @default(uuid())
+  baseCurrency      Currency            @default(USD)
+  targetCurrency    Currency
+  rate              Float
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@unique([baseCurrency, targetCurrency])
+  @@index([baseCurrency])
+}
+
+model AIGeneratedContent {
+  id                String              @id @default(uuid())
+  prompt            String
+  generatedContent  String
+  contentType       String              // 'scope', 'terms', 'pricing', etc.
+  model             String              // 'gpt-4', 'claude-3', etc.
+  
+  userId            String?
+  proposalId        String?
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([proposalId])
+  @@index([contentType])
+}
+
+// ===============================================
+// NEW FEATURES - Advanced Analytics & Automation
+// ===============================================
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum AutomationTrigger {
+  PROPOSAL_SENT
+  PROPOSAL_VIEWED
+  PROPOSAL_UNOPENED
+  PROPOSAL_APPROVED
+  PROPOSAL_DECLINED
+  PROPOSAL_EXPIRED
+  COMMENT_ADDED
+  PAYMENT_RECEIVED
+}
+
+enum AutomationAction {
+  SEND_EMAIL
+  SEND_NOTIFICATION
+  UPDATE_STATUS
+  ASSIGN_TO
+  ADD_TAG
+  WEBHOOK
+  SLACK_NOTIFICATION
+}
+
+// Proposal View Analytics - Track detailed viewing behavior
+model ProposalViewSession {
+  id                String              @id @default(uuid())
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  
+  // Session info
+  sessionId         String              @unique // Client-side generated session ID
+  visitorId         String?             // Anonymous visitor tracking
+  
+  // Viewer info (if available)
+  viewerEmail       String?
+  viewerName        String?
+  viewerCompany     String?
+  
+  // Device/Location info
+  ipAddress         String?
+  userAgent         String?
+  device            String?             // mobile, tablet, desktop
+  browser           String?
+  os                String?
+  country           String?
+  city              String?
+  
+  // Engagement metrics
+  totalDuration     Int                 @default(0) // Total time in seconds
+  scrollDepth       Float               @default(0) // Max scroll percentage 0-100
+  pagesViewed       Int                 @default(1)
+  interactions      Int                 @default(0) // Clicks, hovers, etc.
+  
+  // Timing
+  startedAt         DateTime            @default(now())
+  endedAt           DateTime?
+  lastActivityAt    DateTime            @default(now())
+  
+  // Section analytics
+  sectionViews      ProposalSectionView[]
+  
+  @@index([proposalId])
+  @@index([sessionId])
+  @@index([visitorId])
+  @@index([startedAt])
+}
+
+// Track time spent on each section
+model ProposalSectionView {
+  id                String              @id @default(uuid())
+  sessionId         String
+  session           ProposalViewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  sectionType       String              // 'introduction', 'pricing', 'scope', 'terms', etc.
+  sectionIndex      Int                 // Order in proposal
+  blockId           String?             // Reference to ProposalBlock if applicable
+  
+  // Engagement
+  viewDuration      Int                 @default(0) // Time in seconds
+  scrollDepth       Float               @default(0) // How much of section was scrolled
+  interactions      Int                 @default(0) // Clicks, selections, etc.
+  revisits          Int                 @default(0) // How many times returned to section
+  
+  firstViewedAt     DateTime            @default(now())
+  lastViewedAt      DateTime            @default(now())
+  
+  @@index([sessionId])
+  @@index([sectionType])
+}
+
+// Snippet Library - Reusable content blocks
+model Snippet {
+  id                String              @id @default(uuid())
+  name              String
+  description       String?
+  content           String              // Rich text content
+  category          String?             // 'introduction', 'terms', 'pricing_note', etc.
+  
+  // Dynamic variables (stored as JSON array)
+  variables         Json?               // [{name: 'client_name', defaultValue: ''}]
+  
+  // Organization
+  tags              String[]            // Tags for filtering
+  isGlobal          Boolean             @default(false) // Available to all team members
+  
+  // Owner
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Usage tracking
+  useCount          Int                 @default(0)
+  lastUsedAt        DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([userId])
+  @@index([category])
+  @@index([isGlobal])
+}
+
+// Automation Workflows
+model AutomationWorkflow {
+  id                String              @id @default(uuid())
+  name              String
+  description       String?
+  isActive          Boolean             @default(true)
+  
+  // Trigger configuration
+  trigger           AutomationTrigger
+  triggerConditions Json?               // Additional conditions for trigger
+  
+  // Delay before action (in hours)
+  delayHours        Int                 @default(0)
+  
+  // Action configuration
+  action            AutomationAction
+  actionConfig      Json                // Action-specific configuration
+  
+  // Owner
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Targeting (optional - apply to specific proposals)
+  targetTags        String[]            // Only apply to proposals with these tags
+  
+  // Stats
+  executionCount    Int                 @default(0)
+  lastExecutedAt    DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  executions        AutomationExecution[]
+  
+  @@index([userId])
+  @@index([trigger])
+  @@index([isActive])
+}
+
+// Track automation executions
+model AutomationExecution {
+  id                String              @id @default(uuid())
+  workflowId        String
+  workflow          AutomationWorkflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  proposalId        String?
+  
+  status            String              // 'pending', 'executed', 'failed', 'cancelled'
+  scheduledFor      DateTime
+  executedAt        DateTime?
+  
+  result            Json?               // Execution result/error
+  
+  createdAt         DateTime            @default(now())
+  
+  @@index([workflowId])
+  @@index([status])
+  @@index([scheduledFor])
+}
+
+// Team & Permissions
+model Team {
+  id                String              @id @default(uuid())
+  name              String
+  slug              String              @unique
+  
+  // Owner
+  ownerId           String
+  
+  // Settings
+  settings          Json?               // Team-level settings
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  members           TeamMember[]
+  
+  @@index([ownerId])
+  @@index([slug])
+}
+
+model TeamMember {
+  id                String              @id @default(uuid())
+  teamId            String
+  team              Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade) // Added
+  
+  role              TeamRole            @default(MEMBER)
+  
+  // Granular permissions
+  permissions       Json?               // Specific permission overrides
+  
+  // Stats for team performance
+  proposalsSent     Int                 @default(0)
+  proposalsWon      Int                 @default(0)
+  totalRevenue      Float               @default(0)
+  
+  joinedAt          DateTime            @default(now())
+  
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+}
+
+// Proposal Tags for organization
+model ProposalTag {
+  id                String              @id @default(uuid())
+  name              String
+  color             String              @default("#6366f1") // Hex color
+  
+  userId            String
+  
+  createdAt         DateTime            @default(now())
+  
+  proposals         ProposalTagAssignment[]
+  
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model ProposalTagAssignment {
+  id                String              @id @default(uuid())
+  proposalId        String
+  tagId             String
+  tag               ProposalTag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  assignedAt        DateTime            @default(now())
+  
+  @@unique([proposalId, tagId])
+  @@index([proposalId])
+  @@index([tagId])
+}
+
+// Payment tracking for proposals
+model ProposalPayment {
+  id                String              @id @default(uuid())
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  
+  // Payment details
+  type              String              // 'deposit', 'milestone', 'final'
+  amount            Float
+  currency          Currency            @default(USD)
+  
+  // Stripe
+  stripePaymentIntentId String?         @unique
+  stripeChargeId    String?
+  
+  status            String              @default("pending") // 'pending', 'processing', 'succeeded', 'failed', 'refunded'
+  
+  // Payer info
+  payerEmail        String?
+  payerName         String?
+  
+  paidAt            DateTime?
+  refundedAt        DateTime?
+  
+  metadata          Json?               // Additional payment metadata
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([proposalId])
+  @@index([stripePaymentIntentId])
+  @@index([status])
+}
+
+// Revenue Pipeline for forecasting
+model PipelineStage {
+  id                String              @id @default(uuid())
+  name              String
+  order             Int
+  probability       Float               @default(0) // Win probability 0-100
+  color             String              @default("#6366f1")
+  
+  userId            String
+  
+  createdAt         DateTime            @default(now())
+  
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([order])
+}
+
+// ========================================
+// CRM INTEGRATIONS MODULE
+// ========================================
+
+model CrmIntegration {
+  id                String              @id @default(uuid())
+  userId            String
+  
+  provider          String              // 'hubspot', 'salesforce', 'pipedrive', 'zoho'
+  accountName       String
+  
+  accessToken       String              // Encrypted
+  refreshToken      String?             // Encrypted
+  expiresAt         DateTime?
+  tokenExpiresAt    DateTime?           // Added
+  
+  webhookSecret     String?
+  syncEnabled       Boolean             @default(true)
+  isActive          Boolean             @default(true) // Added
+  
+  lastSyncedAt      DateTime?
+  
+  metadata          Json?               // Provider-specific config
+  syncConfig        Json?               // Added
+  stageMappings     Json?               // Added
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  contacts          CrmContact[]
+  dealLinks         CrmDealLink[]
+  webhookLogs       CrmWebhookLog[]
+  
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([provider])
+}
+
+model CrmContact {
+  id                String              @id @default(uuid())
+  crmIntegrationId  String?             // Made optional
+  crmIntegration    CrmIntegration?     @relation(fields: [crmIntegrationId], references: [id], onDelete: Cascade)
+  
+  userId            String?             // Added
+  provider          String?             // Added
+  
+  externalId        String              // ID in CRM system
+  email             String
+  name              String?
+  firstName         String?             // Added
+  lastName          String?             // Added
+  company           String?
+  phone             String?             // Added
+  
+  customFields      Json?               // Added
+  syncedData        Json?               // Made optional
+  
+  lastSyncedAt      DateTime            @default(now())
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@unique([crmIntegrationId, externalId])
+  @@unique([userId, provider, externalId]) // Added
+  @@index([crmIntegrationId])
+  @@index([email])
+}
+
+model CrmDealLink {
+  id                String              @id @default(uuid())
+  crmIntegrationId  String?             // Made optional
+  crmIntegration    CrmIntegration?     @relation(fields: [crmIntegrationId], references: [id], onDelete: Cascade)
+  
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  userId            String?             // Added
+  provider          String?             // Added
+  
+  externalDealId    String              // Deal ID in CRM
+  dealName          String?
+  dealAmount        Float?
+  dealStage         String?
+  
+  syncDirection     String              @default("bidirectional") // 'to_crm', 'from_crm', 'bidirectional'
+  
+  lastSyncedAt      DateTime            @default(now())
+  createdAt         DateTime            @default(now())
+  
+  @@unique([crmIntegrationId, proposalId])
+  @@index([crmIntegrationId])
+  @@index([proposalId])
+  @@index([externalDealId])
+}
+
+model CrmWebhookLog {
+  id                String              @id @default(uuid())
+  crmIntegrationId  String
+  provider          String?             // Added
+  crmIntegration    CrmIntegration      @relation(fields: [crmIntegrationId], references: [id], onDelete: Cascade)
+  
+  event             String              // 'contact.created', 'deal.updated', etc.
+  payload           Json
+  
+  processed         Boolean             @default(false)
+  error             String?
+  
+  receivedAt        DateTime            @default(now())
+  
+  @@index([crmIntegrationId])
+  @@index([event])
+  @@index([processed])
+}
+
+// ========================================
+// VIDEO PROPOSALS MODULE
+// ========================================
+
+model ProposalVideo {
+  id                String              @id @default(uuid())
+  proposalId        String?
+  userId            String              // Added for filtering
+  
+  provider          String              // 'loom', 'vidyard'
+  externalId        String              // Video ID in provider system
+  embedUrl          String
+  thumbnailUrl      String?
+  
+  title             String?
+  description       String?             // Added for video details
+  duration          Int?                // Seconds
+  
+  // Video personalization
+  recipientName     String?
+  recipientCompany  String?
+  customMessage     String?
+  
+  // Interactive elements
+  annotations       Json?               // Time-stamped notes
+  ctaOverlays       Json?               // Call-to-action overlays (renamed from ctaButtons)
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  viewSessions      VideoViewSession[]
+  
+  @@unique([proposalId, provider, externalId])
+  @@index([proposalId])
+  @@index([userId])
+}
+
+model VideoViewSession {
+  id                String              @id @default(uuid())
+  videoId           String
+  video             ProposalVideo       @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  
+  sessionId         String              // Viewer session
+  viewerEmail       String?
+  viewerName        String?
+  ipAddress         String?             // Added for tracking
+  
+  // Engagement metrics
+  watchDuration     Int                 @default(0) // Seconds watched
+  watchPercentage   Float               @default(0) // 0-100
+  maxWatchTime      Int                 @default(0) // Added for max watch duration
+  completed         Boolean             @default(false)
+  
+  // Interaction points
+  pauseCount        Int                 @default(0)
+  seekCount         Int                 @default(0)
+  replayCount       Int                 @default(0)
+  
+  // CTA tracking
+  ctaClicks         Json?               // Added index for queries
+  events            Json?               // Added for event tracking
+  
+  startedAt         DateTime            @default(now())
+  lastWatchedAt     DateTime            @default(now())
+  
+  @@index([videoId])
+  @@index([sessionId])
+}
+
+model VideoIntegration {
+  id                String              @id @default(uuid())
+  userId            String
+  
+  provider          String              // 'loom', 'vidyard'
+  
+  accessToken       String              // Encrypted
+  refreshToken      String?             // Encrypted
+  expiresAt         DateTime?
+  tokenExpiresAt    DateTime?           // Added for token expiration tracking
+  
+  accountEmail      String?
+  apiKey            String?             // Added for API key storage
+  isActive          Boolean             @default(true) // Added for integration status
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+// ========================================
+// BULK OPERATIONS MODULE
+// ========================================
+
+model BatchJob {
+  id                String              @id @default(uuid())
+  userId            String
+  
+  type              String              // 'bulk_send', 'bulk_status', 'export', etc.
+  status            String              @default("pending") // 'pending', 'processing', 'completed', 'failed'
+  
+  // Job configuration
+  proposalIds       String[]
+  action            Json?               // Action-specific parameters
+  metadata          Json?               // Job metadata
+  
+  // Progress tracking
+  totalItems        Int
+  processedItems    Int                 @default(0)
+  failedItems       Int                 @default(0)
+  
+  // Results
+  results           Json?
+  errors            Json?
+  
+  // Export specific
+  exportFormat      String?             // 'pdf', 'csv', 'json', 'xlsx'
+  exportUrl         String?             // Temporary download URL
+  
+  startedAt         DateTime?
+  completedAt       DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+}
+
+// ========================================
+// A/B TESTING FRAMEWORK
+// ========================================
+
+model ABTest {
+  id                String              @id @default(uuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade) // Added
+  
+  name              String
+  description       String?
+  
+  type              String              // 'pricing_presentation', 'template', 'email_subject', etc.
+  status            String              @default("draft") // 'draft', 'running', 'paused', 'completed', 'archived'
+  
+  // Test configuration
+  primaryMetric     String              // 'conversion_rate', 'view_rate', 'engagement_time', etc.
+  secondaryMetrics  String[]
+  
+  confidenceLevel   Float               @default(0.95)
+  minSampleSize     Int                 @default(100)
+  autoSelectWinner  Boolean             @default(true)
+  
+  // Target
+  targetTemplateId  String?
+  
+  // Winner
+  winnerId          String?
+  
+  // Dates
+  startDate         DateTime?
+  endDate           DateTime?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  variants          ABTestVariant[]
+  assignments       ABTestAssignment[]
+  conversions       ABTestConversion[]
+  
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+}
+
+model ABTestVariant {
+  id                String              @id @default(uuid())
+  testId            String
+  test              ABTest              @relation(fields: [testId], references: [id], onDelete: Cascade)
+  
+  name              String
+  description       String?
+  
+  trafficAllocation Float               // Percentage (0-100)
+  isControl         Boolean             @default(false)
+  
+  // Variant content/config
+  content           Json
+  
+  // Metrics
+  impressions       Int                 @default(0)
+  conversions       Int                 @default(0)
+  clicks            Int                 @default(0)
+  totalValue        Float               @default(0)
+  
+  createdAt         DateTime            @default(now())
+  
+  assignments       ABTestAssignment[]
+  conversionEvents  ABTestConversion[]
+  
+  @@index([testId])
+}
+
+model ABTestAssignment {
+  id                String              @id @default(uuid())
+  testId            String
+  test              ABTest              @relation(fields: [testId], references: [id], onDelete: Cascade)
+  
+  variantId         String
+  variant           ABTestVariant       @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  sessionId         String
+  
+  assignedAt        DateTime            @default(now())
+  
+  @@unique([testId, sessionId])
+  @@index([testId])
+  @@index([variantId])
+  @@index([sessionId])
+}
+
+model ABTestConversion {
+  id                String              @id @default(uuid())
+  testId            String
+  test              ABTest              @relation(fields: [testId], references: [id], onDelete: Cascade)
+  
+  variantId         String
+  variant           ABTestVariant       @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  
+  sessionId         String
+  event             String              // 'view', 'click', 'approval', 'sign', etc.
+  value             Float?              // Revenue or other numeric value
+  
+  metadata          Json?
+  
+  occurredAt        DateTime            @default(now())
+  
+  @@index([testId])
+  @@index([variantId])
+  @@index([sessionId])
+  @@index([event])
+}
+
+// ========================================
+// ADVANCED ANALYTICS / HEATMAPS
+// ========================================
+
+model ProposalInteraction {
+  id                String              @id @default(uuid())
+  proposalId        String
+  
+  sessionId         String
+  
+  type              String              // 'click', 'hover', 'scroll', 'focus', etc.
+  
+  // Element info
+  elementId         String?
+  elementType       String?             // 'button', 'link', 'pricing-table', etc.
+  elementText       String?
+  
+  // Position
+  x                 Int
+  y                 Int
+  scrollDepth       Float?
+  
+  // Viewport info
+  viewportWidth     Int?
+  viewportHeight    Int?
+  
+  metadata          Json?
+  
+  timestamp         DateTime            @default(now())
+  
+  @@index([proposalId])
+  @@index([sessionId])
+  @@index([type])
+}
+
+model ProposalScrollTracking {
+  id                String              @id @default(uuid())
+  proposalId        String
+  
+  sessionId         String
+  
+  scrollDepth       Float               // Percentage (0-100)
+  scrollPosition    Int                 // Pixels from top
+  documentHeight    Int
+  viewportHeight    Int
+  
+  timeSpent         Int?                // Milliseconds at this depth
+  
+  trackedAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+  @@index([sessionId])
+}
+
+model ProposalEngagement {
+  id                String              @id @default(uuid())
+  proposalId        String
+  
+  sessionId         String              @unique
+  
+  timeSpent         Int                 // Total milliseconds
+  maxScrollDepth    Float               // Percentage
+  
+  clicks            Int                 @default(0)
+  hovers            Int                 @default(0)
+  
+  videoWatched      Boolean             @default(false)
+  pricingViewed     Boolean             @default(false)
+  
+  sectionsViewed    String[]
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([proposalId])
+  @@index([sessionId])
+}
+
+// ========================================
+// MULTI-LANGUAGE SUPPORT
+// ========================================
+
+model Translation {
+  id                String              @id @default(uuid())
+  userId            String
+  
+  key               String
+  language          String              // ISO language code (en, es, fr, etc.)
+  value             String
+  
+  namespace         String              @default("default")
+  description       String?
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@unique([key, language, namespace])
+  @@index([userId])
+  @@index([language])
+  @@index([namespace])
+}
+
+// ========================================
+// UPSELL INTELLIGENCE MODULE
+// ========================================
+
+model RecommendationTracking {
+  id                String              @id @default(uuid())
+  userId            String
+  
+  recommendationId  String
+  
+  accepted          Boolean
+  revenue           Float?
+  
+  trackedAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([recommendationId])
+}
+
+// ========================================
+// API KEYS & SECURITY
+// ========================================
+
+model ApiKey {
+  id                String              @id @default(uuid())
+  userId            String
+  key               String              @unique
+  keyHash           String?
+  keyPrefix         String?
+  name              String
+  description       String?
+  permissions       String[]            @default([])
+  rateLimit         Int?
+  allowedIps        String[]            @default([])
+  allowedDomains    String[]            @default([])
+  isActive          Boolean             @default(true)
+  expiresAt         DateTime?
+  lastUsedAt        DateTime?
+  usageCount        Int                 @default(0)
+  lastUsed          DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([userId])
+}
+
+model ApiKeyUsage {
+  id                String              @id @default(uuid())
+  apiKeyId          String
+  endpoint          String
+  method            String
+  statusCode        Int
+  responseTime      Int
+  createdAt         DateTime            @default(now())
+  
+  @@index([apiKeyId])
+  @@index([createdAt])
+}
+
+// ========================================
+// OAUTH & SSO
+// ========================================
+
+model OAuthApp {
+  id                String              @id @default(uuid())
+  oAuthAppId        String?             // Added for alternative ID
+  userId            String
+  provider          String
+  clientId          String              @unique
+  clientSecret      String
+  clientSecretHash  String?             // Added for hashed secret
+  redirectUri       String
+  isActive          Boolean             @default(true) // Added
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  tokens            OAuthToken[]
+  codes             OAuthCode[]
+  
+  @@index([userId])
+  @@index([provider])
+  @@index([clientId])
+}
+
+model OAuthToken {
+  id                String              @id @default(uuid())
+  oAuthAppId        String?             // Added for OAuth app link
+  userId            String
+  provider          String
+  accessToken       String
+  accessTokenHash   String?             // Added for hashed token
+  refreshToken      String?
+  refreshTokenHash  String?             // Added for hashed refresh token
+  refreshExpiresAt  DateTime?           // Added
+  scopes            String[]            @default([]) // Added for permissions
+  expiresAt         DateTime?
+  revokedAt         DateTime?           // Added for revocation tracking
+  
+  oAuthApp          OAuthApp?           @relation(fields: [oAuthAppId], references: [id]) // Added relation
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([userId])
+  @@index([provider])
+  @@index([oAuthAppId])
+}
+
+model OAuthCode {
+  id                String              @id @default(uuid())
+  oAuthAppId        String?             // Added for OAuth app link
+  userId            String
+  provider          String
+  code              String              @unique
+  codeHash          String?             // Added
+  codeChallenge     String?             // Added for PKCE
+  codeChallengeMethod String?          // Added for PKCE method
+  redirectUri       String?             // Added for redirect validation
+  scopes            String[]            @default([]) // Added for permissions
+  usedAt            DateTime?           // Added for revocation after use
+  expiresAt         DateTime
+  createdAt         DateTime            @default(now())
+  
+  oAuthApp          OAuthApp?           @relation(fields: [oAuthAppId], references: [id])
+  
+  @@index([userId])
+  @@index([oAuthAppId])
+}
+
+model SsoConfiguration {
+  id                String              @id @default(uuid())
+  userId            String
+  teamId            String?             // Added for team-level SSO
+  provider          String
+  name              String?             // Added for display name
+  description       String?             // Added
+  enabled           Boolean             @default(false)
+  enforceForDomain  Boolean             @default(false) // Added
+  allowedDomains    String[]            @default([]) // Added
+  config            Json
+  
+  // SAML fields
+  certificate       String?             // Added
+  privateKey        String?             // Added
+  entryPoint        String?             // Added
+  issuer            String?             // Added
+  
+  // OAuth fields
+  clientId          String?             // Added
+  clientSecret      String?             // Added
+  authorizationUrl  String?             // Added
+  tokenUrl          String?             // Added
+  userInfoUrl       String?             // Added
+  
+  metadata          Json?               // Added
+  successCount      Int                 @default(0) // Added
+  failureCount      Int                 @default(0) // Added
+  lastUsedAt        DateTime?           // Added
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@unique([userId, provider])
+  @@index([teamId])
+}
+
+model SsoAttempt {
+  id                String              @id @default(uuid())
+  userId            String
+  ssoConfigurationId String?            // Added for configuration link
+  provider          String
+  success           Boolean
+  errorMessage      String?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([provider])
+  @@index([ssoConfigurationId])
+}
+
+model DirectorySync {
+  id                String              @id @default(uuid())
+  userId            String
+  teamId            String?             // Added
+  name              String?             // Added
+  description       String?             // Added
+  provider          String
+  enabled           Boolean             @default(false)
+  
+  syncGroups        Boolean             @default(true) // Added
+  syncedGroupsCount Int                 @default(0)    // Added
+  scimEndpoint      String?             // Added
+  metadata          Json?               // Added
+  
+  allowedDomains    String[]            @default([]) // Added
+  autoProvisionUsers Boolean            @default(true)  // Added (Fixing missing field)
+  autoDeprovisionUsers Boolean          @default(false) // Added
+  syncedUsersCount  Int                 @default(0) // Added
+  
+  lastSyncAt        DateTime?           // Renamed from lastSync
+  bearerToken       String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([userId])
+}
+
+model DirectorySyncLog {
+  id                String              @id @default(uuid())
+  syncId            String
+  status            String
+  message           String?
+  syncedCount       Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  
+  @@index([syncId])
+}
+
+// ========================================
+// WEBHOOKS & INTEGRATIONS
+// ========================================
+
+model Webhook {
+  id                String              @id @default(uuid())
+  userId            String
+  url               String
+  events            String[]
+  isActive          Boolean             @default(true)
+  description       String?
+  secret            String
+  
+  // Stats
+  lastTriggeredAt   DateTime?
+  successCount      Int                 @default(0)
+  failureCount      Int                 @default(0)
+
+  deliveries        WebhookDelivery[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([userId])
+}
+
+model WebhookDelivery {
+  id                String              @id @default(uuid())
+  webhookId         String
+  webhook           Webhook             @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event             String
+  payload           Json
+  statusCode        Int?
+  response          String?
+  duration          Int?
+  success           Boolean             @default(false)
+  attempts          Int                 @default(0)
+  lastAttempt       DateTime?
+  nextRetryAt       DateTime?
+  createdAt         DateTime            @default(now())
+  
+  @@index([webhookId])
+  @@index([event])
+}
+
+// ========================================
+// SECURITY & AUDIT
+// ========================================
+
+model SecurityPolicy {
+  id                        String              @id @default(uuid())
+  userId                    String
+  user                      User                @relation(fields: [userId], references: [id], onDelete: Cascade) // Added
+  teamId                    String?             // Added for team-level policies
+  passwordMinLength         Int                 @default(8)
+  passwordRequireUppercase  Boolean             @default(false) // Added
+  passwordRequireLowercase  Boolean             @default(false) // Added
+  passwordRequireNumbers    Boolean             @default(false) // Added
+  passwordRequireSpecialChars Boolean           @default(false) // Added
+  passwordExpiryDays        Int?                // Added
+  requireMfa                Boolean             @default(false)
+  enforceIpWhitelist        Boolean             @default(false) // Added
+  allowedIpRanges           String[]            @default([]) // Added
+  maxConcurrentSessions     Int?                // Added
+  sessionTimeout            Int                 @default(3600)
+  sessionSecurityLevel      String?             // Added
+  logAllAccess              Boolean             @default(false) // Added
+  preventAccountSharing     Boolean             @default(false) // Added
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  
+  @@unique([userId])
+  @@index([teamId])
+}
+
+model SecurityAuditLog {
+  id                String              @id @default(uuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade) // Added
+  teamId            String?             // Added for team-level audit
+  action            String
+  resourceId        String?
+  changes           Json?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([teamId])
+  @@index([action])
+}
+
+model UserSession {
+  id                String              @id @default(uuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade) // Added
+  token             String              @unique
+  ipAddress         String?
+  userAgent         String?
+  lastActivityAt    DateTime?           // Added
+  expiresAt         DateTime
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+}
+
+// ========================================
+// APPROVAL & WORKFLOWS
+// ========================================
+
+model ApprovalWorkflow {
+  id                String              @id @default(uuid())
+  userId            String
+  name              String
+  description       String?             // Added
+  steps             Json
+  triggerConditions Json?               // Added
+  isDefault         Boolean             @default(false) // Added
+  isActive          Boolean             @default(true)
+  minProposalValue  Float?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  approvals         ProposalApproval[]
+  
+  @@index([userId])
+}
+
+model ProposalApproval {
+  id                String              @id @default(uuid())
+  proposalId        String
+  workflowId        String
+  workflow          ApprovalWorkflow    @relation(fields: [workflowId], references: [id])
+  currentStepOrder  Int                 @default(0) // Added
+  status            String
+  submittedBy       String?             // Added
+  submittedAt       DateTime?           // Added
+  notes             String?             // Added
+  approvalRecords   Json?               // Added
+  completedAt       DateTime?           // Added
+  approvalDate      DateTime?
+  createdAt         DateTime            @default(now())
+  
+  delegations       ApprovalDelegation[]
+  
+  @@index([proposalId])
+}
+
+model ApprovalAuditLog {
+  id                String              @id @default(uuid())
+  approvalId        String
+  action            String
+  changedBy         String
+  changes           Json?
+  createdAt         DateTime            @default(now())
+  
+  @@index([approvalId])
+}
+
+model ApprovalDelegation {
+  id                String              @id @default(uuid())
+  approvalId        String?             // Added
+  approval          ProposalApproval?   @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+  delegatedBy       String
+  delegatedTo       String
+  isActive          Boolean             @default(true)
+  expiresAt         DateTime
+  createdAt         DateTime            @default(now())
+  
+  @@index([delegatedBy])
+  @@index([delegatedTo])
+  @@index([approvalId])
+}
+
+model ApprovalEscalation {
+  id                String              @id @default(uuid())
+  approvalId        String
+  escalatedTo       String
+  escalatedBy       String?             // Added for audit trail
+  reason            String?
+  createdAt         DateTime            @default(now())
+  
+  @@index([approvalId])
+}
+
+// ========================================
+// COLLABORATION
+// ========================================
+
+model CollaborationWorkspace {
+  id                String              @id @default(uuid())
+  proposalId        String
+  name              String
+  createdAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+}
+
+model ProposalCollaborator {
+  id                String              @id @default(uuid())
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  invitedById       String?
+  role              String
+  permissions       String[]
+  sectionPermissions Json?
+  addedAt           DateTime            @default(now())
+  
+  @@unique([proposalId, userId])
+}
+
+model ProposalSuggestion {
+  id                String              @id @default(uuid())
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade) // Added
+  sectionId         String?             // Added
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade) // Added
+  originalContent   String?
+  suggestedContent  String
+  explanation       String?
+  status            String              @default("pending")
+  respondedById     String?             // Added
+  respondedBy       User?               @relation("SuggestionResponder", fields: [respondedById], references: [id])
+  respondedAt       DateTime?           // Added
+  response          String?             // Added
+  resolvedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+}
+
+model ProposalChange {
+  id                String              @id @default(uuid())
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade) // Added
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade) // Added
+  field             String
+  oldValue          String?
+  newValue          String?
+  status            String              @default("pending")
+  reviewedById      String?             // Added
+  reviewedBy        User?               @relation("ChangeReviewer", fields: [reviewedById], references: [id])
+  reviewedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+}
+
+model ProposalComment {
+  id                String              @id @default(uuid())
+  proposalId        String
+  proposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  content           String
+  sectionId         String?
+  position          Json?
+  
+  parentId          String?
+  parent            ProposalComment?    @relation("CommentReplies", fields: [parentId], references: [id])
+  replies           ProposalComment[]   @relation("CommentReplies")
+  
+  mentions          Json?
+  
+  resolved          Boolean             @default(false)
+  resolvedById      String?
+  resolvedBy        User?               @relation("CommentResolver", fields: [resolvedById], references: [id])
+  resolvedAt        DateTime?
+  resolution        String?
+  
+  editedAt          DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([proposalId])
+  @@index([userId])
+}
+
+model CollaborationInvitation {
+  id                String              @id @default(uuid())
+  proposalId        String
+  invitedById       String?
+  email             String
+  role              String
+  message           String?
+  token             String              @unique
+  expiresAt         DateTime
+  createdAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+  @@index([email])
+}
+
+// ========================================
+// CUSTOM FIELDS
+// ========================================
+
+model CustomFieldGroup {
+  id                String              @id @default(uuid())
+  userId            String
+  teamId            String?             // Added
+  scope             String?             // Added
+  name              String
+  description       String?
+  order             Int
+  collapsible       Boolean             @default(true) // Added
+  collapsed         Boolean             @default(false) // Added
+  
+  fields            CustomFieldDefinition[]
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime?           @updatedAt
+  
+  @@index([userId])
+}
+
+model CustomFieldDefinition {
+  id                String              @id @default(uuid())
+  groupId           String?
+  group             CustomFieldGroup?   @relation(fields: [groupId], references: [id])
+  
+  teamId            String?             // Added
+  scope             String?             // Added
+  
+  name              String
+  label             String?             // Added
+  description       String?             // Added
+  type              String
+  
+  required          Boolean             @default(false)
+  unique            Boolean             @default(false) // Added
+  
+  order             Int                 @default(0)
+  defaultValue      Json?               // Added
+  placeholder       String?             // Added
+  helpText          String?             // Added
+  options           Json?               // Changed from String[] to support objects
+  validation        Json?               // Added
+  conditions        Json?               // Added
+  settings          Json?               // Added
+  isActive          Boolean             @default(true) // Added
+  
+  values            CustomFieldValue[]  // Added
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime?           @updatedAt
+  
+  @@index([groupId])
+  @@index([teamId])
+}
+
+model CustomFieldValue {
+  id                String              @id @default(uuid())
+  fieldId           String
+  field             CustomFieldDefinition @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  
+  entityId          String
+  entityType        String?
+  scope             String?             // Added
+  value             Json                // Changed from String
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime?           @updatedAt
+  
+  @@unique([fieldId, entityId])
+  @@index([fieldId])
+  @@index([entityId])
+}
+
+// ========================================
+// TEMPLATE MARKETPLACE
+// ========================================
+
+model TemplateMarketplace {
+  id                String              @id @default(uuid())
+  templateId        String
+  template          Template            @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  publishedBy       String
+  title             String
+  description       String?
+  category          TemplateCategory    @default(OTHER) // Restored
+  price             Float               // Restored
+  priceType         String?
+  rating            Float              @default(0)
+  averageRating     Float              @default(0)
+  downloads         Int                 @default(0)
+  downloadCount     Int                 @default(0)
+  
+  sellerId          String?
+  seller            User?               @relation("MarketplaceSeller", fields: [sellerId], references: [id]) // Added
+  
+  published         Boolean             @default(false)
+  status            String              @default("published")
+  isFeatured        Boolean             @default(false)
+  featuredAt        DateTime?
+  viewCount         Int                 @default(0)
+  tags              String[]            @default([])
+  
+  reviewedById      String?
+  reviewedAt        DateTime?
+  reviewFeedback    String?             // Added
+  
+  reviews           TemplateReview[]    // Added
+  
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([publishedBy])
+  @@index([category])
+  @@index([sellerId])
+  @@index([isFeatured])
+}
+
+model TemplatePurchase {
+  id                String              @id @default(uuid())
+  templateId        String              // Changed from template reference
+  marketplaceTemplateId String?         // Added for marketplace template link
+  buyerId           String
+  price             Float
+  currency          String              @default("USD") // Added for currency tracking
+  purchasedAt       DateTime            @default(now())
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([templateId])
+  @@index([marketplaceTemplateId])
+  @@index([buyerId])
+}
+
+model TemplateReview {
+  id                String              @id @default(uuid())
+  templateId        String
+  marketplaceTemplateId String?         // Added for marketplace template link
+  marketplace       TemplateMarketplace? @relation(fields: [marketplaceTemplateId], references: [id]) // Added
+  reviewerId        String
+  user              User                @relation("TemplateReviews", fields: [reviewerId], references: [id]) // Added
+  userId            String?             // Added for user tracking
+  rating            Int
+  title             String?             // Added for review title
+  text              String?
+  content           String?             // Added for detailed review content
+  helpful           Int                 @default(0)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt // Added
+  
+  @@index([templateId])
+  @@index([marketplaceTemplateId])
+  @@index([reviewerId])
+  @@index([userId])
+}
+
+model TemplateReport {
+  id                String              @id @default(uuid())
+  templateId        String
+  marketplaceTemplateId String?         // Added for marketplace template link
+  reportedBy        String
+  reason            String
+  description       String?
+  resolved          Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  
+  @@index([templateId])
+  @@index([marketplaceTemplateId])
+  @@index([reportedBy])
+}
+
+// ========================================
+// VIDEO PROPOSALS
+// ========================================
+
+model PersonalizedVideo {
+  id                String              @id @default(uuid())
+  proposalId        String
+  userId            String
+  url               String
+  slug              String              @unique // Added for URL slug
+  duration          Int
+  views             Int                 @default(0)
+  engagement        Float               @default(0)
+  recipientName     String?             // Added for personalization
+  recipientCompany  String?             // Added for personalization
+  customVariables   Json?               // Added for custom data
+  templateVideo     Json?               // Added for template data
+  createdAt         DateTime            @default(now())
+  
+  @@index([proposalId])
+  @@index([userId])
+}
+
+model VideoViewEvent {
+  id                String              @id @default(uuid())
+  videoId           String
+  sessionId         String?             // Added to link with video session
+  viewerEmail       String?
+  userAgent         String?             // Added for device tracking
+  duration          Int
+  timestamp         Int
+  createdAt         DateTime            @default(now())
+  
+  @@index([videoId])
+  @@index([sessionId])
+}
+
+model VideoCtaClick {
+  id                String              @id @default(uuid())
+  videoId           String
+  sessionId         String?             // Added to link with video session
+  ctaText           String
+  viewerEmail       String?
+  timestamp         Int
+  createdAt         DateTime            @default(now())
+  
+  @@index([videoId])
+  @@index([sessionId])
+}
+
+model ScreenRecordingSession {
+  id                String              @id @default(uuid())
+  userId            String
+  url               String
+  token             String              @unique // Added for upload token
+  proposalId        String?             // Added for proposal link
+  status            String              @default("active") // Added for session status
+  videoId           String?             // Added for video link
+  duration          Int
+  views             Int                 @default(0)
+  completedAt       DateTime?           // Added for completion tracking
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([token])
+}
+
+// ========================================
+// REVIEW & FEEDBACK
+// ========================================
+
+model ReviewCycle {
+  id                String              @id @default(uuid())
+  proposalId        String
+  name              String
+  description       String?
+  status            String
+  reviewersCount    Int
+  approvedCount     Int                 @default(0)
+  requireAllApprovals Boolean           @default(true)
+  createdById       String?
+  createdBy         User?               @relation("CycleCreator", fields: [createdById], references: [id])
+  dueDate           DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime            @default(now())
+  
+  reviewers         ReviewCycleReviewer[]
+  
+  @@index([proposalId])
+}
+
+model ReviewCycleReviewer {
+  id                String              @id @default(uuid())
+  reviewCycleId     String
+  reviewCycle       ReviewCycle         @relation(fields: [reviewCycleId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status            String              @default("pending")
+  decision          String?
+  feedback          String?
+  order             Int                 @default(1)
+  required          Boolean             @default(true)
+  reviewedAt        DateTime?
+  createdAt         DateTime            @default(now())
+  
+  @@index([reviewCycleId])
+}
+
+model DynamicForm {
+  id                String              @id @default(uuid())
+  userId            String
+  name              String
+  description       String?             // Added
+  scope             String?             // Added
+  fields            Json                // Map of fieldId to config
+  fieldIds          String[]            // Added for easier querying
+  layout            Json?               // Added
+  settings          Json?               // Added
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  @@index([userId])
+}
+
+// ========================================
+// NOTIFICATIONS & EVENTS
+// ========================================
+
+model Event {
+  id                String              @id @default(uuid())
+  userId            String
+  type              String
+  data              Json
+  read              Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+  @@index([type])
+}
+
+// ========================================
+// CLIENT PORTAL
+// ========================================
+
+model Client {
+  id                String              @id @default(uuid())
+  userId            String
+  name              String
+  email             String              @unique
+  company           String?
+  phone             String?
+  metadata          Json?               // Added for industry, companySize, etc
+  createdAt         DateTime            @default(now())
+  
+  @@index([userId])
+}
+

@@ -1,0 +1,21 @@
+Prisma schema loaded from prisma\schema.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+[1;91merror[0m: [1mError parsing attribute "@@index": The given constraint name `User_email_idx` has to be unique in the following namespace: global for primary key, indexes and unique constraints. Please provide a different name using the `map` argument.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:148[0m
+[1;94m   | [0m
+[1;94m147 | [0m  
+[1;94m148 | [0m  [1;91m@@index([email])[0m
+[1;94m   | [0m
+[1;91merror[0m: [1mError parsing attribute "@@index": The given constraint name `User_email_idx` has to be unique in the following namespace: global for primary key, indexes and unique constraints. Please provide a different name using the `map` argument.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:150[0m
+[1;94m   | [0m
+[1;94m149 | [0m  
+[1;94m150 | [0m  [1;91m@@index([email])[0m
+[1;94m   | [0m
+
+Validation Error Count: 2
+[Context: validate]
+
+Prisma CLI Version : 5.22.0

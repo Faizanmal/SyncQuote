@@ -1,0 +1,33 @@
+Prisma schema loaded from prisma\schema.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+[1;91merror[0m: [1mError validating: The argument fields must refer only to existing fields. The following fields do not exist in this model: approvalId[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1643[0m
+[1;94m   | [0m
+[1;94m1642 | [0m  id                String              @id @default(uuid())
+[1;94m1643 | [0m  approval          ProposalApproval?   @relation(fields: [1;91m[approvalId][0m, references: [id], onDelete: Cascade)
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating model "ApprovalDelegation": The index definition refers to the unknown fields: fromUserId.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1650[0m
+[1;94m   | [0m
+[1;94m1649 | [0m  
+[1;94m1650 | [0m  [1;91m@@index([fromUserId])[0m
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating model "ApprovalDelegation": The index definition refers to the unknown fields: toUserId.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1651[0m
+[1;94m   | [0m
+[1;94m1650 | [0m  @@index([fromUserId])
+[1;94m1651 | [0m  [1;91m@@index([toUserId])[0m
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating model "ApprovalDelegation": The index definition refers to the unknown fields: approvalId.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1652[0m
+[1;94m   | [0m
+[1;94m1651 | [0m  @@index([toUserId])
+[1;94m1652 | [0m  [1;91m@@index([approvalId])[0m
+[1;94m   | [0m
+
+Validation Error Count: 4
+[Context: validate]
+
+Prisma CLI Version : 5.22.0

@@ -1,0 +1,58 @@
+Prisma schema loaded from prisma\schema.prisma
+
+Error: Prisma schema validation - (validate wasm)
+Error code: P1012
+[1;91merror[0m: [1mError validating field `workflow` in model `ProposalApproval`: The relation field `workflow` on model `ProposalApproval` is missing an opposite relation field on the model `ApprovalWorkflow`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1616[0m
+[1;94m   | [0m
+[1;94m1615 | [0m  workflowId        String
+[1;94m1616 | [0m  [1;91mworkflow          ApprovalWorkflow    @relation(fields: [workflowId], references: [id])[0m
+[1;94m1617 | [0m  currentStepOrder  Int                 @default(0) // Added
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating field `approval` in model `ApprovalDelegation`: The relation field `approval` on model `ApprovalDelegation` is missing an opposite relation field on the model `ProposalApproval`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1644[0m
+[1;94m   | [0m
+[1;94m1643 | [0m  approvalId        String?             // Added
+[1;94m1644 | [0m  [1;91mapproval          ProposalApproval?   @relation(fields: [approvalId], references: [id], onDelete: Cascade)[0m
+[1;94m1645 | [0m  delegatedBy       String
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating field `proposal` in model `ProposalCollaborator`: The relation field `proposal` on model `ProposalCollaborator` is missing an opposite relation field on the model `Proposal`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1683[0m
+[1;94m   | [0m
+[1;94m1682 | [0m  proposalId        String
+[1;94m1683 | [0m  [1;91mproposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)[0m
+[1;94m1684 | [0m  userId            String
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating field `user` in model `ProposalCollaborator`: The relation field `user` on model `ProposalCollaborator` is missing an opposite relation field on the model `User`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1685[0m
+[1;94m   | [0m
+[1;94m1684 | [0m  userId            String
+[1;94m1685 | [0m  [1;91muser              User                @relation(fields: [userId], references: [id], onDelete: Cascade)[0m
+[1;94m1686 | [0m  invitedById       String?
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating field `proposal` in model `ProposalComment`: The relation field `proposal` on model `ProposalComment` is missing an opposite relation field on the model `Proposal`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1737[0m
+[1;94m   | [0m
+[1;94m1736 | [0m  proposalId        String
+[1;94m1737 | [0m  [1;91mproposal          Proposal            @relation(fields: [proposalId], references: [id], onDelete: Cascade)[0m
+[1;94m1738 | [0m  userId            String
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating field `user` in model `ProposalComment`: The relation field `user` on model `ProposalComment` is missing an opposite relation field on the model `User`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1739[0m
+[1;94m   | [0m
+[1;94m1738 | [0m  userId            String
+[1;94m1739 | [0m  [1;91muser              User                @relation(fields: [userId], references: [id], onDelete: Cascade)[0m
+[1;94m1740 | [0m  
+[1;94m   | [0m
+[1;91merror[0m: [1mError validating field `resolvedBy` in model `ProposalComment`: The relation field `resolvedBy` on model `ProposalComment` is missing an opposite relation field on the model `User`. Either run `prisma format` or add it manually.[0m
+  [1;94m-->[0m  [4mprisma\schema.prisma:1753[0m
+[1;94m   | [0m
+[1;94m1752 | [0m  resolvedById      String?
+[1;94m1753 | [0m  [1;91mresolvedBy        User?               @relation("CommentResolver", fields: [resolvedById], references: [id])[0m
+[1;94m1754 | [0m  resolvedAt        DateTime?
+[1;94m   | [0m
+
+Validation Error Count: 7
+[Context: validate]
+
+Prisma CLI Version : 5.22.0
