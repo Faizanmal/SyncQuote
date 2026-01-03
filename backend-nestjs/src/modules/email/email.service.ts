@@ -40,7 +40,7 @@ export class EmailService {
       await sgMail.send(msg);
       this.logger.log(`Email sent to ${options.to}: ${options.subject}`);
     } catch (error) {
-      this.logger.error(`Failed to send email to ${options.to}: ${error.message}`);
+      this.logger.error(`Failed to send email to ${options.to}: ${(error as Error).message}`);
       throw error;
     }
   }
@@ -77,7 +77,7 @@ export class EmailService {
       await sgMail.send(msg);
       this.logger.log(`Verification email sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send verification email: ${error.message}`);
+      this.logger.error(`Failed to send verification email: ${(error as Error).message}`);
       throw error;
     }
   }
@@ -114,7 +114,7 @@ export class EmailService {
       await sgMail.send(msg);
       this.logger.log(`Password reset email sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send password reset email: ${error.message}`);
+      this.logger.error(`Failed to send password reset email: ${(error as Error).message}`);
       throw error;
     }
   }
@@ -142,7 +142,7 @@ export class EmailService {
       await sgMail.send(msg);
       this.logger.log(`Proposal viewed notification sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send proposal viewed notification: ${error.message}`);
+      this.logger.error(`Failed to send proposal viewed notification: ${(error as Error).message}`);
     }
   }
 
@@ -173,7 +173,7 @@ export class EmailService {
       await sgMail.send(msg);
       this.logger.log(`Proposal approved notification sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send proposal approved notification: ${error.message}`);
+      this.logger.error(`Failed to send proposal approved notification: ${(error as Error).message}`);
     }
   }
 
@@ -206,7 +206,7 @@ export class EmailService {
       await sgMail.send(msg);
       this.logger.log(`Notification email sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send notification email: ${error.message}`);
+      this.logger.error(`Failed to send notification email: ${(error as Error).message}`);
     }
   }
 }

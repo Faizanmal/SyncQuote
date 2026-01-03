@@ -2,7 +2,11 @@
 
 Transform static proposals into interactive, collaborative, and trackable web links to help service businesses close deals faster.
 
-## ✨ **NEW FEATURES** (v2.0.0)
+[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
+
+## ✨ Key Features
 
 🎉 **Major Update**: 6 powerful new features have been added!
 
@@ -12,8 +16,6 @@ Transform static proposals into interactive, collaborative, and trackable web li
 - 📊 **Analytics Dashboard** - Track engagement, conversion rates, and performance
 - 📝 **Audit Trail System** - Complete activity logging for compliance
 - 🎨 **White-labeling** - Custom branding with logos and colors
-
-👉 **[See Implementation Guide →](./FEATURES_GUIDE.md)** | **[Quick Start →](./IMPLEMENTATION_CHECKLIST.md)**
 
 ## 🚀 Tech Stack
 
@@ -96,25 +98,33 @@ SyncQuote/
 
 ## 🛠️ Development Setup
 
-### 1. Clone & Install
-
+### Quick Start (Docker)
 ```bash
-# Clone repository
+# Clone and start all services
 git clone https://github.com/yourusername/syncquote.git
 cd syncquote
+docker-compose up -d
 
-# Backend setup
-cd backend-nestjs
-npm install
-cp .env.example .env
-
-# Frontend setup
-cd ../frontend
-npm install
-cp .env.local.example .env.local
+# Access:
+# - Frontend: http://localhost:3000
+# - Backend: http://localhost:3001
+# - API Docs: http://localhost:3001/api/docs
 ```
 
-### 2. Configure Environment Variables
+### Manual Setup
+
+#### 1. Install Dependencies
+```bash
+# Backend
+cd backend-nestjs
+npm install
+
+# Frontend (in new terminal)
+cd ../frontend
+npm install
+```
+
+#### 2. Configure Environment Variables
 
 **Backend** (`.env`):
 ```env
@@ -136,8 +146,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
 NEXT_PUBLIC_WS_URL=ws://localhost:3001
 ```
 
-### 3. Database Setup
-
+#### 3. Database Setup
 ```bash
 cd backend-nestjs
 
@@ -154,7 +163,7 @@ npm run seed
 npx prisma studio
 ```
 
-### 4. Start Development Servers
+#### 4. Start Development Servers
 
 **Terminal 1 - Backend**:
 ```bash
@@ -195,56 +204,30 @@ cd frontend
 npm run test
 ```
 
+## � Documentation
+
+| File | Purpose |
+|------|---------|
+| **[QUICK_START.md](QUICK_START.md)** | Get started quickly with development setup |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System architecture and data flows |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Production deployment guide |
+| **[README.md](README.md)** | This file - project overview |
+
 ## 🚢 Deployment
 
-### Prerequisites
-1. AWS Account with CLI configured
-2. Terraform installed
-3. GitHub repository secrets configured
-4. Vercel account linked
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete production deployment instructions.
 
-### 1. Infrastructure Setup (Terraform)
-
+### Quick Deploy
 ```bash
+# Infrastructure (Terraform)
 cd terraform
-
-# Initialize Terraform
 terraform init
-
-# Plan infrastructure
 terraform plan -var-file="production.tfvars"
-
-# Apply infrastructure
 terraform apply -var-file="production.tfvars"
-```
 
-### 2. Deploy Backend
-
-The backend deploys automatically via GitHub Actions when you push to `main` branch.
-
-Manual deployment:
-```bash
-cd backend-nestjs
-
-# Build Docker image
-docker build -t syncquote-backend .
-
-# Tag for ECR
-docker tag syncquote-backend:latest <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/syncquote-backend:latest
-
-# Push to ECR
-docker push <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/syncquote-backend:latest
-```
-
-### 3. Deploy Frontend
-
-```bash
+# Backend (GitHub Actions auto-deploys on push to main)
+# Frontend (Vercel)
 cd frontend
-
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy to production
 vercel --prod
 ```
 
@@ -254,7 +237,7 @@ Once the backend is running, access the Swagger docs at:
 - **Local**: http://localhost:3001/api/docs
 - **Production**: https://api.syncquote.com/api/docs
 
-## 🔒 Security Checklist
+## 🔒 Security Features
 
 - ✅ HTTPS enforced everywhere
 - ✅ JWT access tokens (15min) + httpOnly refresh tokens (7 days)
@@ -276,35 +259,35 @@ Once the backend is running, access the Swagger docs at:
 - **Uptime**: UptimeRobot pinging `/health`
 - **Metrics**: AWS CloudWatch + ECS Container Insights
 
-## 🎯 Milestones
+## 🎯 Development Roadmap
 
-### ✅ Milestone 1: Core (Internal Alpha)
+### ✅ Milestone 1: Core Features (Completed)
 - [x] Authentication (Email/Password + Google OAuth)
 - [x] Dashboard with proposal list
 - [x] Basic proposal editor
 - [x] Public proposal view
 - [x] DevOps setup (Docker, CI/CD, Terraform)
 
-### 🚧 Milestone 2: Magic Loop (Closed Beta)
-- [ ] Interactive pricing table with real-time calculations
-- [ ] E-signature capture
-- [ ] PDF generation (Puppeteer)
-- [ ] Comment sidebar
-- [ ] Document locking after approval
+### ✅ Milestone 2: Collaboration Features (Completed)
+- [x] Interactive pricing table with real-time calculations
+- [x] Advanced comments system with threading
+- [x] Real-time notifications (Socket.io)
+- [x] Email notifications
+- [x] Proposal templates
 
-### 🔜 Milestone 3: Monetization (Go-Live)
+### 🚧 Milestone 3: Business Features (In Progress)
+- [x] E-signature capture
+- [x] PDF generation (Puppeteer)
 - [ ] Stripe subscription billing
-- [ ] 14-day trial logic
 - [ ] Stripe Connect for client deposits
-- [ ] Payment flows
-- [ ] "Powered by SyncQuote" branding
+- [ ] White-labeling ("Powered by SyncQuote" branding)
 
-### 📅 Milestone 4: Analytics & Polish (Post-Launch)
-- [ ] Real-time notifications (Socket.io)
-- [ ] Email notifications
-- [ ] Proposal view tracking
-- [ ] Activity feed
-- [ ] Full monitoring/alerting
+### 📅 Milestone 4: Analytics & Scale (Next)
+- [x] Proposal view tracking
+- [x] Activity feed and audit trails
+- [x] Analytics dashboard
+- [ ] Advanced analytics and reporting
+- [ ] Performance optimizations
 
 ## 🤝 Contributing
 

@@ -36,6 +36,11 @@ import { AbTestingModule } from './modules/ab-testing/ab-testing.module';
 import { HeatmapsModule } from './modules/heatmaps/heatmaps.module';
 import { I18nModule } from './modules/i18n/i18n.module';
 import { UpsellModule } from './modules/upsell/upsell.module';
+// Ecosystem & Business Feature Modules
+import { IntegrationsModule } from './modules/integrations/integrations.module';
+import { ContractsModule } from './modules/contracts/contracts.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { ApiMarketplaceModule } from './modules/api-marketplace/api-marketplace.module';
 
 @Module({
   imports: [
@@ -133,6 +138,12 @@ import { UpsellModule } from './modules/upsell/upsell.module';
     HeatmapsModule,
     I18nModule,
     UpsellModule,
+
+    // Ecosystem & Business Feature Modules
+    IntegrationsModule,
+    ContractsModule,
+    InvoicesModule,
+    ApiMarketplaceModule,
   ],
 })
 export class AppModule {}

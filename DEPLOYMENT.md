@@ -1,12 +1,12 @@
 # SyncQuote - Production Deployment Guide
 
-This guide covers deploying SyncQuote to production AWS infrastructure.
+This guide provides step-by-step instructions for deploying SyncQuote to AWS production infrastructure.
 
 ## Prerequisites
 
 - ✅ AWS Account with billing enabled
 - ✅ AWS CLI installed and configured
-- ✅ Terraform installed (v1.5+)
+- ✅ Terraform v1.5+
 - ✅ Docker installed
 - ✅ GitHub repository with Actions enabled
 - ✅ Vercel account
@@ -15,29 +15,32 @@ This guide covers deploying SyncQuote to production AWS infrastructure.
 ## Architecture Overview
 
 ```
-┌─────────────┐
-│   Route53   │  DNS
-└──────┬──────┘
-       │
-       ├──────────────┐
-       │              │
-┌──────▼──────┐  ┌───▼────────┐
-│   Vercel    │  │  CloudFront │
-│  (Frontend) │  │   + ALB     │
-└─────────────┘  └───┬─────────┘
-                     │
-                ┌────▼─────┐
-                │   ECS    │
-                │ Fargate  │
-                │(Backend) │
-                └────┬─────┘
-                     │
-        ┌────────────┼────────────┐
-        │            │            │
-   ┌────▼───┐   ┌───▼────┐  ┌───▼────┐
-   │  RDS   │   │ Redis  │  │   S3   │
-   │Postgres│   │ElastiC.│  │ Assets │
-   └────────┘   └────────┘  └────────┘
+Internet
+    │
+    ├──────────────┐
+    │              │
+┌───▼──────┐  ┌───▼────────┐
+│ Vercel   │  │ CloudFront │
+│(Frontend)│  │ + ALB     │
+└────┬─────┘  └───┬─────────┘
+     │            │
+     │ HTTPS      │ HTTPS
+     │            │
+┌────▼─────┐  ┌───▼─────┐
+│ ECS      │  │ RDS     │
+│ Fargate  │  │ Postgres│
+│(Backend) │  └─────────┘
+└────┬─────┘
+     │
+┌────▼─────┐
+│ ElastiC. │
+│ Redis    │
+└────┬─────┘
+     │
+┌────▼─────┐
+│ S3       │
+│ Assets   │
+└──────────┘
 ```
 
 ## Phase 1: Infrastructure Setup (Terraform)
@@ -72,7 +75,7 @@ aws dynamodb create-table \
   --region us-east-1
 ```
 
-### Step 3: Initialize Terraform
+### 3. Initialize Terraform
 ```bash
 cd terraform
 
@@ -86,28 +89,17 @@ db_username = "syncquote_admin"
 db_password = "CHANGE-THIS-SECURE-PASSWORD"
 EOF
 
-# Initialize Terraform
+# Initialize and apply infrastructure
 terraform init
-
-# Review plan
 terraform plan -var-file="production.tfvars"
-
-# Apply infrastructure (this will take 10-15 minutes)
 terraform apply -var-file="production.tfvars"
 ```
 
-### Step 4: Save Terraform Outputs
+### 4. Save Terraform Outputs
 ```bash
-# Get RDS endpoint
 terraform output rds_endpoint
-
-# Get Redis endpoint
 terraform output redis_endpoint
-
-# Get S3 bucket name
 terraform output s3_bucket_name
-
-# Get ECR repository URL
 terraform output ecr_repository_url
 ```
 

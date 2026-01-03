@@ -42,7 +42,7 @@ export class TranslationService {
           throw new BadRequestException(`Unsupported translation provider: ${provider}`);
       }
     } catch (error) {
-      this.logger.error(`Translation failed: ${error.message}`);
+      this.logger.error(`Translation failed: ${(error as Error).message}`);
       throw error;
     }
   }
@@ -107,7 +107,7 @@ export class TranslationService {
         })),
       };
     } catch (error) {
-      this.logger.error(`Language detection failed: ${error.message}`);
+      this.logger.error(`Language detection failed: ${(error as Error).message}`);
       throw new BadRequestException('Failed to detect language');
     }
   }
@@ -147,7 +147,7 @@ export class TranslationService {
         detectedLanguage: translation.detectedSourceLanguage as Language,
       };
     } catch (error) {
-      this.logger.error(`Google translation failed: ${error.message}`);
+      this.logger.error(`Google translation failed: ${(error as Error).message}`);
       throw new BadRequestException('Google translation failed');
     }
   }
@@ -184,7 +184,7 @@ export class TranslationService {
         detectedLanguage: translation.detected_source_language.toLowerCase() as Language,
       };
     } catch (error) {
-      this.logger.error(`DeepL translation failed: ${error.message}`);
+      this.logger.error(`DeepL translation failed: ${(error as Error).message}`);
       throw new BadRequestException('DeepL translation failed');
     }
   }
@@ -230,7 +230,7 @@ export class TranslationService {
         detectedLanguage: detectedLang as Language,
       };
     } catch (error) {
-      this.logger.error(`Azure translation failed: ${error.message}`);
+      this.logger.error(`Azure translation failed: ${(error as Error).message}`);
       throw new BadRequestException('Azure translation failed');
     }
   }
@@ -282,7 +282,7 @@ export class TranslationService {
         provider: TranslationProvider.OPENAI,
       };
     } catch (error) {
-      this.logger.error(`OpenAI translation failed: ${error.message}`);
+      this.logger.error(`OpenAI translation failed: ${(error as Error).message}`);
       throw new BadRequestException('OpenAI translation failed');
     }
   }

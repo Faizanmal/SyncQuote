@@ -610,7 +610,7 @@ export class ApprovalWorkflowsService {
         approvalId: approval.id,
         delegatedTo: userId,
         isActive: true,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        expiresAt: { gt: new Date() },
       },
     });
 
@@ -704,7 +704,7 @@ export class ApprovalWorkflowsService {
         });
       }
     } catch (error) {
-      this.logger.error(`Failed to notify approvers: ${error.message}`);
+      this.logger.error(`Failed to notify approvers: ${(error as Error).message}`);
     }
   }
 
@@ -722,7 +722,7 @@ export class ApprovalWorkflowsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to notify rejection: ${error.message}`);
+      this.logger.error(`Failed to notify rejection: ${(error as Error).message}`);
     }
   }
 
@@ -740,7 +740,7 @@ export class ApprovalWorkflowsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to notify approval complete: ${error.message}`);
+      this.logger.error(`Failed to notify approval complete: ${(error as Error).message}`);
     }
   }
 
@@ -758,7 +758,7 @@ export class ApprovalWorkflowsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to notify delegation: ${error.message}`);
+      this.logger.error(`Failed to notify delegation: ${(error as Error).message}`);
     }
   }
 
@@ -776,7 +776,7 @@ export class ApprovalWorkflowsService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to notify escalation: ${error.message}`);
+      this.logger.error(`Failed to notify escalation: ${(error as Error).message}`);
     }
   }
 
@@ -800,7 +800,7 @@ export class ApprovalWorkflowsService {
         });
       }
     } catch (error) {
-      this.logger.error(`Failed to notify timeout: ${error.message}`);
+      this.logger.error(`Failed to notify timeout: ${(error as Error).message}`);
     }
   }
 }

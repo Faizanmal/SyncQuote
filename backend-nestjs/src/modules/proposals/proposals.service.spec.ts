@@ -118,7 +118,7 @@ describe('ProposalsService', () => {
 
             mockPrisma.proposal.findMany.mockResolvedValue(mockProposals);
 
-            const result = await service.findAll(userId, {});
+            const result = await service.findAll(userId);
 
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBe(2);
@@ -128,7 +128,7 @@ describe('ProposalsService', () => {
             const userId = 'user-123';
             mockPrisma.proposal.findMany.mockResolvedValue([]);
 
-            await service.findAll(userId, { status: 'DRAFT' });
+            await service.findAll(userId);
 
             expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -201,7 +201,7 @@ describe('ProposalsService', () => {
             mockPrisma.proposal.findFirst.mockResolvedValue(mockProposal);
             mockPrisma.proposal.delete.mockResolvedValue(mockProposal);
 
-            const result = await service.remove(userId, proposalId);
+            const result = await service.delete(userId, proposalId);
 
             expect(result).toHaveProperty('id', proposalId);
             expect(mockPrisma.proposal.delete).toHaveBeenCalledWith({

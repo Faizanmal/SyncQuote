@@ -215,7 +215,7 @@ export class DirectorySyncService {
       // Add to team
       await this.prisma.teamMember.create({
         data: {
-          teamId: config.teamId,
+          teamId: config.teamId!,
           userId: user.id,
           role: 'MEMBER',
         },
@@ -232,7 +232,7 @@ export class DirectorySyncService {
     } else if (user && !scimUser.active && config.autoDeprovisionUsers) {
       // Deactivate user
       await this.prisma.teamMember.deleteMany({
-        where: { teamId: config.teamId, userId: user.id },
+        where: { teamId: config.teamId!, userId: user.id },
       });
     } else if (user) {
       // Update existing user

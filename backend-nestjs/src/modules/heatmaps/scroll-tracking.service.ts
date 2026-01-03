@@ -23,7 +23,7 @@ export class ScrollTrackingService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to record scroll: ${error.message}`);
+      this.logger.error(`Failed to record scroll: ${(error as Error).message}`);
       throw error;
     }
   }

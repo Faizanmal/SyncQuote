@@ -29,7 +29,7 @@ export class ClickTrackingService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to record interaction: ${error.message}`);
+      this.logger.error(`Failed to record interaction: ${(error as Error).message}`);
       throw error;
     }
   }
@@ -195,7 +195,7 @@ export class ClickTrackingService {
         })),
       });
     } catch (error) {
-      this.logger.error(`Failed to record batch interactions: ${error.message}`);
+      this.logger.error(`Failed to record batch interactions: ${(error as Error).message}`);
       throw error;
     }
   }

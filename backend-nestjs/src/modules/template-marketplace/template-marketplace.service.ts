@@ -380,7 +380,7 @@ export class TemplateMarketplaceService {
     });
 
     // Update average rating
-    await this.updateAverageRating(review.marketplaceTemplateId);
+    await this.updateAverageRating(review.marketplaceTemplateId!);
 
     return updated;
   }
@@ -402,7 +402,7 @@ export class TemplateMarketplaceService {
     });
 
     // Update average rating
-    await this.updateAverageRating(review.marketplaceTemplateId);
+    await this.updateAverageRating(review.marketplaceTemplateId!);
 
     return { success: true };
   }

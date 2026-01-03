@@ -196,6 +196,8 @@ export class SsoService {
     errorMessage?: string,
     metadata?: any,
   ) {
+    if (!userId) return; // Don't log if no userId
+
     await this.prisma.ssoAttempt.create({
       data: {
         ssoConfigurationId: configId,

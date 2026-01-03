@@ -688,7 +688,7 @@ export class CollaborationService {
 
       this.logger.log(`Collaboration invitation sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send collaboration invitation: ${error.message}`);
+      this.logger.error(`Failed to send collaboration invitation: ${(error as Error).message}`);
       // Don't throw - invitation was created, email is just a notification
     }
   }
@@ -761,7 +761,7 @@ export class CollaborationService {
 
       this.logger.log(`Sent mention notifications to ${mentionedUsers.length} users`);
     } catch (error) {
-      this.logger.error(`Failed to send mention notifications: ${error.message}`);
+      this.logger.error(`Failed to send mention notifications: ${(error as Error).message}`);
       // Don't throw - notifications are not critical
     }
   }

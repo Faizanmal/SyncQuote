@@ -412,7 +412,7 @@ export class VersionComparisonService {
     const restored = await this.prisma.proposal.update({
       where: { id: dto.proposalId },
       data: {
-        title: version.title,
+        ...(version.title && { title: version.title }),
         content: version.content as any,
       },
     });
@@ -493,7 +493,7 @@ export class VersionComparisonService {
 
     for (const part of lineDiff) {
       if (part.added) {
-        for (const line of part.value) {
+        for (const line of String(part.value).split('\n')) {
           sideBySide.push({
             lineNumber: targetLineNum++,
             source: { content: '', type: ChangeType.UNCHANGED },
@@ -501,7 +501,7 @@ export class VersionComparisonService {
           });
         }
       } else if (part.removed) {
-        for (const line of part.value) {
+        for (const line of String(part.value).split('\n')) {
           sideBySide.push({
             lineNumber: sourceLineNum++,
             source: { content: line, type: ChangeType.REMOVED },
@@ -509,7 +509,7 @@ export class VersionComparisonService {
           });
         }
       } else {
-        for (const line of part.value) {
+        for (const line of String(part.value).split('\n')) {
           sideBySide.push({
             lineNumber: sourceLineNum,
             source: { content: line, type: ChangeType.UNCHANGED },

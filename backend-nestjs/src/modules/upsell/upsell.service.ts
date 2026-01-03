@@ -125,7 +125,7 @@ export class UpsellService {
     for (const product of products) {
       const dynamicPrice = await this.dynamicPricing.calculateDynamicPrice(
         product.id,
-        proposal.clientId,
+        proposal.clientId!,
         product.price,
       );
 

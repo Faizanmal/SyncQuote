@@ -25,7 +25,7 @@ describe('AuthService', () => {
 
     const mockConfigService = {
         get: jest.fn((key: string) => {
-            const config = {
+            const config: Record<string, string> = {
                 JWT_ACCESS_SECRET: 'test-access-secret',
                 JWT_REFRESH_SECRET: 'test-refresh-secret',
                 JWT_ACCESS_EXPIRES_IN: '15m',
@@ -83,7 +83,7 @@ describe('AuthService', () => {
             mockPrismaService.user.create.mockResolvedValue(mockUser);
             mockJwtService.sign.mockReturnValue('test-token');
 
-            const result = await service.register(dto);
+            const result = await service.signUp(dto);
 
             expect(result).toHaveProperty('accessToken');
             expect(result).toHaveProperty('user');
@@ -100,7 +100,7 @@ describe('AuthService', () => {
                 email: dto.email,
             });
 
-            await expect(service.register(dto)).rejects.toThrow();
+            await expect(service.signUp(dto)).rejects.toThrow();
         });
     });
 
@@ -122,7 +122,7 @@ describe('AuthService', () => {
             mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
             mockJwtService.sign.mockReturnValue('test-token');
 
-            const result = await service.login(dto);
+            const result = await service.signIn(dto);
 
             expect(result).toHaveProperty('accessToken');
             expect(result).toHaveProperty('refreshToken');
@@ -143,7 +143,7 @@ describe('AuthService', () => {
 
             mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
 
-            await expect(service.login(dto)).rejects.toThrow();
+            await expect(service.signIn(dto)).rejects.toThrow();
         });
     });
 });

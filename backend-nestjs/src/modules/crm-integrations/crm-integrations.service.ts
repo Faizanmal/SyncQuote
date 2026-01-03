@@ -111,7 +111,6 @@ export class CrmIntegrationsService {
       },
       data: {
         isActive: false,
-        accessToken: null,
         refreshToken: null,
       },
     });
@@ -324,7 +323,7 @@ export class CrmIntegrationsService {
               // Let's try casting to any since I cannot see the DTO file right now.
               ...({ status: proposal.status } as any),
             });
-            results.push({ success: true, provider: link.provider });
+            results.push({ success: true, provider: link.provider || 'unknown' });
           } catch (e) {
             // Silently continue if update fails
           }
@@ -332,8 +331,8 @@ export class CrmIntegrationsService {
       } catch (error) {
         results.push({
           success: false,
-          provider: (link as any).provider,
-          error: error.message,
+          provider: (link as any).provider || 'unknown',
+          error: (error as Error).message,
         });
       }
     }

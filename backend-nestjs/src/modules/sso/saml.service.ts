@@ -21,7 +21,7 @@ export class SamlService {
       private_key: config.privateKey || undefined,
       certificate: config.certificate || undefined,
       assert_endpoint: `${process.env.APP_URL}/api/sso/saml/callback`,
-    };
+    } as any;
 
     const idpOptions = {
       sso_login_url: config.entryPoint,
@@ -58,7 +58,7 @@ export class SamlService {
       private_key: config.privateKey || undefined,
       certificate: config.certificate || undefined,
       assert_endpoint: `${process.env.APP_URL}/api/sso/saml/callback`,
-    };
+    } as any;
 
     const idpOptions = {
       sso_login_url: config.entryPoint!,
@@ -99,7 +99,7 @@ export class SamlService {
       private_key: config.privateKey || undefined,
       certificate: config.certificate || undefined,
       assert_endpoint: `${process.env.APP_URL}/api/sso/saml/callback`,
-    };
+    } as any;
 
     const sp = new saml2.ServiceProvider(spOptions);
     return sp.create_metadata();

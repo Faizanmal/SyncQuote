@@ -115,7 +115,7 @@ export class BulkOperationsService {
 
         results.push({ itemId: recipient.email, result: { proposalId: proposal.id, slug } });
       } catch (error) {
-        errors.push({ itemId: recipient.email, error: error.message });
+        errors.push({ itemId: recipient.email, error: (error as Error).message });
       }
 
       // Update batch job progress
@@ -182,7 +182,7 @@ export class BulkOperationsService {
 
         results.push({ itemId: proposalId, result: { status: dto.status } });
       } catch (error) {
-        errors.push({ itemId: proposalId, error: error.message });
+        errors.push({ itemId: proposalId, error: (error as Error).message });
       }
     }
 
@@ -224,7 +224,7 @@ export class BulkOperationsService {
 
         results.push({ itemId: proposalId, result: { tagsAssigned: dto.tagIds.length } });
       } catch (error) {
-        errors.push({ itemId: proposalId, error: error.message });
+        errors.push({ itemId: proposalId, error: (error as Error).message });
       }
     }
 
@@ -265,7 +265,7 @@ export class BulkOperationsService {
 
         results.push({ itemId: proposalId, result: { tagsRemoved: dto.tagIds.length } });
       } catch (error) {
-        errors.push({ itemId: proposalId, error: error.message });
+        errors.push({ itemId: proposalId, error: (error as Error).message });
       }
     }
 
@@ -309,7 +309,7 @@ export class BulkOperationsService {
 
         results.push({ itemId: proposalId, result: { deleted: true, permanent: dto.permanent } });
       } catch (error) {
-        errors.push({ itemId: proposalId, error: error.message });
+        errors.push({ itemId: proposalId, error: (error as Error).message });
       }
     }
 
@@ -363,7 +363,7 @@ export class BulkOperationsService {
 
           results.push({ itemId: newName, result: { templateId: newTemplate.id } });
         } catch (error) {
-          errors.push({ itemId: variation.name, error: error.message });
+          errors.push({ itemId: variation.name, error: (error as Error).message });
         }
       }
     }

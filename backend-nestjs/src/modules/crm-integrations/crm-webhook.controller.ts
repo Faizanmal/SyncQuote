@@ -33,7 +33,7 @@ export class CrmWebhookController {
 
     // Verify signature
     const rawBody = req.rawBody?.toString();
-    if (!(await this.syncService.verifyHubspotSignature(rawBody, signature))) {
+    if (!signature || !(await this.syncService.verifyHubspotSignature(rawBody!, signature))) {
       this.logger.warn('Invalid HubSpot webhook signature');
       return { received: true };
     }

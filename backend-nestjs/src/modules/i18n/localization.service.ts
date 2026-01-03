@@ -79,7 +79,7 @@ export class LocalizationService {
 
       return rate;
     } catch (error) {
-      this.logger.error(`Failed to fetch exchange rate: ${error.message}`);
+      this.logger.error(`Failed to fetch exchange rate: ${(error as Error).message}`);
       throw new BadRequestException('Failed to fetch exchange rate');
     }
   }

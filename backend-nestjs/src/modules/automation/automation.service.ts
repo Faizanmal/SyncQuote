@@ -244,7 +244,7 @@ export class AutomationService {
         },
       });
     } catch (error) {
-      this.logger.error(`Workflow execution failed: ${error.message}`, error.stack);
+      this.logger.error(`Workflow execution failed: ${(error as Error).message}`, (error as Error).stack);
 
       // Update execution with error
       await this.prisma.automationExecution.updateMany({
@@ -255,7 +255,7 @@ export class AutomationService {
         },
         data: {
           status: 'failed',
-          result: { error: error.message },
+          result: { error: (error as Error).message },
         },
       });
     }
