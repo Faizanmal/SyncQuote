@@ -132,7 +132,7 @@ export default function ProposalsPage() {
                 <TableHead>Status</TableHead>
                 <TableHead>Views</TableHead>
                 <TableHead>Last Updated</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-12.5"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

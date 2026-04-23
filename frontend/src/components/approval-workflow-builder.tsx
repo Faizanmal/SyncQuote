@@ -6,15 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
-  Plus, Trash2, Save, Play, Clock, Users, ArrowRight, 
-  CheckCircle, XCircle, AlertCircle, GitBranch, Timer 
+  Plus, Trash2, Save, Clock, 
+  CheckCircle, XCircle, GitBranch
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -267,7 +266,7 @@ function ApprovalRequestCard({
   onApprove: (data: any) => void;
 }) {
   const [comment, setComment] = useState('');
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [ , setShowRejectDialog] = useState(false);
 
   return (
     <Card>
@@ -394,7 +393,7 @@ function WorkflowBuilderDialog({
               </Button>
             </div>
 
-            <ScrollArea className="h-[400px] pr-4">
+            <ScrollArea className="h-100 pr-4">
               <div className="space-y-4">
                 {steps.map((step, index) => (
                   <Card key={step.id}>

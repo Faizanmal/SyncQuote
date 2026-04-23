@@ -42,12 +42,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import {
   Users,
   UserPlus,
-  Settings,
   Shield,
   MoreHorizontal,
   Mail,
@@ -174,7 +172,7 @@ export function TeamManagement() {
     if (currentTeam) {
       fetchInvitations();
     }
-  }, [currentTeam]);
+  }, [currentTeam, fetchInvitations]);
 
   const fetchTeams = async () => {
     try {
@@ -212,6 +210,7 @@ export function TeamManagement() {
       setShowCreateTeamDialog(false);
       toast.success('Team created successfully');
     } catch (error) {
+      console.error('Failed to create team:', error);
       toast.error('Failed to create team');
     }
   };
@@ -243,6 +242,7 @@ export function TeamManagement() {
       setMemberToRemove(null);
       fetchTeams();
     } catch (error) {
+      console.error('Failed to remove member:', error);
       toast.error('Failed to remove member');
     }
   };
@@ -255,6 +255,7 @@ export function TeamManagement() {
       toast.success('Member role updated');
       fetchTeams();
     } catch (error) {
+      console.error('Failed to update member role:', error);
       toast.error('Failed to update member role');
     }
   };
@@ -268,6 +269,7 @@ export function TeamManagement() {
       fetchTeams();
       setEditingMember(null);
     } catch (error) {
+      console.error('Failed to update permissions:', error);
       toast.error('Failed to update permissions');
     }
   };
@@ -280,6 +282,7 @@ export function TeamManagement() {
       toast.success('Invitation cancelled');
       fetchInvitations();
     } catch (error) {
+      console.error('Failed to cancel invitation:', error);
       toast.error('Failed to cancel invitation');
     }
   };
@@ -291,6 +294,7 @@ export function TeamManagement() {
       await api.post(`/teams/${currentTeam.id}/invitations/${invitationId}/resend`);
       toast.success('Invitation resent');
     } catch (error) {
+      console.error('Failed to resend invitation:', error);
       toast.error('Failed to resend invitation');
     }
   };
@@ -334,7 +338,7 @@ export function TeamManagement() {
               value={currentTeam?.id}
               onValueChange={(value) => setCurrentTeam(teams.find((t) => t.id === value) || null)}
             >
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-50">
                 <SelectValue placeholder="Select team" />
               </SelectTrigger>
               <SelectContent>
@@ -729,7 +733,7 @@ export function TeamManagement() {
               Customize permissions for {editingMember?.user.name || editingMember?.user.email}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[400px] overflow-y-auto">
+          <div className="space-y-4 py-4 max-h-100 overflow-y-auto">
             {Object.entries(
               DEFAULT_PERMISSIONS.reduce(
                 (acc, p) => {

@@ -46,7 +46,7 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
 
   useEffect(() => {
     loadVersions();
-  }, [proposalId]);
+  }, [proposalId, loadVersions]);
 
   const loadVersions = async () => {
     try {
@@ -70,6 +70,7 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
       loadVersions();
       onRestore?.();
     } catch (error) {
+      console.error('Failed to restore version:', error);
       toast.error('Failed to restore version');
     }
   };
@@ -84,6 +85,7 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
       const response = await api.get(`/versions/compare/${comparing.v1}/${comparing.v2}`);
       setComparisonData(response.data);
     } catch (error) {
+      console.error('Failed to compare versions:', error);
       toast.error('Failed to compare versions');
     }
   };

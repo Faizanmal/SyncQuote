@@ -11,17 +11,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { 
   Bell, 
-  BellRing, 
   Mail, 
   MessageSquare, 
-  Smartphone, 
-  Globe, 
-  Settings, 
+  Smartphone,  
   Plus, 
   Edit, 
   Trash2, 
@@ -38,14 +34,8 @@ import {
   Info,
   Zap,
   Calendar,
-  FileText,
-  DollarSign,
-  UserPlus,
   Activity,
-  TrendingUp,
-  Share,
   Download,
-  Play,
   Pause,
   MoreHorizontal
 } from 'lucide-react'
@@ -149,7 +139,7 @@ export default function NotificationsPage() {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFilter, setSelectedFilter] = useState('all')
-  const [selectedRule, setSelectedRule] = useState<NotificationRule | null>(null)
+  const [ , ] = useState<NotificationRule | null>(null)
   const queryClient = useQueryClient()
 
   const { register: registerRule, handleSubmit: handleRuleSubmit, formState: { errors: ruleErrors }, reset: resetRule } = useForm<CreateRuleForm>({
@@ -501,7 +491,7 @@ export default function NotificationsPage() {
                   <TableHead>Priority</TableHead>
                   <TableHead>Channels</TableHead>
                   <TableHead>Time</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  <TableHead className="w-17.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -876,7 +866,7 @@ export default function NotificationsPage() {
                   <TableHead>Status</TableHead>
                   <TableHead>Performance</TableHead>
                   <TableHead>Scheduled</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-25">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

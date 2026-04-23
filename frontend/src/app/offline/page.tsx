@@ -21,9 +21,9 @@ export default function OfflinePage() {
           <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center">
             <WifiOff className="h-8 w-8 text-muted-foreground" />
           </div>
-          <CardTitle className="text-2xl">You're Offline</CardTitle>
+          <CardTitle className="text-2xl">You&apos;re Offline</CardTitle>
           <CardDescription className="text-base">
-            It looks like you've lost your internet connection. Don't worry - any changes you've made will be saved and synced when you're back online.
+            It looks like you&apos;ve lost your internet connection. Don&apos;t worry - any changes you&apos;ve made will be saved and synced when you&apos;re back online.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -31,7 +31,7 @@ export default function OfflinePage() {
             <p className="font-medium mb-2">While offline, you can still:</p>
             <ul className="list-disc list-inside space-y-1 text-left">
               <li>View cached proposals and templates</li>
-              <li>Draft new proposals (they'll sync later)</li>
+              <li>Draft new proposals (they&apos;ll sync later)</li>
               <li>Access your saved snippets</li>
               <li>Review analytics data</li>
             </ul>

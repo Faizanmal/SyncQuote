@@ -17,25 +17,18 @@ import {
   Shield, 
   Lock, 
   Key, 
-  Smartphone, 
-  AlertTriangle, 
-  Check, 
+  AlertTriangle,  
   X, 
   Eye, 
   EyeOff, 
   Clock, 
   MapPin, 
   Monitor, 
-  Globe,
   Settings,
-  FileText,
   RefreshCw,
   Download,
   Ban,
-  Activity,
-  Zap,
   UserX,
-  CreditCard,
   Wifi,
   WifiOff
 } from 'lucide-react'
@@ -44,6 +37,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import Image from 'next/image'
 import { api } from '@/lib/api'
 
 interface SecuritySettings {
@@ -72,7 +66,7 @@ interface AuditLogEntry {
   location: string
   timestamp: string
   riskLevel: 'low' | 'medium' | 'high'
-  details: Record<string, any>
+  details: Record<string, unknown>
 }
 
 interface SecuritySession {
@@ -133,7 +127,7 @@ export default function SecurityPage() {
     resolver: zodResolver(enable2FASchema),
   })
 
-  const { register: registerAPIKey, handleSubmit: handleSubmitAPIKey, formState: { errors: errorsAPIKey }, reset: resetAPIKey, watch } = useForm<CreateAPIKeyForm>({
+  const { register: registerAPIKey, handleSubmit: handleSubmitAPIKey, formState: { errors: errorsAPIKey }, reset: resetAPIKey } = useForm<CreateAPIKeyForm>({
     resolver: zodResolver(createAPIKeySchema),
   })
 
@@ -211,10 +205,10 @@ export default function SecurityPage() {
   })
 
   const createAPIKeyMutation = useMutation({
-    mutationFn: (data: CreateAPIKeyForm) => api.post('/security/api-keys', data),
+    mutationFn: (data: CreateAPIKeyForm) => api.post<{ key: string }>('/security/api-keys', data),
     onSuccess: (response) => {
       toast.success('API key created!')
-      setNewAPIKey((response as any).data.key)
+      setNewAPIKey(response.data.key)
       setShowAPIKeyDialog(false)
       resetAPIKey()
       queryClient.invalidateQueries({ queryKey: ['security', 'api-keys'] })
@@ -235,19 +229,6 @@ export default function SecurityPage() {
 
   const onCreateAPIKey = (data: CreateAPIKeyForm) => {
     createAPIKeyMutation.mutate(data)
-  }
-
-  const getRiskLevelColor = (level: string) => {
-    switch (level) {
-      case 'high':
-        return 'text-red-500'
-      case 'medium':
-        return 'text-yellow-500'
-      case 'low':
-        return 'text-green-500'
-      default:
-        return 'text-gray-500'
-    }
   }
 
   const getThreatSeverityColor = (severity: string) => {
@@ -412,7 +393,7 @@ export default function SecurityPage() {
                           <div className="space-y-4">
                             {qrCode && (
                               <div className="flex justify-center">
-                                <img src={qrCode.qrCodeUrl} alt="2FA QR Code" className="w-48 h-48" />
+                                <Image src={qrCode.qrCodeUrl} alt="2FA QR Code" className="w-48 h-48" />
                               </div>
                             )}
                             <form onSubmit={handleSubmit2FA(onEnable2FA)} className="space-y-4">
@@ -594,7 +575,7 @@ export default function SecurityPage() {
                   <TableHead>Location</TableHead>
                   <TableHead>IP Address</TableHead>
                   <TableHead>Last Active</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  <TableHead className="w-17.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -808,7 +789,7 @@ export default function SecurityPage() {
               <AlertDescription>
                 <strong>Your new API key:</strong> 
                 <code className="bg-gray-100 px-2 py-1 rounded ml-2">{newAPIKey}</code>
-                <p className="text-sm mt-2">Save this key securely. You won't be able to see it again.</p>
+                <p className="text-sm mt-2">Save this key securely. You won&apos;t be able to see it again.</p>
               </AlertDescription>
             </Alert>
           )}
@@ -822,7 +803,7 @@ export default function SecurityPage() {
                   <TableHead>Permissions</TableHead>
                   <TableHead>Last Used</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  <TableHead className="w-17.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

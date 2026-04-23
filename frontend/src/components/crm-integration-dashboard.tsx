@@ -7,25 +7,19 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
 import {
   RefreshCw,
   Link2,
   Unlink,
-  Settings,
   Users,
   Building2,
   ArrowRightLeft,
   CheckCircle2,
   XCircle,
   Clock,
-  AlertTriangle,
   Plus,
   Trash2,
   ExternalLink,
@@ -96,7 +90,7 @@ export function CrmIntegrationDashboard() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
   const [showConnectDialog, setShowConnectDialog] = useState(false);
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [ , ] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -126,6 +120,7 @@ export function CrmIntegrationDashboard() {
         window.location.href = data.authUrl;
       }
     } catch (error) {
+      console.error('Failed to connect CRM:', error);
       toast({
         title: 'Connection failed',
         description: 'Failed to initiate CRM connection',
@@ -143,6 +138,7 @@ export function CrmIntegrationDashboard() {
         description: 'CRM integration has been removed',
       });
     } catch (error) {
+      console.error('Failed to disconnect CRM:', error);
       toast({
         title: 'Error',
         description: 'Failed to disconnect CRM',
@@ -165,6 +161,7 @@ export function CrmIntegrationDashboard() {
         setSyncing(null);
       }, 3000);
     } catch (error) {
+      console.error('Failed to sync CRM:', error);
       setSyncing(null);
       toast({
         title: 'Sync failed',
@@ -185,6 +182,8 @@ export function CrmIntegrationDashboard() {
         prev.map(i => (i.id === integrationId ? { ...i, syncEnabled: enabled } : i))
       );
     } catch (error) {
+      console.error('Failed to update sync settings:', error);
+
       toast({
         title: 'Error',
         description: 'Failed to update sync settings',
@@ -373,7 +372,7 @@ export function CrmIntegrationDashboard() {
                       <TableHead>Email</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead>Last Synced</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
+                      <TableHead className="w-25">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -424,7 +423,7 @@ export function CrmIntegrationDashboard() {
                       <TableHead>SyncQuote Field</TableHead>
                       <TableHead>Direction</TableHead>
                       <TableHead>CRM Field</TableHead>
-                      <TableHead className="w-[100px]">Actions</TableHead>
+                      <TableHead className="w-25">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -465,7 +464,7 @@ export function CrmIntegrationDashboard() {
                 <CardDescription>Recent synchronization activities</CardDescription>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[300px]">
+                <ScrollArea className="h-75">
                   <div className="space-y-4">
                     {[
                       { time: '2 minutes ago', action: 'Full sync completed', status: 'success', details: '45 contacts, 12 deals synced' },

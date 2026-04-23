@@ -10,8 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
-  Key, Webhook, Shield, Copy, Eye, EyeOff, Trash2, 
-  Plus, Activity, Clock, CheckCircle, XCircle, Settings 
+  Webhook, Copy, Eye, EyeOff, Trash2, 
+  Plus, Clock, CheckCircle, XCircle, Settings 
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -77,7 +77,7 @@ export function ApiManagementDashboard() {
   const [activeTab, setActiveTab] = useState('api-keys');
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [showWebhookDialog, setShowWebhookDialog] = useState(false);
-  const [showOAuthDialog, setShowOAuthDialog] = useState(false);
+  const [ , setShowOAuthDialog] = useState(false);
   const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set());
   const queryClient = useQueryClient();
 
@@ -122,7 +122,7 @@ export function ApiManagementDashboard() {
       });
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (_data) => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
       toast.success('API key created successfully');
       toast.info('Save your API key now - it won\'t be shown again!');
@@ -304,7 +304,7 @@ export function ApiManagementDashboard() {
                 <CardHeader>
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <CardTitle className="text-lg font-mono text-sm">
+                      <CardTitle className="text-lg font-mono">
                         {webhook.url}
                       </CardTitle>
                       <CardDescription>

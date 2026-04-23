@@ -86,7 +86,7 @@ const plans = [
 ];
 
 export default function BillingPage() {
-  const user = useAuthStore((state: AuthState) => state.user);
+  const _user = useAuthStore((state: AuthState) => state.user);
   const [isLoading, setIsLoading] = useState(false);
 
   const { data: subscription } = useQuery<Subscription>({

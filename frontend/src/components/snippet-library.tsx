@@ -29,7 +29,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Plus,
   Search,
@@ -37,7 +36,6 @@ import {
   Edit,
   Trash2,
   FileText,
-  Tag,
   Clock,
   Variable,
   Check,
@@ -106,7 +104,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
   useEffect(() => {
     fetchSnippets();
     fetchCategories();
-  }, []);
+  }, [fetchSnippets, fetchCategories]);
 
   const fetchSnippets = async () => {
     try {
@@ -147,6 +145,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
       resetForm();
       fetchSnippets();
     } catch (error) {
+      console.error(error);
       toast.error('Failed to create snippet');
     }
   };
@@ -168,6 +167,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
       resetForm();
       fetchSnippets();
     } catch (error) {
+      console.error(error);
       toast.error('Failed to update snippet');
     }
   };
@@ -179,6 +179,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
       toast.success('Snippet deleted');
       fetchSnippets();
     } catch (error) {
+      console.error(error);
       toast.error('Failed to delete snippet');
     }
   };
@@ -189,6 +190,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
       toast.success('Snippet duplicated!');
       fetchSnippets();
     } catch (error) {
+      console.error(error);
       toast.error('Failed to duplicate snippet');
     }
   };
@@ -207,6 +209,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
       setSelectedSnippet(null);
       setVariableValues({});
     } catch (error) {
+      console.error(error);
       toast.error('Failed to process snippet');
     }
   };
@@ -454,7 +457,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
           />
         </div>
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-45">
             <SelectValue placeholder="Category" />
           </SelectTrigger>
           <SelectContent>

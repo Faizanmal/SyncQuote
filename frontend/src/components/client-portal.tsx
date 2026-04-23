@@ -34,7 +34,7 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
     if (email && isAuthenticated) {
       loadProposals();
     }
-  }, [email, isAuthenticated]);
+  }, [email, isAuthenticated, loadProposals]);
 
   const loadProposals = async () => {
     setLoading(true);
@@ -89,7 +89,7 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-indigo-100 p-4">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>Client Portal</CardTitle>
@@ -121,7 +121,7 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Your Proposals</h1>
@@ -222,6 +222,7 @@ export function ClientFeedbackForm({ proposalId }: { proposalId: string }) {
       setRating(0);
       setComment('');
     } catch (error) {
+      console.error('Failed to submit feedback:', error);
       toast.error('Failed to submit feedback');
     } finally {
       setSubmitting(false);

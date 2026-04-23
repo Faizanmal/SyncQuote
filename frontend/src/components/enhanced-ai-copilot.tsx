@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { useState, useRef, useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -46,12 +44,10 @@ import {
   PenLine,
   Languages,
   CheckCircle,
-  Volume2,
   Clipboard,
   ChevronDown,
   Settings,
   Zap,
-  Brain,
   Target,
   TrendingUp,
   Mail,
@@ -267,7 +263,7 @@ export function EnhancedAICopilot({ context, onInsert }: EnhancedAICopilotProps)
     toast.success('Content inserted');
   };
 
-  const regenerateResponse = async (originalPrompt: string) => {
+  const _regenerateResponse = async (originalPrompt: string) => {
     await generateContent(originalPrompt);
   };
 
@@ -537,7 +533,7 @@ export function EnhancedAICopilot({ context, onInsert }: EnhancedAICopilotProps)
                     generateContent(input);
                   }
                 }}
-                className="min-h-[60px] resize-none"
+                className="min-h-15 resize-none"
               />
               <Button
                 onClick={() => generateContent(input)}
@@ -607,7 +603,7 @@ export function EnhancedAICopilot({ context, onInsert }: EnhancedAICopilotProps)
               <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                className="min-h-[150px]"
+                className="min-h-37.5"
                 placeholder="Modify the template prompt as needed..."
               />
               <p className="text-xs text-muted-foreground">

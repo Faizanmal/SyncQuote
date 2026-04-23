@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -16,10 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
 import {
-  CheckSquare,
   Send,
-  FileDown,
-  Archive,
   Trash2,
   MoreHorizontal,
   Search,
@@ -32,7 +29,6 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  AlertTriangle,
   ChevronDown,
   RefreshCw,
   Eye,
@@ -80,7 +76,7 @@ export function BulkOperationsPanel() {
   useEffect(() => {
     fetchProposals();
     fetchBatchJobs();
-  }, [statusFilter]);
+  }, [statusFilter, fetchProposals]);
 
   useEffect(() => {
     // Poll for job updates if there's an active job
@@ -90,7 +86,7 @@ export function BulkOperationsPanel() {
       }, 2000);
       return () => clearInterval(interval);
     }
-  }, [currentJob]);
+  }, [currentJob, fetchJobStatus]);
 
   const fetchProposals = async () => {
     try {
@@ -162,6 +158,7 @@ export function BulkOperationsPanel() {
         description: `Sending ${selectedIds.size} proposals`,
       });
     } catch (error) {
+      console.error('Failed to start bulk send:', error);
       toast({
         title: 'Error',
         description: 'Failed to start bulk send',
@@ -184,6 +181,7 @@ export function BulkOperationsPanel() {
         description: `Updating ${selectedIds.size} proposals`,
       });
     } catch (error) {
+      console.error('Failed to update status:', error);
       toast({
         title: 'Error',
         description: 'Failed to update status',
@@ -210,6 +208,7 @@ export function BulkOperationsPanel() {
         description: `Exporting ${selectedIds.size} proposals as ${exportFormat.toUpperCase()}`,
       });
     } catch (error) {
+      console.error('Failed to start export:', error);
       toast({
         title: 'Error',
         description: 'Failed to start export',
@@ -236,6 +235,7 @@ export function BulkOperationsPanel() {
         description: `Deleting ${selectedIds.size} proposals`,
       });
     } catch (error) {
+      console.error('Failed to start bulk delete:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete proposals',
@@ -253,6 +253,7 @@ export function BulkOperationsPanel() {
       });
       fetchJobStatus(jobId);
     } catch (error) {
+      console.error('Failed to cancel job:', error);
       toast({
         title: 'Error',
         description: 'Failed to cancel job',
@@ -355,7 +356,7 @@ export function BulkOperationsPanel() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-35">
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue />
             </SelectTrigger>
@@ -435,7 +436,7 @@ export function BulkOperationsPanel() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[50px]">
+                  <TableHead className="w-12.5">
                     <Checkbox
                       checked={selectedIds.size === filteredProposals.length && filteredProposals.length > 0}
                       onCheckedChange={toggleSelectAll}
@@ -446,7 +447,7 @@ export function BulkOperationsPanel() {
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -515,7 +516,7 @@ export function BulkOperationsPanel() {
               <CardDescription>History of bulk operations</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[400px]">
+              <ScrollArea className="h-100">
                 <div className="space-y-4">
                   {batchJobs.map((job) => (
                     <div key={job.id} className="flex items-start gap-4 pb-4 border-b last:border-0">

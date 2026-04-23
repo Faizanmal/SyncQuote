@@ -8,7 +8,6 @@ import {
   TrendingUp, 
   Eye, 
   FileCheck, 
-  FileX, 
   Clock,
   MessageSquare 
 } from 'lucide-react';
@@ -43,7 +42,7 @@ export function AnalyticsDashboard() {
 
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [fetchAnalytics]);
 
   const fetchAnalytics = async () => {
     try {

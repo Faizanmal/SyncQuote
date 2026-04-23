@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { CalendarDays, TrendingUp, Users, FileText, Eye, DollarSign, Clock, MousePointer, Target, Zap } from 'lucide-react'
+import { TrendingUp, Users, FileText, Eye, DollarSign, Clock, Target, Zap } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import CountUp from 'react-countup'
 import { 
@@ -46,33 +46,11 @@ interface AnalyticsMetrics {
   revenueGrowth: number
 }
 
-interface TimeSeriesData {
-  date: string
-  proposals: number
-  views: number
-  revenue: number
-  conversions: number
-  responseTime: number
-}
-
-interface FunnelData {
-  name: string
-  value: number
-  fill: string
-}
-
 interface ConversionMetrics {
   stage: string
   count: number
   percentage: number
   dropoff: number
-}
-
-interface UserBehaviorData {
-  action: string
-  count: number
-  avgTime: number
-  conversionRate: number
 }
 
 interface GeographicData {
@@ -88,13 +66,13 @@ export default function AnalyticsPage() {
   const [realTimeMetrics, setRealTimeMetrics] = useState<AnalyticsMetrics | null>(null)
 
   // Fetch analytics data
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metrics } = useQuery({
     queryKey: ['analytics', 'metrics', timeRange],
     queryFn: () => api.get(`/analytics/metrics?range=${timeRange}`).then(res => res.data),
     refetchInterval: 30000, // Refresh every 30 seconds
   })
 
-  const { data: timeSeriesData, isLoading: timeSeriesLoading } = useQuery({
+  const { data: timeSeriesData } = useQuery({
     queryKey: ['analytics', 'timeseries', timeRange, selectedMetric],
     queryFn: () => api.get(`/analytics/timeseries?range=${timeRange}&metric=${selectedMetric}`).then(res => res.data),
   })
@@ -221,8 +199,6 @@ export default function AnalyticsPage() {
     }
   }
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D']
-
   return (
     <div className="flex-1 space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -253,7 +229,7 @@ export default function AnalyticsPage() {
 
       {/* Real-time Metrics Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {metricCards.map((metric, index) => (
+        {metricCards.map((metric, _index) => (
           <Card key={metric.title} className="relative overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>

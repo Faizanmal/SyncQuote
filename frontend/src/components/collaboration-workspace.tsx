@@ -3,18 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
 import { 
-  Users, MessageCircle, CheckCircle, Clock, 
-  Send, Reply, Pencil, Eye, UserPlus, Settings 
+  Users,  CheckCircle, Clock, 
+  Send, Reply, Eye, UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import io, { Socket } from 'socket.io-client';
 
 interface Collaborator {
@@ -69,7 +67,7 @@ interface OnlineUser {
 export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
-  const [showCollaborators, setShowCollaborators] = useState(false);
+  const [ , setShowCollaborators] = useState(false);
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -98,7 +96,7 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
       toast.info('New suggestion received');
     });
 
-    newSocket.on('typing:start', ({ userId, userName }: any) => {
+    newSocket.on('typing:start', ({ userId, _userName }: any) => {
       setOnlineUsers(prev => 
         prev.map(u => u.userId === userId ? { ...u, typing: true } : u)
       );
@@ -115,7 +113,7 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
     return () => {
       newSocket.disconnect();
     };
-  }, [proposalId]);
+  }, [proposalId, queryClient]);
 
   const { data: collaborators } = useQuery({
     queryKey: ['collaborators', proposalId],
@@ -149,7 +147,7 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
     },
   });
 
-  const addCollaboratorMutation = useMutation({
+  const _addCollaboratorMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await fetch(`/api/collaboration/${proposalId}/collaborators`, {
         method: 'POST',
@@ -312,7 +310,7 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
               <CardTitle>Comments & Discussions</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[400px] mb-4">
+              <ScrollArea className="h-100 mb-4">
                 <div className="space-y-4">
                   {comments?.map((comment: Comment) => (
                     <CommentThread

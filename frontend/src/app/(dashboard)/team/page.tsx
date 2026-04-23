@@ -12,9 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-import { 
-  Users, 
+import {
   UserPlus, 
   Crown, 
   Shield, 
@@ -90,7 +88,7 @@ const createWorkspaceSchema = z.object({
 })
 
 type InviteMemberForm = z.infer<typeof inviteMemberSchema>
-type CreateWorkspaceForm = z.infer<typeof createWorkspaceSchema>
+type CreateWorkspaceForm = z.infer<typeof _createWorkspaceSchema>
 
 export default function TeamPage() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('main')
@@ -103,7 +101,9 @@ export default function TeamPage() {
     defaultValues: { role: 'member' }
   })
 
-  const { register: registerWorkspace, handleSubmit: handleWorkspaceSubmit, formState: { errors: workspaceErrors }, reset: resetWorkspace } = useForm<CreateWorkspaceForm>()
+  const { register: registerWorkspace, handleSubmit: handleWorkspaceSubmit, formState: { errors: workspaceErrors }, reset: resetWorkspace } = useForm<CreateWorkspaceForm>({
+    resolver: zodResolver(createWorkspaceSchema),
+  })
 
   // Fetch team data
   const { data: workspace } = useQuery({
@@ -137,18 +137,6 @@ export default function TeamPage() {
     },
     onError: () => {
       toast.error('Failed to send invitation')
-    }
-  })
-
-  const updateMemberRoleMutation = useMutation({
-    mutationFn: ({ memberId, role }: { memberId: string, role: string }) => 
-      api.patch(`/workspaces/${selectedWorkspace}/members/${memberId}/role`, { role }),
-    onSuccess: () => {
-      toast.success('Member role updated successfully!')
-      queryClient.invalidateQueries({ queryKey: ['team', 'members', selectedWorkspace] })
-    },
-    onError: () => {
-      toast.error('Failed to update member role')
     }
   })
 
@@ -426,7 +414,7 @@ export default function TeamPage() {
                   <TableHead>Status</TableHead>
                   <TableHead>Last Active</TableHead>
                   <TableHead>Joined</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  <TableHead className="w-17.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -531,7 +519,7 @@ export default function TeamPage() {
                   <TableHead>Invited By</TableHead>
                   <TableHead>Sent</TableHead>
                   <TableHead>Expires</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  <TableHead className="w-17.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

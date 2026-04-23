@@ -20,8 +20,9 @@ Transform static proposals into interactive, collaborative, and trackable web li
 ## 🚀 Tech Stack
 
 ### Backend
-- **Framework**: NestJS (Node.js + TypeScript)
-- **Database**: PostgreSQL 16 with Prisma ORM
+- **Primary**: NestJS (Node.js + TypeScript) - Main API backend
+- **Legacy**: Django (Python) - Alternative backend implementation
+- **Database**: PostgreSQL 16 with Prisma ORM (NestJS) / Django ORM (Django)
 - **Caching**: Redis
 - **Authentication**: JWT + Google OAuth
 - **Payments**: Stripe (Billing + Connect)
@@ -60,7 +61,15 @@ Transform static proposals into interactive, collaborative, and trackable web li
 
 ```
 SyncQuote/
-├── backend-nestjs/         # NestJS backend API
+├── backend/                # Django backend (legacy/alternative)
+│   ├── manage.py
+│   ├── backend/
+│   │   ├── __init__.py
+│   │   ├── settings.py
+│   │   ├── urls.py
+│   │   └── wsgi.py
+│   └── requirements.txt
+├── backend-nestjs/         # Primary NestJS backend API
 │   ├── src/
 │   │   ├── modules/        # Feature modules
 │   │   │   ├── auth/       # Authentication & authorization
@@ -87,13 +96,24 @@ SyncQuote/
 │   │   ├── hooks/          # Custom React hooks
 │   │   ├── lib/            # Utilities
 │   │   └── constants/      # Constants & configs
+│   ├── public/
+│   ├── Dockerfile.dev
+│   └── package.json
+├── mobile/                 # React Native mobile app
+│   ├── src/
+│   │   ├── App.tsx
+│   │   ├── constants/
+│   │   ├── navigation/
+│   │   ├── screens/
+│   │   ├── services/
+│   │   ├── store/
+│   │   ├── types/
+│   │   └── utils/
 │   └── package.json
 ├── terraform/              # Infrastructure as Code
 │   └── main.tf             # AWS resources
-└── .github/
-    └── workflows/          # CI/CD pipelines
-        ├── backend-ci.yml
-        └── frontend-ci.yml
+├── docker-compose.yml      # Local development setup
+└── README.md               # This file
 ```
 
 ## 🛠️ Development Setup
@@ -204,7 +224,7 @@ cd frontend
 npm run test
 ```
 
-## � Documentation
+## 📖 Documentation
 
 | File | Purpose |
 |------|---------|
@@ -258,36 +278,6 @@ Once the backend is running, access the Swagger docs at:
 - **Logging**: Pino → CloudWatch Logs
 - **Uptime**: UptimeRobot pinging `/health`
 - **Metrics**: AWS CloudWatch + ECS Container Insights
-
-## 🎯 Development Roadmap
-
-### ✅ Milestone 1: Core Features (Completed)
-- [x] Authentication (Email/Password + Google OAuth)
-- [x] Dashboard with proposal list
-- [x] Basic proposal editor
-- [x] Public proposal view
-- [x] DevOps setup (Docker, CI/CD, Terraform)
-
-### ✅ Milestone 2: Collaboration Features (Completed)
-- [x] Interactive pricing table with real-time calculations
-- [x] Advanced comments system with threading
-- [x] Real-time notifications (Socket.io)
-- [x] Email notifications
-- [x] Proposal templates
-
-### 🚧 Milestone 3: Business Features (In Progress)
-- [x] E-signature capture
-- [x] PDF generation (Puppeteer)
-- [ ] Stripe subscription billing
-- [ ] Stripe Connect for client deposits
-- [ ] White-labeling ("Powered by SyncQuote" branding)
-
-### 📅 Milestone 4: Analytics & Scale (Next)
-- [x] Proposal view tracking
-- [x] Activity feed and audit trails
-- [x] Analytics dashboard
-- [ ] Advanced analytics and reporting
-- [ ] Performance optimizations
 
 ## 🤝 Contributing
 

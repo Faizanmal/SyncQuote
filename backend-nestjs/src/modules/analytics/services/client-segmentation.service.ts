@@ -33,9 +33,11 @@ export interface ClientSegmentMember {
   company: string;
   totalValue: number;
   proposalCount: number;
+  wonCount: number;
   winRate: number;
   lastActivity: Date;
   engagementScore: number;
+  totalViews: number;
 }
 
 export interface PerformanceBenchmark {
@@ -153,16 +155,17 @@ export class ClientSegmentationService {
         totalValue: 0,
         proposalCount: 0,
         wonCount: 0,
+        winRate: 0,
         lastActivity: new Date(0),
         engagementScore: 0,
         totalViews: 0,
       };
 
       existing.proposalCount++;
-      existing.totalViews = (existing as any).totalViews + (proposal.viewCount || 0);
+      existing.totalViews += (proposal.viewCount || 0);
 
       if (['APPROVED', 'SIGNED'].includes(proposal.status)) {
-        (existing as any).wonCount++;
+        existing.wonCount++;
         existing.totalValue += proposal.totalAmount || proposal.estimatedValue || 0;
       }
 
@@ -333,6 +336,7 @@ export class ClientSegmentationService {
         signedAt: true,
         approvedAt: true,
         viewCount: true,
+        recipientEmail: true,
       },
     });
 

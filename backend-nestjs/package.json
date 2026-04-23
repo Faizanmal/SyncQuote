@@ -1,6 +1,7 @@
 {
   "name": "syncquote-backend",
   "version": "1.0.0",
+  "type": "module",
   "description": "SyncQuote - Production-Ready SaaS Backend",
   "author": "SyncQuote Team",
   "private": true,
@@ -50,6 +51,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.6",
+    "diff": "^8.0.2",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
@@ -101,6 +103,14 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0"
+  },
+  "overrides": {
+    "ajv": "^8.18.0",
+    "file-type": "^21.3.2",
+    "js-yaml": "^4.1.1",
+    "tar": "^7.5.11",
+    "yauzl": "^3.2.1",
+    "xmlbuilder2": "^4.0.3"
   },
   "jest": {
     "moduleFileExtensions": [

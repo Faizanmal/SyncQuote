@@ -100,7 +100,7 @@ export function PricingTable({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          {items.map((item, index) => (
+          {items.map((item, _index) => (
             <div
               key={item.id}
               className={cn(

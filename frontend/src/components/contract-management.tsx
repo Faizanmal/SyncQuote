@@ -71,7 +71,6 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Contract {
   id: string;
@@ -225,10 +224,10 @@ export function ContractManagement() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-  const [signDialogOpen, setSignDialogOpen] = useState(false);
+  const [ , setTemplateDialogOpen] = useState(false);
+  const [ , ] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
-  const [selectedTemplate, setSelectedTemplate] = useState<ContractTemplate | null>(null);
+  const [ , ] = useState<ContractTemplate | null>(null);
 
   // Form state for new contract
   const [newContract, setNewContract] = useState({
@@ -444,7 +443,7 @@ export function ContractManagement() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-45">
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -480,7 +479,7 @@ export function ContractManagement() {
                       <TableCell>
                         <div>
                           <p className="font-medium">{contract.title}</p>
-                          <p className="text-sm text-muted-foreground truncate max-w-[250px]">
+                          <p className="text-sm text-muted-foreground truncate max-w-62.5">
                             {contract.proposalTitle}
                           </p>
                         </div>
@@ -620,7 +619,7 @@ export function ContractManagement() {
 
       {/* Create Contract Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-137.5">
           <DialogHeader>
             <DialogTitle>Create New Contract</DialogTitle>
             <DialogDescription>
@@ -727,7 +726,7 @@ export function ContractManagement() {
 
       {/* Contract Details Dialog */}
       <Dialog open={!!selectedContract} onOpenChange={() => setSelectedContract(null)}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-150">
           <DialogHeader>
             <DialogTitle>{selectedContract?.title}</DialogTitle>
             <DialogDescription>{selectedContract?.description}</DialogDescription>

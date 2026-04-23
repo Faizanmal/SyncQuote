@@ -260,7 +260,7 @@ export class OutboundWebhookService {
       data: {
         webhookId: webhook.id,
         event,
-        payload,
+        payload: payload as any,
         statusCode: result.statusCode,
         response: result.response,
         duration: result.duration,
@@ -309,7 +309,7 @@ export class OutboundWebhookService {
 
       this.logger.log(`Retrying webhook delivery ${delivery.id}`);
 
-      const payload = delivery.payload as WebhookPayload;
+      const payload = delivery.payload as unknown as WebhookPayload;
       const signature = this.generateSignature(payload, delivery.webhook.secret);
       const startTime = Date.now();
 

@@ -6,9 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -18,13 +16,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   CreditCard,
   DollarSign,
   Clock,
@@ -33,11 +24,7 @@ import {
   AlertCircle,
   Receipt,
   RefreshCcw,
-  Download,
   Building,
-  ArrowRight,
-  Percent,
-  Calendar,
 } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 import { toast } from 'sonner';
@@ -158,7 +145,7 @@ export function PaymentForm({
 
       // In production, this would redirect to Stripe Checkout or use Stripe Elements
       // For now, simulate payment flow
-      const { clientSecret, paymentIntentId } = response.data;
+      const { paymentIntentId } = response.data;
       
       // Here you would integrate with Stripe.js
       // const stripe = await loadStripe(STRIPE_PUBLIC_KEY);
@@ -426,7 +413,7 @@ export function ProposalPaymentDashboard({ proposalId }: ProposalPaymentDashboar
 
   useEffect(() => {
     fetchPayments();
-  }, [proposalId]);
+  }, [proposalId, fetchPayments]);
 
   const fetchPayments = async () => {
     try {
@@ -452,6 +439,7 @@ export function ProposalPaymentDashboard({ proposalId }: ProposalPaymentDashboar
       setRefundAmount('');
       fetchPayments();
     } catch (error) {
+      console.error('Failed to process refund:', error);
       toast.error('Failed to process refund');
     }
   };

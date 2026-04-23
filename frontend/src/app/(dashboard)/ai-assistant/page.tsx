@@ -9,10 +9,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Progress } from '@/components/ui/progress'
-import { Slider } from '@/components/ui/slider'
 import { 
   Sparkles, 
   Brain, 
@@ -25,21 +23,12 @@ import {
   Target, 
   Lightbulb,
   MessageSquare,
-  Image,
   BarChart,
-  CheckCircle,
   AlertCircle,
   Clock,
   Star,
   Zap,
-  BookOpen,
-  Users,
-  DollarSign,
   Eye,
-  ThumbsUp,
-  ThumbsDown,
-  Download,
-  Save
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -119,7 +108,7 @@ export default function AIAssistantPage() {
   const queryClient = useQueryClient()
   const contentRef = useRef<HTMLTextAreaElement>(null)
 
-  const { register: registerGenerate, handleSubmit: handleGenerateSubmit, formState: { errors: generateErrors }, watch: watchGenerate, setValue: setGenerateValue } = useForm<GenerateContentForm>({
+  const { register: registerGenerate, handleSubmit: handleGenerateSubmit, formState: { errors: generateErrors }, setValue: setGenerateValue } = useForm<GenerateContentForm>({
     resolver: zodResolver(generateContentSchema),
     defaultValues: {
       tone: 'professional',
@@ -129,7 +118,7 @@ export default function AIAssistantPage() {
     }
   })
 
-  const { register: registerOptimize, handleSubmit: handleOptimizeSubmit, formState: { errors: optimizeErrors }, setValue: setOptimizeValue } = useForm<OptimizeContentForm>({
+  const { register: registerOptimize, handleSubmit: handleOptimizeSubmit, formState: { errors: optimizeErrors } } = useForm<OptimizeContentForm>({
     resolver: zodResolver(optimizeContentSchema),
   })
 
@@ -230,7 +219,7 @@ export default function AIAssistantPage() {
     toast.success('Copied to clipboard!')
   }
 
-  const insertIntoEditor = (content: string) => {
+  const insertIntoEditor = () => {
     // This would integrate with your TipTap editor
     toast.success('Content inserted into editor!')
   }
@@ -343,7 +332,7 @@ export default function AIAssistantPage() {
         <Alert className="border-blue-200 bg-blue-50">
           <Sparkles className="h-4 w-4 text-blue-500" />
           <AlertDescription className="text-blue-700">
-            <strong>AI Insight:</strong> I've analyzed your recent proposals and found {insights.length} optimization opportunities.
+            <strong>AI Insight:</strong> I&apos;ve analyzed your recent proposals and found {insights.length} optimization opportunities.
             <Button variant="link" className="p-0 h-auto ml-2 text-blue-700" onClick={() => setShowInsights(true)}>
               View insights →
             </Button>
@@ -512,7 +501,7 @@ export default function AIAssistantPage() {
                       <Button variant="outline" size="sm" onClick={() => copyToClipboard(generatedContent)}>
                         <Copy className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => insertIntoEditor(generatedContent)}>
+                      <Button variant="outline" size="sm" onClick={insertIntoEditor}>
                         <FileText className="h-4 w-4" />
                       </Button>
                     </div>
@@ -804,7 +793,7 @@ export default function AIAssistantPage() {
                       className="w-full"
                       onClick={() => {
                         setGenerateValue('industry', template.industry[0])
-                        setGenerateValue('tone', template.tone as any)
+                        setGenerateValue('tone', template.tone as GenerateContentForm['tone'])
                         setGenerateValue('length', template.length)
                         toast.success('Template loaded! Customize and generate.')
                       }}

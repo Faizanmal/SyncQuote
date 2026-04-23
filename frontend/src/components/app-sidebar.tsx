@@ -18,7 +18,6 @@ import {
   Plug,
   Monitor,
   DollarSign,
-  Sparkles,
   Workflow,
   TrendingUp,
   FileCode,

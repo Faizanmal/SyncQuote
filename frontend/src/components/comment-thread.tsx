@@ -53,7 +53,7 @@ export function CommentThread({ proposalId, currentUserEmail, currentUserName }:
         socket.off('comment_added');
       };
     }
-  }, [proposalId]);
+  }, [proposalId, fetchComments]);
 
   const fetchComments = async () => {
     try {
@@ -133,8 +133,8 @@ export function CommentThread({ proposalId, currentUserEmail, currentUserName }:
   const renderComment = (comment: Comment, depth = 0) => (
     <div key={comment.id} className={`${depth > 0 ? 'ml-8 mt-4 pl-4 border-l-2' : 'mb-4'}`}>
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 mt-1">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+        <div className="shrink-0 mt-1">
+          <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-purple-500 flex items-center justify-center">
             <User className="h-4 w-4 text-white" />
           </div>
         </div>

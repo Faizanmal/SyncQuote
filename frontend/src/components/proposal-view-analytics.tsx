@@ -95,7 +95,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
 
   useEffect(() => {
     fetchData();
-  }, [proposalId]);
+  }, [proposalId, fetchData]);
 
   const fetchData = async () => {
     try {
@@ -213,7 +213,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
               <CardDescription>Daily view count for the last 30 days</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px]">
+              <div className="h-75">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={analytics.viewTimeline}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -281,7 +281,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
               <CardTitle>Time Spent by Section</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[300px]">
+              <div className="h-75">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={analytics.topSections} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
@@ -293,7 +293,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
                       width={100}
                     />
                     <Tooltip 
-                      formatter={(value: number) => formatDuration(value)}
+                      formatter={(value) => value == null ? '' : formatDuration(Number(value))}
                     />
                     <Bar dataKey="averageDuration" fill="#6366f1" radius={[0, 4, 4, 0]} />
                   </BarChart>
@@ -310,7 +310,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
                 <CardTitle>Device Breakdown</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[250px]">
+                <div className="h-62.5">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -321,7 +321,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
                         cy="50%"
                         innerRadius={60}
                         outerRadius={80}
-                        label={({ device, count }) => `${device}: ${count}`}
+                        label={({ name, value }) => `${name}: ${value}`}
                       >
                         {analytics.viewsByDevice.map((entry, index) => (
                           <Cell key={entry.device} fill={COLORS[index % COLORS.length]} />
@@ -354,7 +354,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analytics.viewsByLocation.slice(0, 5).map((location, index) => (
+                  {analytics.viewsByLocation.slice(0, 5).map((location, _index) => (
                     <div key={location.country} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
@@ -379,7 +379,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
               <CardDescription>People who viewed your proposal</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[400px]">
+              <ScrollArea className="h-100">
                 <div className="space-y-4">
                   {recentViewers.map((viewer) => {
                     const DeviceIcon = deviceIcons[viewer.device as keyof typeof deviceIcons] || Monitor;

@@ -17,50 +17,25 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
 import { 
   Plug, 
-  Zap, 
-  Share, 
   Globe, 
   Settings, 
   Plus, 
   Edit, 
-  Trash2, 
-  Eye, 
   Send, 
   Users, 
   Clock, 
-  Target,
   Filter,
   Search,
   CheckCircle,
-  XCircle,
-  AlertCircle,
-  Info,
-  Activity,
-  Calendar,
-  FileText,
   DollarSign,
-  UserPlus,
   TrendingUp,
   Download,
-  Upload,
-  Play,
-  Pause,
   MoreHorizontal,
   ExternalLink,
-  Key,
-  Shield,
   RefreshCw,
   Database,
-  Code,
   Webhook,
-  Cpu,
-  Cloud,
-  Building,
-  Mail,
   MessageSquare,
-  Phone,
-  Link as LinkIcon,
-  GitBranch,
   Package,
   Star,
   Heart,
@@ -235,7 +210,7 @@ type CreateWebhookForm = z.infer<typeof createWebhookSchema>
 type CreateAPIKeyForm = z.infer<typeof createAPIKeySchema>
 
 export default function IntegrationsPage() {
-  const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>([])
+  const [ , ] = useState<string[]>([])
   const [integrationDialogOpen, setIntegrationDialogOpen] = useState(false)
   const [webhookDialogOpen, setWebhookDialogOpen] = useState(false)
   const [apiKeyDialogOpen, setApiKeyDialogOpen] = useState(false)
@@ -243,7 +218,7 @@ export default function IntegrationsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedStatus, setSelectedStatus] = useState('all')
-  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null)
+  const [ , ] = useState<Integration | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<IntegrationTemplate | null>(null)
   const queryClient = useQueryClient()
 
@@ -286,11 +261,6 @@ export default function IntegrationsPage() {
   const { data: templates } = useQuery({
     queryKey: ['integration-templates', selectedCategory],
     queryFn: () => api.get(`/integrations/templates?category=${selectedCategory}`).then(res => res.data),
-  })
-
-  const { data: marketplace } = useQuery({
-    queryKey: ['integration-marketplace'],
-    queryFn: () => api.get('/integrations/marketplace').then(res => res.data),
   })
 
   const { data: analytics } = useQuery({
@@ -885,7 +855,7 @@ export default function IntegrationsPage() {
                   <TableHead>Events</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Performance</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-25">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1069,7 +1039,7 @@ export default function IntegrationsPage() {
                       <TableHead>Usage</TableHead>
                       <TableHead>Rate Limit</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="w-[70px]"></TableHead>
+                      <TableHead className="w-17.5">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

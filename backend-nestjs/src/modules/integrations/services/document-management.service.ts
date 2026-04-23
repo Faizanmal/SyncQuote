@@ -102,7 +102,7 @@ export class DocumentManagementService {
       pageSize: 50,
     });
 
-    return (result.data.files || []).map(file => ({
+    return (result.data.files || []).map((file: any) => ({
       id: file.id!,
       name: file.name!,
       mimeType: file.mimeType!,
