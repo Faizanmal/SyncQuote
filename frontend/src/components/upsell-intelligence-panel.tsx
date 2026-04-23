@@ -4,15 +4,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -22,18 +18,14 @@ import {
   Package,
   ShoppingCart,
   Plus,
-  ArrowRight,
   Target,
   Zap,
   Gift,
-  BarChart2,
-  Eye,
   Check,
   X,
   RefreshCw,
   Settings,
   Lightbulb,
-  ChevronRight,
   Star,
   Clock,
   ThumbsUp,
@@ -124,7 +116,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
     fetchBundles();
     fetchPricingOptimizations();
     fetchMetrics();
-  }, [proposalId]);
+  }, [proposalId, fetchBundles, fetchPricingOptimizations, fetchRecommendations]);
 
   const fetchRecommendations = async () => {
     try {
@@ -184,6 +176,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
         description: `${data.recommendations?.length || 0} new recommendations created`,
       });
     } catch (error) {
+      console.error('Failed to generate recommendations:', error);
       toast({
         title: 'Error',
         description: 'Failed to generate recommendations',
@@ -207,6 +200,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
         description: status === 'accepted' ? 'The upsell will be shown to the client' : 'This recommendation won\'t be shown',
       });
     } catch (error) {
+      console.error('Failed to update recommendation status:', error);
       toast({
         title: 'Error',
         description: 'Failed to update recommendation',
@@ -224,6 +218,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
         description: 'The optimized price has been applied',
       });
     } catch (error) {
+      console.error('Failed to apply price optimization:', error);
       toast({
         title: 'Error',
         description: 'Failed to apply price optimization',
@@ -246,6 +241,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
         description: 'Upsell settings have been saved',
       });
     } catch (error) {
+      console.error('Failed to update settings:', error);
       toast({
         title: 'Error',
         description: 'Failed to update settings',
@@ -570,7 +566,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
                     <TableHead className="text-right">Optimal Price</TableHead>
                     <TableHead className="text-right">Elasticity</TableHead>
                     <TableHead className="text-right">Revenue Impact</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-25">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

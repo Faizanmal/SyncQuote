@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -16,56 +15,27 @@ import { Progress } from '@/components/ui/progress'
 import { 
   Activity, 
   AlertTriangle, 
-  BarChart3, 
-  CheckCircle, 
-  Clock, 
   Cpu, 
-  Database, 
-  Globe, 
   HardDrive, 
   Heart, 
   Monitor, 
   Server, 
-  Settings, 
-  Shield, 
-  Smartphone, 
   TrendingDown, 
   TrendingUp, 
   Users, 
-  Wifi, 
   XCircle,
-  Zap,
-  AlertCircle,
   RefreshCw,
   Download,
   Upload,
   Eye,
-  Play,
-  Pause,
-  Square,
-  MoreHorizontal,
   Filter,
   Search,
-  Calendar,
-  FileText,
-  Mail,
   Bell,
-  Target,
-  Layers,
-  Cloud,
   GitBranch,
-  Code,
-  Bug,
-  Gauge,
   MemoryStick,
   NetworkIcon as Network,
   Timer,
-  Thermometer,
-  MapPin,
-  ChevronUp,
-  ChevronDown,
   Info,
-  Webhook
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -73,41 +43,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import CountUp from 'react-countup'
-
-interface SystemMetrics {
-  cpu: {
-    usage: number
-    cores: number
-    temperature: number
-    processes: number
-  }
-  memory: {
-    usage: number
-    total: number
-    available: number
-    cached: number
-  }
-  disk: {
-    usage: number
-    total: number
-    available: number
-    iops: number
-  }
-  network: {
-    inbound: number
-    outbound: number
-    connections: number
-    latency: number
-  }
-  database: {
-    connections: number
-    queryTime: number
-    slowQueries: number
-    cacheHitRate: number
-  }
-}
 
 interface Alert {
   id: string
@@ -981,7 +918,7 @@ export default function MonitoringPage() {
                   <TableHead>Count</TableHead>
                   <TableHead>Last Seen</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  <TableHead className="w-17.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

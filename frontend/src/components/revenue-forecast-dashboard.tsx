@@ -4,18 +4,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Button } from '@/components/ui/button';
 import {
   TrendingUp,
-  TrendingDown,
   DollarSign,
   Target,
-  PieChart as PieChartIcon,
-  BarChart2,
   Calendar,
-  Users,
-  Trophy,
 } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 import {
@@ -34,8 +27,6 @@ import {
   LineChart,
   Line,
   Legend,
-  Funnel,
-  FunnelChart,
 } from 'recharts';
 
 interface PipelineStage {
@@ -116,7 +107,7 @@ export function RevenueForecastDashboard() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const fetchData = async () => {
     try {
@@ -240,7 +231,7 @@ export function RevenueForecastDashboard() {
                   {pipeline?.stages
                     .filter(s => s.proposalCount > 0 || s.probability > 0)
                     .sort((a, b) => a.order - b.order)
-                    .map((stage, index) => {
+                    .map((stage, _index) => {
                       const maxValue = Math.max(...(pipeline?.stages.map(s => s.totalValue) || [1]));
                       const widthPercentage = maxValue > 0 ? (stage.totalValue / maxValue) * 100 : 0;
                       
@@ -295,7 +286,7 @@ export function RevenueForecastDashboard() {
                 <CardDescription>Pipeline value by stage</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
+                <div className="h-75">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -329,7 +320,7 @@ export function RevenueForecastDashboard() {
               <CardDescription>Monthly revenue over the last 12 months</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[350px]">
+              <div className="h-87.5">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={forecast?.trends}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -339,10 +330,10 @@ export function RevenueForecastDashboard() {
                       tickFormatter={(value) => `$${value / 1000}k`}
                     />
                     <Tooltip
-                      formatter={(value: number, name: string) => {
-                        if (name === 'revenue') return formatCurrency(value);
-                        if (name === 'avgDealSize') return formatCurrency(value);
-                        return value;
+                      formatter={(value: unknown, name: unknown) => {
+                        const num = typeof value === 'number' ? value : Number(value ?? 0);
+                        if (name === 'revenue' || name === 'avgDealSize') return formatCurrency(num);
+                        return num;
                       }}
                     />
                     <Legend />
@@ -367,7 +358,7 @@ export function RevenueForecastDashboard() {
                 <CardTitle>Quarterly Performance</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[250px]">
+                <div className="h-62.5">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={forecast?.quarterly}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -376,7 +367,7 @@ export function RevenueForecastDashboard() {
                         tick={{ fontSize: 12 }}
                         tickFormatter={(value) => `$${value / 1000}k`}
                       />
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
                       <Bar dataKey="actual" name="Actual" fill="#6366f1" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -390,7 +381,7 @@ export function RevenueForecastDashboard() {
                 <CardTitle>Deal Volume & Size</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="h-[250px]">
+                <div className="h-62.5">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={forecast?.trends}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -403,9 +394,10 @@ export function RevenueForecastDashboard() {
                         tickFormatter={(value) => `$${value / 1000}k`}
                       />
                       <Tooltip 
-                        formatter={(value: number, name: string) => {
-                          if (name === 'avgDealSize') return formatCurrency(value);
-                          return value;
+                        formatter={(value: unknown, name: unknown) => {
+                          const num = typeof value === 'number' ? value : Number(value ?? 0);
+                          if (name === 'avgDealSize') return formatCurrency(num);
+                          return num;
                         }}
                       />
                       <Legend />
@@ -442,7 +434,7 @@ export function RevenueForecastDashboard() {
                 <CardDescription>Monthly win rate over time</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
+                <div className="h-75">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={winRate?.byMonth}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -452,7 +444,10 @@ export function RevenueForecastDashboard() {
                         domain={[0, 100]}
                         tickFormatter={(value) => `${value}%`}
                       />
-                      <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                      <Tooltip formatter={(value) => {
+                        const num = typeof value === 'number' ? value : Number(value ?? 0);
+                        return `${num.toFixed(1)}%`;
+                      }} />
                       <Line
                         type="monotone"
                         dataKey="rate"
@@ -474,7 +469,7 @@ export function RevenueForecastDashboard() {
                 <CardDescription>Performance across value ranges</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
+                <div className="h-75">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={winRate?.byValue} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" />
@@ -485,7 +480,10 @@ export function RevenueForecastDashboard() {
                         tick={{ fontSize: 12 }}
                       />
                       <YAxis type="category" dataKey="range" tick={{ fontSize: 12 }} width={80} />
-                      <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                      <Tooltip formatter={(value) => {
+                        const num = typeof value === 'number' ? value : Number(value ?? 0);
+                        return `${num.toFixed(1)}%`;
+                      }} />
                       <Bar dataKey="rate" name="Win Rate" fill="#22c55e" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -533,7 +531,7 @@ export function RevenueForecastDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {teamPerformance?.members.map((member, index) => (
+                {teamPerformance?.members.map((member, _index) => (
                   <div
                     key={member.userId}
                     className="flex items-center justify-between p-4 border rounded-lg"

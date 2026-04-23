@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
@@ -21,24 +20,13 @@ import {
   Plus,
   Play,
   Pause,
-  StopCircle,
   Trophy,
   TrendingUp,
-  TrendingDown,
   BarChart2,
   Users,
-  Eye,
   CheckCircle2,
-  XCircle,
   Clock,
-  Copy,
   Trash2,
-  AlertTriangle,
-  Sparkles,
-  Target,
-  Percent,
-  ArrowRight,
-  ChevronRight,
   Lightbulb,
 } from 'lucide-react';
 
@@ -108,7 +96,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
 
   useEffect(() => {
     fetchTests();
-  }, [proposalId]);
+  }, [proposalId,fetchTests]);
 
   const fetchTests = async () => {
     try {
@@ -157,6 +145,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
         description: 'A/B test has been created successfully',
       });
     } catch (error) {
+      console.error('Failed to create test:', error);
       toast({
         title: 'Error',
         description: 'Failed to create test',
@@ -178,6 +167,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
         description: `Test ${status === 'running' ? 'started' : status === 'paused' ? 'paused' : 'stopped'}`,
       });
     } catch (error) {
+      console.error('Failed to update test status:', error);
       toast({
         title: 'Error',
         description: 'Failed to update test',
@@ -199,6 +189,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
         description: 'The winning variant has been applied to the proposal',
       });
     } catch (error) {
+      console.error('Failed to select winner:', error);
       toast({
         title: 'Error',
         description: 'Failed to select winner',
@@ -216,6 +207,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
         description: 'A/B test has been removed',
       });
     } catch (error) {
+      console.error('Failed to delete test:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete test',
@@ -493,7 +485,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
                     <TableHead className="text-right">Conversions</TableHead>
                     <TableHead className="text-right">Conv. Rate</TableHead>
                     <TableHead className="text-right">Confidence</TableHead>
-                    <TableHead className="w-[100px]"></TableHead>
+                    <TableHead className="w-25"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

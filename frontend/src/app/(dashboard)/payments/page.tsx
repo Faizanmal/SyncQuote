@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -8,23 +8,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
 import { 
-  CreditCard, 
   DollarSign, 
-  TrendingUp, 
   TrendingDown,
   Users, 
   Calendar, 
-  Clock, 
-  AlertCircle, 
   CheckCircle, 
-  XCircle,
   Plus,
   Edit,
   Eye,
@@ -32,41 +24,14 @@ import {
   Upload,
   Send,
   RefreshCw,
-  Settings,
   Filter,
   Search,
   MoreHorizontal,
   Receipt,
-  Banknote,
-  Wallet,
-  PiggyBank,
-  Target,
   BarChart3,
-  LineChart,
-  PieChart,
-  Activity,
-  Globe,
   MapPin,
   Building,
-  User,
-  Mail,
-  Phone,
-  FileText,
-  Calendar as CalendarIcon,
-  Timer,
-  Zap,
-  Shield,
-  Link,
-  Copy,
-  ExternalLink,
-  ArrowUpRight,
-  ArrowDownRight,
-  Info,
-  AlertTriangle,
-  Star,
-  Heart,
   Repeat,
-  PlayCircle,
   PauseCircle,
   StopCircle
 } from 'lucide-react'
@@ -76,24 +41,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
-import { LineChart as RechartsLineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
+import { LineChart as RechartsLineChart, Line, AreaChart, Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
 import CountUp from 'react-countup'
-
-interface PaymentAccount {
-  id: string
-  type: 'stripe' | 'paypal' | 'bank'
-  accountId: string
-  displayName: string
-  status: 'active' | 'pending' | 'disabled' | 'error'
-  isDefault: boolean
-  currency: string
-  balance: number
-  country: string
-  lastPayout: string
-  capabilities: string[]
-  requirements: string[]
-  config: Record<string, any>
-}
 
 interface Invoice {
   id: string
@@ -212,7 +161,7 @@ interface Transaction {
   paymentMethod: string
   processingFee: number
   netAmount: number
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
   createdAt: string
   settledAt?: string
 }
@@ -325,37 +274,27 @@ export default function PaymentsPage() {
 
   const { data: invoices } = useQuery({
     queryKey: ['invoices', searchQuery, selectedStatus],
-    queryFn: () => api.get(`/payments/invoices?search=${searchQuery}&status=${selectedStatus}`).then((res: any) => res.data),
+    queryFn: () => api.get<Invoice[]>(`/payments/invoices?search=${searchQuery}&status=${selectedStatus}`).then(res => res.data),
   })
 
   const { data: subscriptions } = useQuery({
     queryKey: ['subscriptions', selectedStatus],
-    queryFn: () => api.get(`/payments/subscriptions?status=${selectedStatus}`).then((res: any) => res.data),
+    queryFn: () => api.get<Subscription[]>(`/payments/subscriptions?status=${selectedStatus}`).then(res => res.data),
   })
 
   const { data: plans } = useQuery({
     queryKey: ['payment-plans'],
-    queryFn: () => api.get('/payments/plans').then((res: any) => res.data),
+    queryFn: () => api.get<PaymentPlan[]>('/payments/plans').then(res => res.data),
   })
 
   const { data: transactions } = useQuery({
     queryKey: ['transactions', selectedTimeRange],
-    queryFn: () => api.get(`/payments/transactions?range=${selectedTimeRange}`).then((res: any) => res.data),
+    queryFn: () => api.get<Transaction[]>(`/payments/transactions?range=${selectedTimeRange}`).then(res => res.data),
   })
 
   const { data: customers } = useQuery({
     queryKey: ['payment-customers', searchQuery],
-    queryFn: () => api.get(`/payments/customers?search=${searchQuery}`).then((res: any) => res.data),
-  })
-
-  const { data: paymentAccounts } = useQuery({
-    queryKey: ['payment-accounts'],
-    queryFn: () => api.get('/payments/accounts').then((res: any) => res.data),
-  })
-
-  const { data: revenueAnalytics } = useQuery({
-    queryKey: ['revenue-analytics', selectedTimeRange],
-    queryFn: () => api.get(`/payments/analytics?range=${selectedTimeRange}`).then((res: any) => res.data),
+    queryFn: () => api.get<Customer[]>(`/payments/customers?search=${searchQuery}`).then(res => res.data),
   })
 
   // Mutations
@@ -654,7 +593,12 @@ export default function PaymentsPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`$${value.toLocaleString()}`, '']} />
+                    <Tooltip
+                      formatter={(value) => {
+                        const num = typeof value === 'number' ? value : Number(value ?? 0);
+                        return [`$${num.toLocaleString()}`, ''];
+                      }}
+                    />
                     <Area type="monotone" dataKey="subscriptions" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
                     <Area type="monotone" dataKey="oneTime" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
                   </AreaChart>
@@ -1032,7 +976,7 @@ export default function PaymentsPage() {
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Due Date</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-25">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1206,7 +1150,7 @@ export default function PaymentsPage() {
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Next Payment</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                  <TableHead className="w-25">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1322,7 +1266,7 @@ export default function PaymentsPage() {
                   <TableHead>Status</TableHead>
                   <TableHead>Payment Method</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead className="w-[70px]"></TableHead>
+                  <TableHead className="w-17.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

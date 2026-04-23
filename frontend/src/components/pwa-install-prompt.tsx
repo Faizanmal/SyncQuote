@@ -90,7 +90,7 @@ export function PWAInstallPrompt({ variant = 'banner' }: PWAInstallPromptProps) 
   if (variant === 'dialog') {
     return (
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -255,12 +255,12 @@ export function OfflineIndicator() {
       {!isOnline ? (
         <div className="bg-yellow-500 text-yellow-950 py-2 px-4 text-center text-sm flex items-center justify-center gap-2">
           <WifiOff className="h-4 w-4" />
-          <span>You're offline. Changes will sync when you reconnect.</span>
+          <span>You&apos;re offline. Changes will sync when you reconnect.</span>
         </div>
       ) : showReconnected ? (
         <div className="bg-green-500 text-white py-2 px-4 text-center text-sm flex items-center justify-center gap-2 animate-in slide-in-from-top-1">
           <CheckCircle className="h-4 w-4" />
-          <span>You're back online! Syncing your changes...</span>
+          <span>You&apos;re back online! Syncing your changes...</span>
         </div>
       ) : null}
     </div>

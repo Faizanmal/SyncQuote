@@ -1,27 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
 import {
   Globe,
   Languages,
   DollarSign,
   Check,
-  Plus,
-  Edit,
   Trash2,
   RefreshCw,
   Copy,
@@ -31,9 +27,6 @@ import {
   Clock,
   AlertTriangle,
   Sparkles,
-  BookOpen,
-  Type,
-  AlignLeft,
   AlignRight,
 } from 'lucide-react';
 
@@ -123,7 +116,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
     showLanguageSwitcher: true,
     translationProvider: 'google',
   });
-  const [loading, setLoading] = useState(true);
+  const [ , setLoading] = useState(true);
   const [showTranslateDialog, setShowTranslateDialog] = useState(false);
   const [showCurrencyConverter, setShowCurrencyConverter] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState('');
@@ -136,7 +129,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
   useEffect(() => {
     fetchSettings();
     fetchTranslations();
-  }, [proposalId]);
+  }, [proposalId,fetchTranslations]);
 
   const fetchSettings = async () => {
     try {
@@ -177,6 +170,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
         description: 'Language settings have been saved',
       });
     } catch (error) {
+      console.error("Failed to update settings:", error);
       toast({
         title: 'Error',
         description: 'Failed to update settings',
@@ -207,6 +201,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
       // Poll for completion
       pollTranslationStatus(data.translation.id);
     } catch (error) {
+      console.error("Failed to start translation:", error);
       toast({
         title: 'Error',
         description: 'Failed to start translation',
@@ -225,6 +220,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
           clearInterval(interval);
         }
       } catch (error) {
+        console.error("Failed to poll translation status:", error);
         clearInterval(interval);
       }
     }, 2000);
@@ -239,6 +235,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
         description: 'The translation has been removed',
       });
     } catch (error) {
+      console.error("Failed to delete translation:", error);
       toast({
         title: 'Error',
         description: 'Failed to delete translation',
@@ -261,6 +258,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
       const data = await response.json();
       setConvertedAmount(data.convertedAmount);
     } catch (error) {
+      console.error("Failed to convert currency:", error);
       toast({
         title: 'Error',
         description: 'Failed to convert currency',
@@ -562,7 +560,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
                     <TableHead>Status</TableHead>
                     <TableHead>Progress</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    <TableHead className="w-25">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -682,7 +680,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
                   <div>
                     <Label>Auto-detect Language</Label>
                     <p className="text-sm text-muted-foreground">
-                      Automatically detect viewer's preferred language
+                      Automatically detect viewer&apos;s preferred language
                     </p>
                   </div>
                   <Switch

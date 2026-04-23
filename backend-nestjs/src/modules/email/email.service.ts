@@ -45,6 +45,13 @@ export class EmailService {
     }
   }
 
+  /**
+   * Alias for send method to maintain compatibility
+   */
+  async sendEmail(options: SendEmailOptions): Promise<void> {
+    return this.send(options);
+  }
+
   async sendVerificationEmail(email: string, token: string) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;

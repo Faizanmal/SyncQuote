@@ -26,6 +26,7 @@ import {
   Download,
   CreditCard,
 } from 'lucide-react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import io from 'socket.io-client';
 
@@ -68,9 +69,9 @@ export default function PublicProposalPage() {
   const [showSignature, setShowSignature] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [pricingItems, setPricingItems] = useState<PricingItem[]>([]);
-  const socketRef = useRef<any>(null);
+  const socketRef = useRef<ReturnType<typeof io> | null>(null);
   const sessionIdRef = useRef<string | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
+  const startTimeRef = useRef<number>(0);
 
   const { data: proposal, isLoading, refetch } = useQuery<ProposalData>({
     queryKey: ['proposal', slug],
@@ -94,6 +95,7 @@ export default function PublicProposalPage() {
         referrer: document.referrer || undefined,
       });
       sessionIdRef.current = response.data.sessionId;
+      startTimeRef.current = Date.now();
     } catch (error) {
       console.error('Failed to start tracking session:', error);
     }
@@ -295,7 +297,7 @@ export default function PublicProposalPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {proposal.companyLogo && (
-                <img
+                <Image
                   src={proposal.companyLogo}
                   alt={proposal.companyName || 'Company'}
                   className="h-10 w-auto"
@@ -401,7 +403,7 @@ export default function PublicProposalPage() {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="border rounded-lg p-4 bg-gray-50">
-                      <img
+                      <Image
                         src={proposal.signature.signatureData}
                         alt="Signature"
                         className="max-h-24"

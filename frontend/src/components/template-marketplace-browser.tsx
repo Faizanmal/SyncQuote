@@ -9,9 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
-  Store, Star, Download, DollarSign, TrendingUp, 
-  Search, Filter, ShoppingCart, Award, Eye 
+  Store, Star, Download, DollarSign, 
+  Search, ShoppingCart, Award 
 } from 'lucide-react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -415,7 +416,7 @@ function TemplateCard({
       
       {template.previewImage && (
         <div className="aspect-video bg-muted relative overflow-hidden">
-          <img 
+          <Image
             src={template.previewImage} 
             alt={template.name}
             className="object-cover w-full h-full"
@@ -483,7 +484,7 @@ function TemplatePurchaseDialog({ template, open, onOpenChange, onPurchase }: an
         <div className="space-y-6">
           {template.previewImage && (
             <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-              <img 
+              <Image
                 src={template.previewImage} 
                 alt={template.name}
                 className="object-cover w-full h-full"

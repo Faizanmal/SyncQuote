@@ -45,7 +45,7 @@ export function CurrencySelector({
     if (showConversionRate && baseCurrency && value !== baseCurrency) {
       fetchConversionRate();
     }
-  }, [value, baseCurrency, showConversionRate]);
+  }, [value, baseCurrency, showConversionRate, fetchConversionRate]);
 
   const fetchConversionRate = async () => {
     if (!baseCurrency || value === baseCurrency) {
@@ -128,7 +128,7 @@ export function CurrencyConverter({
     } else {
       setConverted(amount);
     }
-  }, [amount, fromCurrency, toCurrency]);
+  }, [amount, fromCurrency, toCurrency, convertAmount]);
 
   const convertAmount = async () => {
     setLoading(true);

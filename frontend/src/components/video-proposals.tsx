@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -17,10 +16,8 @@ import { useToast } from '@/components/ui/use-toast';
 import {
   Video,
   Play,
-  Pause,
   StopCircle,
   Camera,
-  Upload,
   Link2,
   BarChart2,
   Eye,
@@ -29,14 +26,11 @@ import {
   TrendingUp,
   Mic,
   MicOff,
-  Monitor,
   Trash2,
   Copy,
-  ExternalLink,
-  Settings,
   Sparkles,
-  UserCircle,
 } from 'lucide-react';
+import Image from 'next/image';
 
 interface ProposalVideo {
   id: string;
@@ -76,7 +70,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
   const [showRecordDialog, setShowRecordDialog] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [selectedVideo, setSelectedVideo] = useState<ProposalVideo | null>(null);
+  const [ , ] = useState<ProposalVideo | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -91,7 +85,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
   useEffect(() => {
     fetchVideos();
     fetchIntegrations();
-  }, [proposalId]);
+  }, [proposalId, fetchVideos]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -134,6 +128,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
         window.location.href = data.authUrl;
       }
     } catch (error) {
+      console.error('Failed to connect integration:', error);
       toast({
         title: 'Connection failed',
         description: 'Failed to connect video integration',
@@ -164,6 +159,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
         description: 'Video has been added to the proposal',
       });
     } catch (error) {
+      console.error('Failed to add video:', error);
       toast({
         title: 'Error',
         description: 'Failed to add video',
@@ -181,6 +177,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
         description: 'Video has been removed from the proposal',
       });
     } catch (error) {
+      console.error('Failed to remove video:', error);
       toast({
         title: 'Error',
         description: 'Failed to remove video',
@@ -215,6 +212,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
       setRecording(true);
       setRecordingTime(0);
     } catch (error) {
+      console.error('Failed to start recording:', error);
       toast({
         title: 'Recording failed',
         description: 'Failed to access camera/microphone',
@@ -249,6 +247,8 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
         description: 'Your video recording has been saved',
       });
     } catch (error) {
+      console.error('Failed to upload recording:', error);
+
       toast({
         title: 'Upload failed',
         description: 'Failed to upload recording',
@@ -391,7 +391,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Personalized Video</Label>
-                    <p className="text-sm text-muted-foreground">Show viewer's name overlay</p>
+                    <p className="text-sm text-muted-foreground">Show viewer&apos;s name overlay</p>
                   </div>
                   <Switch checked={personalized} onCheckedChange={setPersonalized} />
                 </div>
@@ -461,7 +461,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
               <Card key={video.id} className="overflow-hidden">
                 <div className="relative aspect-video bg-muted">
                   {video.thumbnailUrl ? (
-                    <img
+                    <Image
                       src={video.thumbnailUrl}
                       alt={video.title}
                       className="w-full h-full object-cover"
@@ -483,7 +483,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
                   </div>
                   {video.personalized && (
                     <div className="absolute top-2 left-2">
-                      <Badge className="bg-gradient-to-r from-purple-500 to-pink-500">
+                      <Badge className="bg-linear-to-r from-purple-500 to-pink-500">
                         <Sparkles className="w-3 h-3 mr-1" />
                         Personalized
                       </Badge>
@@ -609,13 +609,13 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
               <CardDescription>View analytics for each video</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[300px]">
+              <ScrollArea className="h-75">
                 <div className="space-y-4">
                   {videos.map((video) => (
                     <div key={video.id} className="flex items-center gap-4 pb-4 border-b last:border-0">
-                      <div className="w-24 h-14 bg-muted rounded overflow-hidden flex-shrink-0">
+                      <div className="w-24 h-14 bg-muted rounded overflow-hidden shrink-0">
                         {video.thumbnailUrl ? (
-                          <img src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
+                          <Image src={video.thumbnailUrl} alt="" className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Video className="w-6 h-6 text-muted-foreground" />

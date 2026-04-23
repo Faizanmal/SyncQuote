@@ -3,13 +3,6 @@
 import { useState } from 'react';
 import { useApi } from '@/hooks/use-api';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -78,6 +71,7 @@ export function AIContentAssistant({
         toast.success('Content generated successfully!');
       }
     } catch (error) {
+      console.error('Failed to generate content:', error);
       toast.error('Failed to generate content');
     } finally {
       setLoading(false);
@@ -100,6 +94,7 @@ export function AIContentAssistant({
       setGeneratedContent(data.data.improved);
       toast.success('Content improved!');
     } catch (error) {
+      console.error('Failed to improve content:', error);
       toast.error('Failed to improve content');
     } finally {
       setLoading(false);

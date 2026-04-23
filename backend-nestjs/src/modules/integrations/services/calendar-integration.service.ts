@@ -162,13 +162,13 @@ export class CalendarIntegrationService {
       orderBy: 'startTime',
     });
 
-    return (result.data.items || []).map(event => ({
+    return (result.data.items || []).map((event: any) => ({
       id: event.id || undefined,
       summary: event.summary || 'No title',
       description: event.description || undefined,
       start: new Date(event.start?.dateTime || event.start?.date!),
       end: new Date(event.end?.dateTime || event.end?.date!),
-      attendees: event.attendees?.map(a => a.email!).filter(Boolean),
+      attendees: event.attendees?.map((a: any) => a.email!).filter(Boolean),
       location: event.location || undefined,
       conferenceLink: event.hangoutLink || undefined,
     }));

@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Palette, Upload, Eye } from 'lucide-react';
+import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApi } from '@/hooks/use-api';
-import { Palette, Upload, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface BrandingSettings {
@@ -29,7 +30,7 @@ export function BrandingSettings() {
 
   useEffect(() => {
     fetchSettings();
-  }, []);
+  }, [fetchSettings]);
 
   const fetchSettings = async () => {
     try {
@@ -88,6 +89,7 @@ export function BrandingSettings() {
         description: 'Your company logo has been uploaded successfully',
       });
     } catch (error) {
+      console.error('Logo upload failed:', error);
       toast({
         title: 'Upload failed',
         description: 'Failed to upload logo. Please try again.',
@@ -108,6 +110,7 @@ export function BrandingSettings() {
         description: 'Your branding settings have been updated',
       });
     } catch (error) {
+      console.error('Failed to save settings:', error);
       toast({
         title: 'Save failed',
         description: 'Failed to save settings. Please try again.',
@@ -147,7 +150,7 @@ export function BrandingSettings() {
             <Label htmlFor="companyLogo">Company Logo</Label>
             <div className="flex items-center gap-4">
               {settings.companyLogo && (
-                <img
+                <Image
                   src={settings.companyLogo}
                   alt="Company logo"
                   className="h-16 w-16 object-contain border rounded"
@@ -256,7 +259,7 @@ export function BrandingSettings() {
             <div className="bg-white p-4 rounded border">
               <div className="flex items-center gap-3 mb-4">
                 {settings.companyLogo ? (
-                  <img
+                  <Image
                     src={settings.companyLogo}
                     alt="Logo"
                     className="h-8 w-auto"

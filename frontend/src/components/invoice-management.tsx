@@ -2,14 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -27,7 +20,6 @@ import {
   MoreHorizontal,
   Search,
   Filter,
-  Calendar,
   AlertCircle,
   CheckCircle,
   XCircle,
@@ -36,7 +28,6 @@ import {
   Receipt,
   CreditCard,
   TrendingUp,
-  Users,
 } from 'lucide-react';
 import {
   Dialog,
@@ -467,7 +458,7 @@ export function InvoiceManagement() {
                       <TableCell>
                         <div>
                           <p className="font-medium">{invoice.invoiceNumber}</p>
-                          <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                          <p className="text-sm text-muted-foreground truncate max-w-50">
                             {invoice.proposalTitle}
                           </p>
                         </div>
@@ -544,7 +535,7 @@ export function InvoiceManagement() {
 
       {/* Create Invoice Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-125">
           <DialogHeader>
             <DialogTitle>Create New Invoice</DialogTitle>
             <DialogDescription>
@@ -631,7 +622,7 @@ export function InvoiceManagement() {
 
       {/* View Invoice Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-150">
           <DialogHeader>
             <DialogTitle>Invoice {selectedInvoice?.invoiceNumber}</DialogTitle>
             <DialogDescription>
@@ -740,7 +731,7 @@ export function InvoiceManagement() {
 
       {/* Record Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-112.5">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>

@@ -451,7 +451,7 @@ Date: _________________________
     const proposals = await this.prisma.proposal.findMany({
       where: {
         userId,
-        metadata: { path: ['contract'], not: null },
+        metadata: { path: ['contract'], not: null as any },
       },
       select: { metadata: true },
     });

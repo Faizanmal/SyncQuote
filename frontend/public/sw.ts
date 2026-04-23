@@ -2,6 +2,16 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Extend NotificationOptions to include vibrate
+interface ExtendedNotificationOptions extends NotificationOptions {
+  vibrate?: number[];
+}
+
+// Declare SyncEvent interface
+interface SyncEvent extends ExtendableEvent {
+  readonly tag: string;
+}
+
 const CACHE_NAME = 'syncquote-v1';
 const STATIC_CACHE = 'syncquote-static-v1';
 const DYNAMIC_CACHE = 'syncquote-dynamic-v1';
@@ -179,15 +189,16 @@ function isStaticAsset(pathname: string): boolean {
 }
 
 // Background Sync for offline form submissions
-self.addEventListener('sync', (event) => {
-  console.log('[ServiceWorker] Background Sync:', event.tag);
+self.addEventListener('sync', (event: Event) => {
+  const syncEvent = event as ExtendableEvent & { tag: string };
+  console.log('[ServiceWorker] Background Sync:', syncEvent.tag);
   
-  if (event.tag === 'sync-proposals') {
-    event.waitUntil(syncProposals());
+  if (syncEvent.tag === 'sync-proposals') {
+    syncEvent.waitUntil(syncProposals());
   }
   
-  if (event.tag === 'sync-invoices') {
-    event.waitUntil(syncInvoices());
+  if (syncEvent.tag === 'sync-invoices') {
+    syncEvent.waitUntil(syncInvoices());
   }
 });
 
@@ -276,7 +287,7 @@ self.addEventListener('push', (event) => {
         { action: 'view', title: 'View' },
         { action: 'dismiss', title: 'Dismiss' },
       ],
-    })
+    } as ExtendedNotificationOptions)
   );
 });
 

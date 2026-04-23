@@ -10,8 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { 
-  Shield, Users, Clock, Globe, AlertTriangle, 
-  CheckCircle, Settings, Download, Upload 
+  Shield, Users, Clock, Globe, 
+  CheckCircle, Settings, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -41,18 +41,9 @@ interface SecurityPolicy {
   mfaMethod: string;
 }
 
-interface DirectorySyncConfig {
-  id: string;
-  provider: string;
-  syncEnabled: boolean;
-  lastSyncAt?: string;
-  syncedUsers: number;
-  syncedGroups: number;
-}
-
 export function SsoSecuritySettings() {
   const [activeTab, setActiveTab] = useState('sso');
-  const [showSsoDialog, setShowSsoDialog] = useState(false);
+  const [ , setShowSsoDialog] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: ssoConfigs } = useQuery({
@@ -87,7 +78,7 @@ export function SsoSecuritySettings() {
     },
   });
 
-  const createSsoConfigMutation = useMutation({
+  const _createSsoConfigMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await fetch('/api/sso/configs', {
         method: 'POST',

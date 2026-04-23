@@ -30,7 +30,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Plus,
   Play,
@@ -134,6 +133,7 @@ export function AutomationWorkflows() {
       const response = await api.get('/automation');
       setWorkflows(response.data);
     } catch (error) {
+      console.error('Failed to load workflows:', error);
       toast.error('Failed to load automation workflows');
     } finally {
       setLoading(false);
@@ -166,6 +166,7 @@ export function AutomationWorkflows() {
       resetForm();
       fetchWorkflows();
     } catch (error) {
+      console.error('Failed to create workflow:', error);
       toast.error('Failed to create workflow');
     }
   };
@@ -188,6 +189,7 @@ export function AutomationWorkflows() {
       resetForm();
       fetchWorkflows();
     } catch (error) {
+      console.error('Failed to update workflow:', error);
       toast.error('Failed to update workflow');
     }
   };
@@ -199,6 +201,7 @@ export function AutomationWorkflows() {
       toast.success('Workflow deleted');
       fetchWorkflows();
     } catch (error) {
+      console.error('Failed to delete workflow:', error);
       toast.error('Failed to delete workflow');
     }
   };
@@ -208,6 +211,7 @@ export function AutomationWorkflows() {
       await api.post(`/automation/${id}/toggle`);
       fetchWorkflows();
     } catch (error) {
+      console.error('Failed to toggle workflow:', error);
       toast.error('Failed to toggle workflow');
     }
   };

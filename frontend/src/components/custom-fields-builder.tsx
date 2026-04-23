@@ -83,7 +83,7 @@ export function CustomFieldsBuilder() {
   const [activeTab, setActiveTab] = useState('fields');
   const [selectedScope, setSelectedScope] = useState('proposal');
   const [showFieldDialog, setShowFieldDialog] = useState(false);
-  const [showGroupDialog, setShowGroupDialog] = useState(false);
+  const [ , setShowGroupDialog] = useState(false);
   const [editingField, setEditingField] = useState<FieldDefinition | null>(null);
   const queryClient = useQueryClient();
 
@@ -396,7 +396,7 @@ function FieldCard({
   );
 }
 
-function FieldEditorDialog({ field, scope, open, onOpenChange, onSave }: { field?: FieldDefinition | null; scope: string; open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: Partial<FieldDefinition>) => void }) {
+function FieldEditorDialog({ field, open, onOpenChange, onSave }: { field?: FieldDefinition | null; scope: string; open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: Partial<FieldDefinition>) => void }) {
   const [formData, setFormData] = useState<any>({
     name: field?.name || '',
     label: field?.label || '',
@@ -440,7 +440,7 @@ function FieldEditorDialog({ field, scope, open, onOpenChange, onSave }: { field
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[600px] pr-4">
+        <ScrollArea className="max-h-150 pr-4">
           <div className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>

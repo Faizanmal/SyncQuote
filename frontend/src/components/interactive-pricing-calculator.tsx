@@ -356,7 +356,7 @@ export function InteractivePricingCalculator({
       options: selectedOptions,
       couponCode: appliedCoupon || undefined,
     });
-  }, [priceBreakdown, selectedTierId, tierQuantity, selectedOptions, appliedCoupon]);
+  }, [priceBreakdown, selectedTierId, tierQuantity, selectedOptions, appliedCoupon, onPriceChange, onSelectionChange]);
 
   // Handle option changes
   const updateOption = useCallback((optionId: string, value: boolean | number | string) => {
@@ -441,7 +441,7 @@ export function InteractivePricingCalculator({
                 } ${readOnly ? 'cursor-default' : ''}`}
               >
                 {tier.popular && (
-                  <Badge className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-pink-500">
+                  <Badge className="absolute -top-2 -right-2 bg-linear-to-r from-purple-500 to-pink-500">
                     <Sparkles className="h-3 w-3 mr-1" />
                     Popular
                   </Badge>

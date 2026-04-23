@@ -2,14 +2,13 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  FileText, GitCompare, Clock, User, Plus, Minus, 
-  ArrowRight, ArrowLeft, ChevronDown, ChevronRight 
+  FileText, GitCompare, Plus, Minus, 
+  ArrowRight, ChevronDown, ChevronRight 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -19,15 +18,6 @@ interface Version {
   createdBy: string;
   createdAt: string;
   changes?: string;
-}
-
-interface VersionDiff {
-  oldVersion: Version;
-  newVersion: Version;
-  changes: SectionDiff[];
-  addedSections: number;
-  removedSections: number;
-  modifiedSections: number;
 }
 
 interface SectionDiff {
@@ -189,7 +179,7 @@ export function VersionComparisonViewer({ proposalId }: { proposalId: string }) 
               <CardTitle>Changes</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[600px]">
+              <ScrollArea className="h-150">
                 <div className="space-y-4">
                   {comparison.changes.map((section: SectionDiff) => (
                     <SectionDiffCard

@@ -190,7 +190,7 @@ export function CoBrowsingOverlay({
 // Cursor overlay for showing remote cursor positions (optional advanced feature)
 export function CursorOverlay({ cursors }: { cursors: Array<{ socketId: string; x: number; y: number }> }) {
     return (
-        <div className="fixed inset-0 pointer-events-none z-[100]">
+        <div className="fixed inset-0 pointer-events-none z-100">
             {cursors.map((cursor) => (
                 <div
                     key={cursor.socketId}

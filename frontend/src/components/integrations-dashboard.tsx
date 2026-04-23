@@ -27,12 +27,9 @@ import {
   X,
   Settings,
   RefreshCw,
-  ExternalLink,
   Loader2,
   AlertCircle,
   Slack,
-  Mail,
-  FileText,
   FolderOpen,
 } from 'lucide-react';
 import {
@@ -41,7 +38,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
@@ -533,7 +529,7 @@ export function IntegrationsDashboard() {
 
       {/* Configuration Dialog */}
       <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-125">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedIntegration?.icon}

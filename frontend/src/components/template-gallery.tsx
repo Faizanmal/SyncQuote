@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { FileText, Star, Users } from 'lucide-react';
+import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useApi } from '@/hooks/use-api';
-import { FileText, Star, Users } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -41,7 +42,7 @@ export function TemplateGallery({ onSelectTemplate }: TemplateGalleryProps) {
 
   useEffect(() => {
     fetchTemplates();
-  }, []);
+  }, [fetchTemplates]);
 
   const fetchTemplates = async () => {
     try {
@@ -90,13 +91,13 @@ export function TemplateGallery({ onSelectTemplate }: TemplateGalleryProps) {
           <Card key={template.id} className="hover:shadow-lg transition-shadow cursor-pointer">
             <CardHeader onClick={() => handlePreview(template)}>
               {template.thumbnail ? (
-                <img
+                <Image
                   src={template.thumbnail}
                   alt={template.name}
                   className="w-full h-40 object-cover rounded-md mb-2"
                 />
               ) : (
-                <div className="w-full h-40 bg-gradient-to-br from-blue-100 to-purple-100 rounded-md flex items-center justify-center mb-2">
+                <div className="w-full h-40 bg-linear-to-br from-blue-100 to-purple-100 rounded-md flex items-center justify-center mb-2">
                   <FileText className="h-16 w-16 text-blue-500" />
                 </div>
               )}
@@ -145,7 +146,7 @@ export function TemplateGallery({ onSelectTemplate }: TemplateGalleryProps) {
           </DialogHeader>
           <div className="space-y-4">
             {selectedTemplate?.thumbnail && (
-              <img
+              <Image
                 src={selectedTemplate.thumbnail}
                 alt={selectedTemplate.name}
                 className="w-full h-64 object-cover rounded-md"

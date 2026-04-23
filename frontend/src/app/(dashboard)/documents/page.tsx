@@ -10,10 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Switch } from '@/components/ui/switch'
-import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
 import { 
   FileText, 
@@ -21,30 +19,18 @@ import {
   Download, 
   Eye, 
   Edit, 
-  Trash2, 
   GitBranch, 
   Clock, 
-  User, 
   Check, 
   X, 
-  MoreHorizontal,
   Image,
-  Palette,
   Settings,
   Star,
   Search,
   Filter,
   Plus,
-  History,
-  Share,
   Lock,
-  Unlock,
-  Calendar,
-  Tag,
-  Bookmark,
   Layout,
-  Type,
-  PaintBucket,
   BarChart
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -210,15 +196,6 @@ export default function DocumentsPage() {
     onError: () => {
       toast.error('Failed to create template')
     }
-  })
-
-  const createVersionMutation = useMutation({
-    mutationFn: ({ proposalId, changes }: { proposalId: string, changes: string[] }) => 
-      api.post(`/documents/proposals/${proposalId}/versions`, { changes }),
-    onSuccess: () => {
-      toast.success('New version created!')
-      queryClient.invalidateQueries({ queryKey: ['documents', 'versions'] })
-    },
   })
 
   const approveVersionMutation = useMutation({
@@ -976,7 +953,7 @@ export default function DocumentsPage() {
                   <div>
                     <Label htmlFor="logo">Logo Upload</Label>
                     <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <Image className="mx-auto h-12 w-12 text-gray-400" />
+                      <Image className="mx-auto h-12 w-12 text-gray-400" alt="Logo placeholder" />
                       <div className="mt-2">
                         <Button variant="outline" size="sm">
                           Upload Logo

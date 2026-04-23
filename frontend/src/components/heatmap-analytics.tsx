@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
@@ -21,11 +19,7 @@ import {
   TrendingUp,
   TrendingDown,
   Target,
-  MapPin,
-  Layers,
-  RefreshCw,
   Download,
-  Filter,
   Calendar,
   Users,
   Sparkles,
@@ -95,7 +89,7 @@ interface ProposalView {
 export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
   const [heatmapData, setHeatmapData] = useState<HeatmapData | null>(null);
   const [views, setViews] = useState<ProposalView[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [ , setLoading] = useState(true);
   const [selectedView, setSelectedView] = useState<'clicks' | 'scroll' | 'attention'>('clicks');
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d'>('7d');
   const [opacity, setOpacity] = useState(70);
@@ -105,13 +99,13 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
   useEffect(() => {
     fetchHeatmapData();
     fetchViews();
-  }, [proposalId, dateRange]);
+  }, [proposalId, dateRange, fetchHeatmapData, fetchViews]);
 
   useEffect(() => {
     if (heatmapData && canvasRef.current) {
       renderHeatmap();
     }
-  }, [heatmapData, selectedView, opacity]);
+  }, [heatmapData, selectedView, opacity, renderHeatmap]);
 
   const fetchHeatmapData = async () => {
     try {
@@ -213,6 +207,7 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
         description: 'Heatmap has been downloaded',
       });
     } catch (error) {
+      console.error('Failed to export heatmap:', error);
       toast({
         title: 'Error',
         description: 'Failed to export heatmap',
@@ -251,7 +246,7 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
         </div>
         <div className="flex items-center gap-2">
           <Select value={dateRange} onValueChange={(v: '7d' | '30d' | '90d') => setDateRange(v)}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-35">
               <Calendar className="w-4 h-4 mr-2" />
               <SelectValue />
             </SelectTrigger>
@@ -424,7 +419,7 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
                     <ul className="space-y-1">
                       {heatmapData.predictiveScore.recommendations.map((rec, index) => (
                         <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <ChevronRight className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <ChevronRight className="w-4 h-4 mt-0.5 shrink-0" />
                           {rec}
                         </li>
                       ))}
@@ -441,7 +436,7 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
                     <ul className="space-y-1">
                       {heatmapData.predictiveScore.riskFactors.map((risk, index) => (
                         <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                          <ChevronRight className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <ChevronRight className="w-4 h-4 mt-0.5 shrink-0" />
                           {risk}
                         </li>
                       ))}
@@ -459,7 +454,7 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
               <CardDescription>Most engaged elements</CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[200px]">
+              <ScrollArea className="h-50">
                 <div className="space-y-3">
                   {heatmapData?.engagement.hotspots.slice(0, 5).map((hotspot, index) => (
                     <div key={hotspot.id} className="flex items-center gap-3 pb-3 border-b last:border-0">
@@ -523,7 +518,7 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
           <CardDescription>Individual viewer engagement data</CardDescription>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[300px]">
+          <ScrollArea className="h-75">
             <div className="space-y-4">
               {views.map((view) => (
                 <div key={view.id} className="flex items-center gap-4 pb-4 border-b last:border-0">
