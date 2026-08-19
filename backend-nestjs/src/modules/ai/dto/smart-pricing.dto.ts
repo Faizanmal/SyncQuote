@@ -109,16 +109,53 @@ export class ProposalOptimizationDto {
   targetConversionImprovement?: number;
 }
 
+export class PriceRangeDto {
+  @ApiProperty()
+  low: number;
+
+  @ApiProperty()
+  mid: number;
+
+  @ApiProperty()
+  high: number;
+}
+
+export class MarketComparisonDto {
+  @ApiProperty()
+  belowMarket: boolean;
+
+  @ApiProperty()
+  aboveMarket: boolean;
+
+  @ApiProperty()
+  marketAverage: number;
+}
+
+export class PricingTierDto {
+  @ApiProperty()
+  price: number;
+
+  @ApiProperty({ type: [String] })
+  features: string[];
+}
+
+export class PricingTiersDto {
+  @ApiProperty({ type: () => PricingTierDto })
+  basic: PricingTierDto;
+
+  @ApiProperty({ type: () => PricingTierDto })
+  standard: PricingTierDto;
+
+  @ApiProperty({ type: () => PricingTierDto })
+  premium: PricingTierDto;
+}
+
 export class PricingSuggestionResponseDto {
   @ApiProperty()
   suggestedPrice: number;
 
-  @ApiProperty()
-  priceRange: {
-    low: number;
-    mid: number;
-    high: number;
-  };
+  @ApiProperty({ type: () => PriceRangeDto })
+  priceRange: PriceRangeDto;
 
   @ApiProperty()
   confidence: number;
@@ -126,54 +163,66 @@ export class PricingSuggestionResponseDto {
   @ApiProperty()
   reasoning: string;
 
-  @ApiProperty()
-  marketComparison: {
-    belowMarket: boolean;
-    aboveMarket: boolean;
-    marketAverage: number;
-  };
+  @ApiProperty({ type: () => MarketComparisonDto })
+  marketComparison: MarketComparisonDto;
 
-  @ApiProperty()
+  @ApiProperty({ type: [String] })
   recommendations: string[];
 
+  @ApiProperty({ type: () => PricingTiersDto })
+  pricingTiers: PricingTiersDto;
+}
+
+export class ProposalImprovementDto {
   @ApiProperty()
-  pricingTiers: {
-    basic: { price: number; features: string[] };
-    standard: { price: number; features: string[] };
-    premium: { price: number; features: string[] };
-  };
+  category: string;
+
+  @ApiProperty()
+  currentScore: number;
+
+  @ApiProperty()
+  suggestion: string;
+
+  @ApiProperty()
+  priority: 'high' | 'medium' | 'low';
+
+  @ApiProperty()
+  impact: string;
+}
+
+export class ContentSuggestionDto {
+  @ApiProperty()
+  section: string;
+
+  @ApiProperty()
+  original: string;
+
+  @ApiProperty()
+  suggested: string;
+
+  @ApiProperty()
+  reason: string;
 }
 
 export class ProposalOptimizationResponseDto {
   @ApiProperty()
   overallScore: number;
 
-  @ApiProperty()
-  improvements: {
-    category: string;
-    currentScore: number;
-    suggestion: string;
-    priority: 'high' | 'medium' | 'low';
-    impact: string;
-  }[];
+  @ApiProperty({ type: () => [ProposalImprovementDto] })
+  improvements: ProposalImprovementDto[];
 
-  @ApiProperty()
-  contentSuggestions: {
-    section: string;
-    original: string;
-    suggested: string;
-    reason: string;
-  }[];
+  @ApiProperty({ type: () => [ContentSuggestionDto] })
+  contentSuggestions: ContentSuggestionDto[];
 
-  @ApiProperty()
+  @ApiProperty({ type: [String] })
   structuralRecommendations: string[];
 
-  @ApiProperty()
+  @ApiProperty({ type: [String] })
   pricingOptimizations: string[];
 
-  @ApiProperty()
+  @ApiProperty({ type: [String] })
   conversionTips: string[];
 
-  @ApiProperty()
+  @ApiProperty({ type: [String] })
   competitiveAdvantages: string[];
 }

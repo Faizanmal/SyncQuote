@@ -40,10 +40,6 @@ export function TemplateGallery({ onSelectTemplate }: TemplateGalleryProps) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const api = useApi();
 
-  useEffect(() => {
-    fetchTemplates();
-  }, [fetchTemplates]);
-
   const fetchTemplates = async () => {
     try {
       setLoading(true);
@@ -55,6 +51,10 @@ export function TemplateGallery({ onSelectTemplate }: TemplateGalleryProps) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
   const handlePreview = (template: Template) => {
     setSelectedTemplate(template);

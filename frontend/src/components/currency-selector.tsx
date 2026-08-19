@@ -41,12 +41,6 @@ export function CurrencySelector({
   const [conversionRate, setConversionRate] = useState<number | null>(null);
   const api = useApi();
 
-  useEffect(() => {
-    if (showConversionRate && baseCurrency && value !== baseCurrency) {
-      fetchConversionRate();
-    }
-  }, [value, baseCurrency, showConversionRate, fetchConversionRate]);
-
   const fetchConversionRate = async () => {
     if (!baseCurrency || value === baseCurrency) {
       setConversionRate(null);
@@ -60,6 +54,12 @@ export function CurrencySelector({
       console.error('Failed to fetch conversion rate:', error);
     }
   };
+
+  useEffect(() => {
+    if (showConversionRate && baseCurrency && value !== baseCurrency) {
+      fetchConversionRate();
+    }
+  }, [value, baseCurrency, showConversionRate]);
 
   const selectedCurrency = CURRENCIES.find((c) => c.code === value);
 
@@ -122,14 +122,6 @@ export function CurrencyConverter({
   const [loading, setLoading] = useState(false);
   const api = useApi();
 
-  useEffect(() => {
-    if (fromCurrency !== toCurrency) {
-      convertAmount();
-    } else {
-      setConverted(amount);
-    }
-  }, [amount, fromCurrency, toCurrency, convertAmount]);
-
   const convertAmount = async () => {
     setLoading(true);
     try {
@@ -143,6 +135,14 @@ export function CurrencyConverter({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (fromCurrency !== toCurrency) {
+      convertAmount();
+    } else {
+      setConverted(amount);
+    }
+  }, [amount, fromCurrency, toCurrency]);
 
   if (loading) {
     return <span className="text-muted-foreground">Converting...</span>;

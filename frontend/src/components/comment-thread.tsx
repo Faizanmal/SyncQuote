@@ -36,6 +36,15 @@ export function CommentThread({ proposalId, currentUserEmail, currentUserName }:
   const [loading, setLoading] = useState(false);
   const api = useApi();
 
+  const fetchComments = async () => {
+    try {
+      const response = await api.get(`/comments?proposalId=${proposalId}`);
+      setComments(response.data);
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+    }
+  };
+
   useEffect(() => {
     fetchComments();
 
@@ -53,16 +62,7 @@ export function CommentThread({ proposalId, currentUserEmail, currentUserName }:
         socket.off('comment_added');
       };
     }
-  }, [proposalId, fetchComments]);
-
-  const fetchComments = async () => {
-    try {
-      const response = await api.get(`/comments?proposalId=${proposalId}`);
-      setComments(response.data);
-    } catch (error) {
-      console.error('Failed to fetch comments:', error);
-    }
-  };
+  }, [proposalId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -30,12 +30,6 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(!!initialEmail);
   const api = useApi();
 
-  useEffect(() => {
-    if (email && isAuthenticated) {
-      loadProposals();
-    }
-  }, [email, isAuthenticated, loadProposals]);
-
   const loadProposals = async () => {
     setLoading(true);
     try {
@@ -47,6 +41,12 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (email && isAuthenticated) {
+      loadProposals();
+    }
+  }, [email, isAuthenticated]);
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -40,10 +40,6 @@ export function AnalyticsDashboard() {
   const [loading, setLoading] = useState(true);
   const api = useApi();
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
-
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
@@ -62,6 +58,10 @@ export function AnalyticsDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, []);
 
   if (loading) {
     return <div className="flex items-center justify-center p-8">Loading analytics...</div>;

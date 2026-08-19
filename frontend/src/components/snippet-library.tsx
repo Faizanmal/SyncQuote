@@ -101,11 +101,6 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
   const [variables, setVariables] = useState<SnippetVariable[]>([]);
   const api = useApi();
 
-  useEffect(() => {
-    fetchSnippets();
-    fetchCategories();
-  }, [fetchSnippets, fetchCategories]);
-
   const fetchSnippets = async () => {
     try {
       setLoading(true);
@@ -128,6 +123,11 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
       setCategories(DEFAULT_CATEGORIES);
     }
   };
+
+  useEffect(() => {
+    fetchSnippets();
+    fetchCategories();
+  }, []);
 
   const handleCreate = async () => {
     try {

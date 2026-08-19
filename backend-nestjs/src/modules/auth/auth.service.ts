@@ -106,8 +106,12 @@ export class AuthService {
    * Google OAuth sign in/up
    */
   async googleAuth(profile: any) {
-    const email = profile.emails[0].value;
+    const email = profile.email ?? profile.emails?.[0]?.value;
     const googleId = profile.id;
+
+    if (!email) {
+      throw new UnauthorizedException('Google account did not provide an email');
+    }
 
     let user = await this.prisma.user.findUnique({
       where: { email },

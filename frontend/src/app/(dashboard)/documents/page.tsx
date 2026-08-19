@@ -953,7 +953,7 @@ export default function DocumentsPage() {
                   <div>
                     <Label htmlFor="logo">Logo Upload</Label>
                     <div className="mt-2 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                      <Image className="mx-auto h-12 w-12 text-gray-400" alt="Logo placeholder" />
+                      <Image className="mx-auto h-12 w-12 text-gray-400" aria-hidden="true" />
                       <div className="mt-2">
                         <Button variant="outline" size="sm">
                           Upload Logo

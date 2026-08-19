@@ -93,10 +93,6 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
   const [loading, setLoading] = useState(true);
   const api = useApi();
 
-  useEffect(() => {
-    fetchData();
-  }, [proposalId, fetchData]);
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -115,6 +111,10 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [proposalId]);
 
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;

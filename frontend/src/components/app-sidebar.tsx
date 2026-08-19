@@ -129,14 +129,20 @@ export function AppSidebar() {
     router.push('/signin');
   };
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name?: string | null, email?: string | null) => {
+    const source = name?.trim() || email?.trim();
+    if (!source) return 'U';
+
+    return source
       .split(' ')
-      .map((n) => n[0])
+      .filter(Boolean)
+      .map((part) => part[0])
       .join('')
       .toUpperCase()
       .slice(0, 2);
   };
+
+  const displayName = user?.name?.trim() || user?.email || 'User';
 
   return (
     <Sidebar>
@@ -151,14 +157,14 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>
-            <Button className="w-full" size="sm" asChild>
+          <SidebarGroupContent>
+            <Button className="w-full justify-center" size="sm" asChild>
               <Link href="/proposals/new">
                 <Plus className="mr-2 h-4 w-4" />
                 New Proposal
               </Link>
             </Button>
-          </SidebarGroupLabel>
+          </SidebarGroupContent>
         </SidebarGroup>
 
         <SidebarGroup>
@@ -183,14 +189,14 @@ export function AppSidebar() {
       <SidebarFooter className="border-t p-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="w-full justify-start gap-2 px-2">
-              <Avatar className="h-8 w-8">
+            <Button variant="ghost" className="h-auto w-full justify-start gap-2 px-2 py-2">
+              <Avatar className="h-8 w-8 shrink-0">
                 <AvatarImage src={undefined} />
-                <AvatarFallback>{user ? getInitials(user.name) : 'U'}</AvatarFallback>
+                <AvatarFallback>{getInitials(user?.name, user?.email)}</AvatarFallback>
               </Avatar>
-              <div className="flex flex-col items-start text-sm">
-                <span className="font-medium">{user?.name}</span>
-                <span className="text-xs text-gray-500">{user?.email}</span>
+              <div className="flex min-w-0 flex-1 flex-col items-start text-sm">
+                <span className="w-full truncate text-left font-medium">{displayName}</span>
+                <span className="w-full truncate text-left text-xs text-gray-500">{user?.email}</span>
               </div>
             </Button>
           </DropdownMenuTrigger>

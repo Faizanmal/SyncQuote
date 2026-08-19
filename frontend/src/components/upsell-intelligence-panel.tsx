@@ -111,13 +111,6 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchRecommendations();
-    fetchBundles();
-    fetchPricingOptimizations();
-    fetchMetrics();
-  }, [proposalId, fetchBundles, fetchPricingOptimizations, fetchRecommendations]);
-
   const fetchRecommendations = async () => {
     try {
       setLoading(true);
@@ -160,6 +153,13 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
       console.error('Failed to fetch metrics:', error);
     }
   };
+
+  useEffect(() => {
+    fetchRecommendations();
+    fetchBundles();
+    fetchPricingOptimizations();
+    fetchMetrics();
+  }, [proposalId]);
 
   const generateRecommendations = async () => {
     try {

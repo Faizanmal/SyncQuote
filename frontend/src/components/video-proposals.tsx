@@ -82,21 +82,6 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
   const [videoPosition, setVideoPosition] = useState<'header' | 'inline' | 'sidebar'>('header');
   const [personalized, setPersonalized] = useState(false);
 
-  useEffect(() => {
-    fetchVideos();
-    fetchIntegrations();
-  }, [proposalId, fetchVideos]);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (recording) {
-      interval = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [recording]);
-
   const fetchVideos = async () => {
     try {
       setLoading(true);
@@ -119,6 +104,21 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
       console.error('Failed to fetch integrations:', error);
     }
   };
+
+  useEffect(() => {
+    fetchVideos();
+    fetchIntegrations();
+  }, [proposalId]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (recording) {
+      interval = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [recording]);
 
   const connectIntegration = async (provider: string) => {
     try {

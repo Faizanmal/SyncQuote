@@ -151,6 +151,14 @@ export class CrmDealDto {
   customFields?: Record<string, any>;
 }
 
+export class SyncErrorDto {
+  @ApiProperty()
+  record: string;
+
+  @ApiProperty()
+  error: string;
+}
+
 export class SyncResultDto {
   @ApiProperty()
   success: boolean;
@@ -158,9 +166,9 @@ export class SyncResultDto {
   @ApiProperty()
   syncedRecords: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: () => [SyncErrorDto] })
   @IsOptional()
-  errors?: Array<{ record: string; error: string }>;
+  errors?: SyncErrorDto[];
 
   @ApiProperty()
   timestamp: Date;

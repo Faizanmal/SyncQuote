@@ -96,17 +96,6 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchHeatmapData();
-    fetchViews();
-  }, [proposalId, dateRange, fetchHeatmapData, fetchViews]);
-
-  useEffect(() => {
-    if (heatmapData && canvasRef.current) {
-      renderHeatmap();
-    }
-  }, [heatmapData, selectedView, opacity, renderHeatmap]);
-
   const fetchHeatmapData = async () => {
     try {
       setLoading(true);
@@ -188,6 +177,17 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
       });
     }
   }, [heatmapData, selectedView, opacity]);
+
+  useEffect(() => {
+    fetchHeatmapData();
+    fetchViews();
+  }, [proposalId, dateRange]);
+
+  useEffect(() => {
+    if (heatmapData && canvasRef.current) {
+      renderHeatmap();
+    }
+  }, [heatmapData, selectedView, opacity, renderHeatmap]);
 
   const exportHeatmap = async () => {
     try {

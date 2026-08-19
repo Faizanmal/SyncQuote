@@ -105,10 +105,6 @@ export function RevenueForecastDashboard() {
   const [loading, setLoading] = useState(true);
   const api = useApi();
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -129,6 +125,10 @@ export function RevenueForecastDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {

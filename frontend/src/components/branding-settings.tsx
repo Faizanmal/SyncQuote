@@ -28,10 +28,6 @@ export function BrandingSettings() {
   const api = useApi();
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchSettings();
-  }, [fetchSettings]);
-
   const fetchSettings = async () => {
     try {
       const response = await api.get('/users/profile');
@@ -46,6 +42,10 @@ export function BrandingSettings() {
       console.error('Failed to fetch branding settings:', error);
     }
   };
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

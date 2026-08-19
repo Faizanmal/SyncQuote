@@ -164,16 +164,6 @@ export function TeamManagement() {
   // Create team form state
   const [newTeamName, setNewTeamName] = useState('');
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
-
-  useEffect(() => {
-    if (currentTeam) {
-      fetchInvitations();
-    }
-  }, [currentTeam, fetchInvitations]);
-
   const fetchTeams = async () => {
     try {
       setLoading(true);
@@ -198,6 +188,16 @@ export function TeamManagement() {
       console.error('Failed to fetch invitations:', error);
     }
   };
+
+  useEffect(() => {
+    fetchTeams();
+  }, []);
+
+  useEffect(() => {
+    if (currentTeam) {
+      fetchInvitations();
+    }
+  }, [currentTeam]);
 
   const createTeam = async () => {
     if (!newTeamName.trim()) return;

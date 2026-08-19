@@ -98,21 +98,60 @@ export class CalculateDynamicPriceDto {
   basePrice?: number;
 }
 
+export class PricingFactorDto {
+  @ApiProperty()
+  score: number;
+
+  @ApiProperty()
+  weight: number;
+
+  @ApiProperty()
+  impact: number;
+}
+
+export class DynamicPriceFactorsDto {
+  @ApiProperty({ type: () => PricingFactorDto })
+  clientValue: PricingFactorDto;
+
+  @ApiProperty({ type: () => PricingFactorDto })
+  marketDemand: PricingFactorDto;
+
+  @ApiProperty({ type: () => PricingFactorDto })
+  competitivePosition: PricingFactorDto;
+
+  @ApiProperty({ type: () => PricingFactorDto })
+  urgency: PricingFactorDto;
+
+  @ApiProperty({ type: () => PricingFactorDto })
+  relationship: PricingFactorDto;
+}
+
 export class DynamicPriceResponseDto {
+  @ApiProperty()
   productId: string;
+
+  @ApiProperty()
   clientId: string;
+
+  @ApiProperty()
   basePrice: number;
+
+  @ApiProperty()
   recommendedPrice: number;
+
+  @ApiProperty()
   discountPercentage: number;
+
+  @ApiProperty({ enum: PricingStrategy })
   strategy: PricingStrategy;
-  factors: {
-    clientValue: { score: number; weight: number; impact: number };
-    marketDemand: { score: number; weight: number; impact: number };
-    competitivePosition: { score: number; weight: number; impact: number };
-    urgency: { score: number; weight: number; impact: number };
-    relationship: { score: number; weight: number; impact: number };
-  };
+
+  @ApiProperty({ type: () => DynamicPriceFactorsDto })
+  factors: DynamicPriceFactorsDto;
+
+  @ApiProperty()
   confidence: number;
+
+  @ApiProperty()
   validUntil: Date;
 }
 
@@ -174,20 +213,46 @@ export class BundleRecommendationDto {
   minDiscountPercentage?: number;
 }
 
+export class BundleProductDto {
+  @ApiProperty()
+  productId: string;
+
+  @ApiProperty()
+  productName: string;
+
+  @ApiProperty()
+  individualPrice: number;
+}
+
 export class BundleDto {
+  @ApiProperty()
   id: string;
+
+  @ApiProperty()
   name: string;
+
+  @ApiProperty()
   description: string;
-  products: Array<{
-    productId: string;
-    productName: string;
-    individualPrice: number;
-  }>;
+
+  @ApiProperty({ type: () => [BundleProductDto] })
+  products: BundleProductDto[];
+
+  @ApiProperty()
   bundlePrice: number;
+
+  @ApiProperty()
   individualTotal: number;
+
+  @ApiProperty()
   savings: number;
+
+  @ApiProperty()
   savingsPercentage: number;
+
+  @ApiProperty()
   confidence: number;
+
+  @ApiProperty({ type: [String] })
   reasoning: string[];
 }
 
@@ -202,20 +267,44 @@ export class PriceOptimizationDto {
   aggressiveDiscounting?: boolean;
 }
 
+export class PriceOptimizationRecommendationDto {
+  @ApiProperty()
+  itemId: string;
+
+  @ApiProperty()
+  itemName: string;
+
+  @ApiProperty()
+  currentPrice: number;
+
+  @ApiProperty()
+  optimizedPrice: number;
+
+  @ApiProperty()
+  rationale: string;
+
+  @ApiProperty()
+  confidence: number;
+}
+
 export class PriceOptimizationResultDto {
+  @ApiProperty()
   proposalId: string;
+
+  @ApiProperty()
   originalTotal: number;
+
+  @ApiProperty()
   optimizedTotal: number;
+
+  @ApiProperty()
   potentialSavings: number;
-  recommendations: Array<{
-    itemId: string;
-    itemName: string;
-    currentPrice: number;
-    optimizedPrice: number;
-    rationale: string;
-    confidence: number;
-  }>;
-  estimatedAcceptanceImprovement: number; // Percentage
+
+  @ApiProperty({ type: () => [PriceOptimizationRecommendationDto] })
+  recommendations: PriceOptimizationRecommendationDto[];
+
+  @ApiProperty()
+  estimatedAcceptanceImprovement: number;
 }
 
 export class CrossSellOpportunityDto {

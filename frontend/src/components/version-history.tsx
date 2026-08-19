@@ -44,10 +44,6 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
   const [comparisonData, setComparisonData] = useState<any>(null);
   const api = useApi();
 
-  useEffect(() => {
-    loadVersions();
-  }, [proposalId, loadVersions]);
-
   const loadVersions = async () => {
     try {
       const response = await api.get(`/versions/proposal/${proposalId}`);
@@ -58,6 +54,10 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadVersions();
+  }, [proposalId]);
 
   const handleRestore = async (versionId: string, versionNumber: number) => {
     if (!confirm(`Restore to version ${versionNumber}? This will create a new version.`)) {

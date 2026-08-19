@@ -94,10 +94,6 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
     { name: 'Variant A', description: '', isControl: false },
   ]);
 
-  useEffect(() => {
-    fetchTests();
-  }, [proposalId,fetchTests]);
-
   const fetchTests = async () => {
     try {
       setLoading(true);
@@ -110,6 +106,10 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTests();
+  }, [proposalId]);
 
   const fetchTestResults = async (testId: string) => {
     try {

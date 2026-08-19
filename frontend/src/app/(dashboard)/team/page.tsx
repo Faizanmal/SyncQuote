@@ -88,7 +88,7 @@ const createWorkspaceSchema = z.object({
 })
 
 type InviteMemberForm = z.infer<typeof inviteMemberSchema>
-type CreateWorkspaceForm = z.infer<typeof _createWorkspaceSchema>
+type CreateWorkspaceForm = z.infer<typeof createWorkspaceSchema>
 
 export default function TeamPage() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<string>('main')

@@ -160,10 +160,18 @@ export class UpdateAbTestDto {
   endDate?: Date;
 }
 
+export class VariantTrafficAllocationDto {
+  @ApiProperty()
+  variantId: string;
+
+  @ApiProperty()
+  trafficAllocation: number;
+}
+
 export class UpdateVariantTrafficDto {
-  @ApiProperty({ type: [Object] })
+  @ApiProperty({ type: () => [VariantTrafficAllocationDto] })
   @IsArray()
-  allocations: Array<{ variantId: string; trafficAllocation: number }>;
+  allocations: VariantTrafficAllocationDto[];
 }
 
 export class RecordConversionDto {
@@ -194,27 +202,52 @@ export class RecordConversionDto {
   metadata?: Record<string, any>;
 }
 
+export class ConfidenceIntervalDto {
+  @ApiProperty()
+  lower: number;
+
+  @ApiProperty()
+  upper: number;
+}
+
 export class VariantResultDto {
+  @ApiProperty()
   variantId: string;
+
+  @ApiProperty()
   variantName: string;
+
+  @ApiProperty()
   isControl: boolean;
 
-  // Raw counts
+  @ApiProperty()
   impressions: number;
+
+  @ApiProperty()
   conversions: number;
 
-  // Calculated metrics
+  @ApiProperty()
   conversionRate: number;
+
+  @ApiProperty()
   avgValue: number;
+
+  @ApiProperty()
   totalValue: number;
 
-  // Statistical measures
+  @ApiProperty()
   standardError: number;
-  confidenceInterval: { lower: number; upper: number };
 
-  // Comparison to control
+  @ApiProperty({ type: () => ConfidenceIntervalDto })
+  confidenceInterval: ConfidenceIntervalDto;
+
+  @ApiPropertyOptional()
   relativeImprovement?: number;
+
+  @ApiPropertyOptional()
   pValue?: number;
+
+  @ApiPropertyOptional()
   isSignificant?: boolean;
 }
 

@@ -31,5 +31,5 @@ export default [
     },
     ignores: ['.eslintrc.js'],
   },
-  eslintConfigPrettier, // Add eslint-config-prettier to disable conflicting rules
+  eslintConfigPrettier,
 ];

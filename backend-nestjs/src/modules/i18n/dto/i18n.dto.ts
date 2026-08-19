@@ -204,26 +204,57 @@ export class LocalizeProposalDto {
 }
 
 export class TranslationResponseDto {
+  @ApiProperty()
   originalText: string;
+
+  @ApiProperty()
   translatedText: string;
+
+  @ApiProperty({ enum: Language })
   sourceLanguage: Language;
+
+  @ApiProperty({ enum: Language })
   targetLanguage: Language;
+
+  @ApiProperty({ enum: TranslationProvider })
   provider: TranslationProvider;
+
+  @ApiPropertyOptional()
   confidence?: number;
+
+  @ApiPropertyOptional({ enum: Language })
   detectedLanguage?: Language;
 }
 
+export class TranslatedSectionDto {
+  @ApiProperty()
+  sectionId: string;
+
+  @ApiProperty()
+  originalText: string;
+
+  @ApiProperty()
+  translatedText: string;
+}
+
 export class ProposalTranslationDto {
+  @ApiProperty()
   proposalId: string;
+
+  @ApiProperty()
   originalProposalId: string;
+
+  @ApiProperty({ enum: Language })
   language: Language;
+
+  @ApiProperty()
   translatedAt: Date;
+
+  @ApiProperty({ enum: TranslationProvider })
   provider: TranslationProvider;
-  sections: Array<{
-    sectionId: string;
-    originalText: string;
-    translatedText: string;
-  }>;
+
+  @ApiProperty({ type: () => [TranslatedSectionDto] })
+  sections: TranslatedSectionDto[];
 }
 
 export class LanguageDetectionDto {
@@ -232,13 +263,23 @@ export class LanguageDetectionDto {
   text: string;
 }
 
-export class LanguageDetectionResponseDto {
-  detectedLanguage: Language;
+export class AlternativeLanguageDto {
+  @ApiProperty({ enum: Language })
+  language: Language;
+
+  @ApiProperty()
   confidence: number;
-  alternativeLanguages?: Array<{
-    language: Language;
-    confidence: number;
-  }>;
+}
+
+export class LanguageDetectionResponseDto {
+  @ApiProperty({ enum: Language })
+  detectedLanguage: Language;
+
+  @ApiProperty()
+  confidence: number;
+
+  @ApiPropertyOptional({ type: () => [AlternativeLanguageDto] })
+  alternativeLanguages?: AlternativeLanguageDto[];
 }
 
 export class CurrencyConversionDto {

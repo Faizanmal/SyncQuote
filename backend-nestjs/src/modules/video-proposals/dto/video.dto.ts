@@ -219,6 +219,22 @@ export class VideoViewEventDto {
   metadata?: Record<string, any>;
 }
 
+export class VideoDropOffPointDto {
+  @ApiProperty()
+  timestamp: number;
+
+  @ApiProperty()
+  dropOffRate: number;
+}
+
+export class VideoViewsByDayDto {
+  @ApiProperty()
+  date: string;
+
+  @ApiProperty()
+  views: number;
+}
+
 export class VideoAnalyticsDto {
   @ApiProperty()
   videoId!: string;
@@ -247,11 +263,11 @@ export class VideoAnalyticsDto {
   @ApiProperty()
   ctaClickRate!: number;
 
-  @ApiProperty()
-  dropOffPoints!: Array<{ timestamp: number; dropOffRate: number }>;
+  @ApiProperty({ type: () => [VideoDropOffPointDto] })
+  dropOffPoints!: VideoDropOffPointDto[];
 
-  @ApiProperty()
-  viewsByDay!: Array<{ date: string; views: number }>;
+  @ApiProperty({ type: () => [VideoViewsByDayDto] })
+  viewsByDay!: VideoViewsByDayDto[];
 }
 
 export class PersonalizedVideoDto {

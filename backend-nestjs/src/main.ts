@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import * as Sentry from '@sentry/node';
@@ -16,7 +16,7 @@ async function bootstrap() {
   // Get config service
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT', 3001);
-  const apiPrefix = configService.get<string>('API_PREFIX', 'api/v1');
+  const apiPrefix = configService.get<string>('API_PREFIX', 'api');
 
   // Setup Sentry for error tracking
   const sentryDsn = configService.get<string>('SENTRY_DSN');
@@ -101,7 +101,7 @@ async function bootstrap() {
 
   // Start server
   await app.listen(port);
-  console.log(`🚀 SyncQuote API running on: http://localhost:${port}/${apiPrefix}`);
+  console.log(`🚀 SyncQuote API running on: http://localhost:${port}/${apiPrefix}/v1`);
   console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
 }
 

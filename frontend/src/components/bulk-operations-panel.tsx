@@ -73,21 +73,6 @@ export function BulkOperationsPanel() {
   const [exportFormat, setExportFormat] = useState<'pdf' | 'csv' | 'json' | 'xlsx'>('pdf');
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchProposals();
-    fetchBatchJobs();
-  }, [statusFilter, fetchProposals]);
-
-  useEffect(() => {
-    // Poll for job updates if there's an active job
-    if (currentJob && ['pending', 'processing'].includes(currentJob.status)) {
-      const interval = setInterval(() => {
-        fetchJobStatus(currentJob.id);
-      }, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [currentJob, fetchJobStatus]);
-
   const fetchProposals = async () => {
     try {
       setLoading(true);
@@ -124,6 +109,21 @@ export function BulkOperationsPanel() {
       console.error('Failed to fetch job status:', error);
     }
   };
+
+  useEffect(() => {
+    fetchProposals();
+    fetchBatchJobs();
+  }, [statusFilter]);
+
+  useEffect(() => {
+    // Poll for job updates if there's an active job
+    if (currentJob && ['pending', 'processing'].includes(currentJob.status)) {
+      const interval = setInterval(() => {
+        fetchJobStatus(currentJob.id);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [currentJob]);
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds);

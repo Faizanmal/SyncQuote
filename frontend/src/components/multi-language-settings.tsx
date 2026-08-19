@@ -126,11 +126,6 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
   const [convertedAmount, setConvertedAmount] = useState<number | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchSettings();
-    fetchTranslations();
-  }, [proposalId,fetchTranslations]);
-
   const fetchSettings = async () => {
     try {
       const response = await fetch('/api/i18n/settings');
@@ -155,6 +150,11 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchSettings();
+    fetchTranslations();
+  }, [proposalId]);
 
   const updateSettings = async (newSettings: Partial<I18nSettings>) => {
     try {

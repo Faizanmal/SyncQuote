@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { BulkExportDto, BulkAnalyticsReportDto, ExportFormat } from './dto/bulk.dto';
-import * as PDFDocument from 'pdfkit';
+import PDFDocument from 'pdfkit';
 import { Readable } from 'stream';
 
 @Injectable()
@@ -194,7 +194,7 @@ export class BulkExportService {
       const chunks: Buffer[] = [];
       const doc = new PDFDocument({ margin: 50 });
 
-      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
@@ -395,7 +395,7 @@ export class BulkExportService {
       const chunks: Buffer[] = [];
       const doc = new PDFDocument({ margin: 50 });
 
-      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 

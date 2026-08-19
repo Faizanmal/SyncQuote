@@ -216,6 +216,22 @@ export class BulkAnalyticsReportDto {
   metrics?: string[]; // views, conversions, engagement, etc.
 }
 
+export class BulkOperationErrorDto {
+  @ApiProperty()
+  itemId: string;
+
+  @ApiProperty()
+  error: string;
+}
+
+export class BulkOperationResultItemDto {
+  @ApiProperty()
+  itemId: string;
+
+  @ApiProperty()
+  result: any;
+}
+
 export class BulkOperationResultDto {
   @ApiProperty()
   success: boolean;
@@ -229,20 +245,20 @@ export class BulkOperationResultDto {
   @ApiProperty()
   failedItems: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: () => [BulkOperationErrorDto] })
   @IsOptional()
-  errors?: Array<{ itemId: string; error: string }>;
+  errors?: BulkOperationErrorDto[];
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: () => [BulkOperationResultItemDto] })
   @IsOptional()
-  results?: Array<{ itemId: string; result: any }>;
+  results?: BulkOperationResultItemDto[];
 
   @ApiProperty()
   timestamp: Date;
 
   @ApiPropertyOptional()
   @IsOptional()
-  downloadUrl?: string; // For export operations
+  downloadUrl?: string;
 }
 
 export class BatchJobDto {

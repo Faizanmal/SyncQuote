@@ -411,10 +411,6 @@ export function ProposalPaymentDashboard({ proposalId }: ProposalPaymentDashboar
   const [refundAmount, setRefundAmount] = useState('');
   const api = useApi();
 
-  useEffect(() => {
-    fetchPayments();
-  }, [proposalId, fetchPayments]);
-
   const fetchPayments = async () => {
     try {
       setLoading(true);
@@ -426,6 +422,10 @@ export function ProposalPaymentDashboard({ proposalId }: ProposalPaymentDashboar
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchPayments();
+  }, [proposalId]);
 
   const handleRefund = async () => {
     if (!refundDialog) return;

@@ -198,69 +198,162 @@ export class GetHeatmapDto {
 }
 
 export class HeatmapDataPoint {
+  @ApiProperty()
   x: number;
+
+  @ApiProperty()
   y: number;
-  value: number; // Intensity/weight
-  count?: number; // Number of interactions
+
+  @ApiProperty()
+  value: number;
+
+  @ApiPropertyOptional()
+  count?: number;
 }
 
 export class HeatmapResponseDto {
+  @ApiProperty()
   proposalId: string;
+
+  @ApiProperty({ enum: HeatmapType })
   type: HeatmapType;
+
+  @ApiProperty({ type: () => [HeatmapDataPoint] })
   dataPoints: HeatmapDataPoint[];
+
+  @ApiProperty()
   totalInteractions: number;
+
+  @ApiProperty()
   uniqueSessions: number;
+
+  @ApiProperty()
   width: number;
+
+  @ApiProperty()
   height: number;
+
+  @ApiProperty()
   generatedAt: Date;
 }
 
+export class DepthBucketDto {
+  @ApiProperty()
+  depth: number;
+
+  @ApiProperty()
+  count: number;
+
+  @ApiProperty()
+  percentage: number;
+}
+
+export class DropOffPointDto {
+  @ApiProperty()
+  depth: number;
+
+  @ApiProperty()
+  dropOffRate: number;
+}
+
 export class ScrollDepthAnalyticsDto {
+  @ApiProperty()
   proposalId: string;
+
+  @ApiProperty()
   totalViews: number;
-  depthBuckets: Array<{
-    depth: number; // 0-10%, 10-20%, etc.
-    count: number;
-    percentage: number;
-  }>;
+
+  @ApiProperty({ type: () => [DepthBucketDto] })
+  depthBuckets: DepthBucketDto[];
+
+  @ApiProperty()
   avgScrollDepth: number;
+
+  @ApiProperty()
   medianScrollDepth: number;
-  dropOffPoints: Array<{
-    depth: number;
-    dropOffRate: number;
-  }>;
+
+  @ApiProperty({ type: () => [DropOffPointDto] })
+  dropOffPoints: DropOffPointDto[];
+}
+
+export class TopClickedElementDto {
+  @ApiPropertyOptional()
+  elementId?: string;
+
+  @ApiProperty()
+  elementType: string;
+
+  @ApiPropertyOptional()
+  elementText?: string;
+
+  @ApiProperty()
+  clicks: number;
+
+  @ApiProperty()
+  uniqueUsers: number;
+
+  @ApiProperty()
+  avgTimeBeforeClick: number;
 }
 
 export class ClickAnalyticsDto {
+  @ApiProperty()
   proposalId: string;
+
+  @ApiProperty()
   totalClicks: number;
+
+  @ApiProperty()
   uniqueElements: number;
-  topElements: Array<{
-    elementId?: string;
-    elementType: string;
-    elementText?: string;
-    clicks: number;
-    uniqueUsers: number;
-    avgTimeBeforeClick: number; // Milliseconds
-  }>;
+
+  @ApiProperty({ type: () => [TopClickedElementDto] })
+  topElements: TopClickedElementDto[];
+
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'number' } })
   clicksBySection: Record<string, number>;
 }
 
+export class TopPerformingSectionDto {
+  @ApiProperty()
+  section: string;
+
+  @ApiProperty()
+  viewRate: number;
+
+  @ApiProperty()
+  avgTimeSpent: number;
+}
+
 export class EngagementMetricsDto {
+  @ApiProperty()
   proposalId: string;
+
+  @ApiProperty()
   totalViews: number;
+
+  @ApiProperty()
   uniqueVisitors: number;
-  avgTimeSpent: number; // Seconds
+
+  @ApiProperty()
+  avgTimeSpent: number;
+
+  @ApiProperty()
   medianTimeSpent: number;
+
+  @ApiProperty()
   avgScrollDepth: number;
-  bounceRate: number; // Percentage who left within 10 seconds
-  engagementRate: number; // Percentage with meaningful engagement
+
+  @ApiProperty()
+  bounceRate: number;
+
+  @ApiProperty()
+  engagementRate: number;
+
+  @ApiProperty()
   conversionRate: number;
-  topPerformingSections: Array<{
-    section: string;
-    viewRate: number;
-    avgTimeSpent: number;
-  }>;
+
+  @ApiProperty({ type: () => [TopPerformingSectionDto] })
+  topPerformingSections: TopPerformingSectionDto[];
 }
 
 export class PredictiveScoreDto {
@@ -274,35 +367,92 @@ export class PredictiveScoreDto {
   sessionId?: string;
 }
 
+export class ScoreFactorDto {
+  @ApiProperty()
+  value: number | boolean | string;
+
+  @ApiProperty()
+  weight: number;
+
+  @ApiProperty()
+  score: number;
+}
+
+export class PredictiveFactorsDto {
+  @ApiProperty({ type: () => ScoreFactorDto })
+  timeSpent: ScoreFactorDto;
+
+  @ApiProperty({ type: () => ScoreFactorDto })
+  scrollDepth: ScoreFactorDto;
+
+  @ApiProperty({ type: () => ScoreFactorDto })
+  interactions: ScoreFactorDto;
+
+  @ApiProperty({ type: () => ScoreFactorDto })
+  returningVisitor: ScoreFactorDto;
+
+  @ApiProperty({ type: () => ScoreFactorDto })
+  deviceType: ScoreFactorDto;
+
+  @ApiProperty({ type: () => ScoreFactorDto })
+  timeOfDay: ScoreFactorDto;
+
+  @ApiProperty({ type: () => ScoreFactorDto })
+  pricingViewed: ScoreFactorDto;
+}
+
 export class PredictiveScoreResponseDto {
+  @ApiProperty()
   proposalId: string;
+
+  @ApiPropertyOptional()
   sessionId?: string;
-  conversionProbability: number; // 0-1
-  engagementScore: number; // 0-100
-  qualityScore: number; // 0-100
-  factors: {
-    timeSpent: { value: number; weight: number; score: number };
-    scrollDepth: { value: number; weight: number; score: number };
-    interactions: { value: number; weight: number; score: number };
-    returningVisitor: { value: boolean; weight: number; score: number };
-    deviceType: { value: string; weight: number; score: number };
-    timeOfDay: { value: string; weight: number; score: number };
-    pricingViewed: { value: boolean; weight: number; score: number };
-  };
+
+  @ApiProperty()
+  conversionProbability: number;
+
+  @ApiProperty()
+  engagementScore: number;
+
+  @ApiProperty()
+  qualityScore: number;
+
+  @ApiProperty({ type: () => PredictiveFactorsDto })
+  factors: PredictiveFactorsDto;
+
+  @ApiProperty()
   recommendation: string;
+
+  @ApiProperty()
   nextBestAction: string;
 }
 
+export class AttentionSectionDto {
+  @ApiProperty()
+  sectionId: string;
+
+  @ApiProperty()
+  sectionName: string;
+
+  @ApiProperty()
+  attentionScore: number;
+
+  @ApiProperty()
+  avgDwellTime: number;
+
+  @ApiProperty()
+  viewRate: number;
+
+  @ApiProperty()
+  interactionRate: number;
+}
+
 export class AttentionHeatmapDto {
+  @ApiProperty()
   proposalId: string;
-  sections: Array<{
-    sectionId: string;
-    sectionName: string;
-    attentionScore: number; // 0-100
-    avgDwellTime: number; // Milliseconds
-    viewRate: number; // Percentage of visitors who saw it
-    interactionRate: number; // Percentage who interacted
-  }>;
+
+  @ApiProperty({ type: () => [AttentionSectionDto] })
+  sections: AttentionSectionDto[];
 }
 
 export class RealTimeAnalyticsDto {
@@ -317,19 +467,44 @@ export class RealTimeAnalyticsDto {
   lastMinutes?: number; // Default 5
 }
 
+export class ActiveRegionDto {
+  @ApiProperty()
+  country: string;
+
+  @ApiProperty()
+  viewers: number;
+}
+
+export class DeviceBreakdownDto {
+  @ApiProperty()
+  desktop: number;
+
+  @ApiProperty()
+  mobile: number;
+
+  @ApiProperty()
+  tablet: number;
+}
+
 export class RealTimeStatsDto {
+  @ApiProperty()
   proposalId: string;
+
+  @ApiProperty()
   currentViewers: number;
+
+  @ApiProperty()
   recentViews: number;
+
+  @ApiProperty()
   recentConversions: number;
+
+  @ApiProperty()
   avgEngagementScore: number;
-  activeRegions: Array<{
-    country: string;
-    viewers: number;
-  }>;
-  devices: {
-    desktop: number;
-    mobile: number;
-    tablet: number;
-  };
+
+  @ApiProperty({ type: () => [ActiveRegionDto] })
+  activeRegions: ActiveRegionDto[];
+
+  @ApiProperty({ type: () => DeviceBreakdownDto })
+  devices: DeviceBreakdownDto;
 }
