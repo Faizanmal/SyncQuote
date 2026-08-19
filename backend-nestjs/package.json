@@ -1,6 +1,7 @@
 {
   "name": "syncquote-backend",
   "version": "1.0.0",
+  "type": "module",
   "description": "SyncQuote - Production-Ready SaaS Backend",
   "author": "SyncQuote Team",
   "private": true,
