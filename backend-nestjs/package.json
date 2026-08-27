@@ -1,8 +1,7 @@
 {
   "name": "syncquote-backend",
   "version": "1.0.0",
-  "type": "module",
-  "description": "SyncQuote - Production-Ready SaaS Backend",
+  "description": "SyncQuote - Backend",
   "author": "SyncQuote Team",
   "private": true,
   "license": "UNLICENSED",
@@ -13,7 +12,7 @@
     "start:dev": "node --max-old-space-size=4096 ./node_modules/@nestjs/cli/bin/nest.js start --watch",
     "start:debug": "node --max-old-space-size=4096 --inspect ./node_modules/@nestjs/cli/bin/nest.js start --watch",
     "start:prod": "node dist/main",
-    "lint": "npx eslint src/**/*.ts --fix",
+    "lint": "eslint src --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -106,6 +105,12 @@
   },
   "overrides": {
     "ajv": "^8.18.0",
+    "eslint": {
+      "ajv": "6.14.0"
+    },
+    "@eslint/eslintrc": {
+      "ajv": "6.14.0"
+    },
     "file-type": "^21.3.2",
     "js-yaml": "^4.1.1",
     "multer": "^2.2.0",

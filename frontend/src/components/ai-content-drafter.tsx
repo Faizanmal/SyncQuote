@@ -178,7 +178,7 @@ export function AIContentDrafter({ onInsert, proposalId, className }: AIContentD
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <Label>Block Type</Label>
-                                    <Select value={blockType} onValueChange={(v) => setBlockType(v as any)}>
+                                    <Select value={blockType} onValueChange={(v) => setBlockType(v as typeof blockTypes[number]['value'])}>
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>

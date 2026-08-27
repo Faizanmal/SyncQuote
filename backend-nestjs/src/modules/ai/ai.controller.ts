@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('ai')
 export class AIController {
-  constructor(private aiService: AIService) { }
+  constructor(private aiService: AIService) {}
 
   @Post('generate')
   async generateContent(

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../../email/email.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { v4 as uuidv4 } from 'uuid';
+import { normalizePagination, paginatedResult } from '../../../common/pagination';
 
 export interface InvoiceLineItem {
   description: string;
@@ -19,22 +20,22 @@ export interface Invoice {
   proposalId?: string;
   userId: string;
   status: 'draft' | 'sent' | 'viewed' | 'paid' | 'overdue' | 'cancelled' | 'refunded';
-  
+
   // Client info
   clientName: string;
   clientEmail: string;
   clientCompany?: string;
   clientAddress?: string;
-  
+
   // Provider info
   providerName: string;
   providerCompany?: string;
   providerEmail: string;
   providerAddress?: string;
-  
+
   // Line items
   lineItems: InvoiceLineItem[];
-  
+
   // Amounts
   subtotal: number;
   taxAmount: number;
@@ -42,19 +43,19 @@ export interface Invoice {
   totalAmount: number;
   amountPaid: number;
   amountDue: number;
-  
+
   // Dates
   invoiceDate: Date;
   dueDate: Date;
   paidDate?: Date;
-  
+
   // Payment
   currency: string;
   paymentTerms?: string;
   notes?: string;
   stripePaymentIntentId?: string;
   stripeInvoiceId?: string;
-  
+
   // Metadata
   pdfUrl?: string;
   createdAt: Date;
@@ -93,7 +94,6 @@ export interface RecurringInvoiceConfig {
 @Injectable()
 export class InvoiceService {
   private readonly logger = new Logger(InvoiceService.name);
-  private invoiceCounter = 1000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -114,7 +114,7 @@ export class InvoiceService {
     }
 
     // Calculate line item amounts
-    const lineItems: InvoiceLineItem[] = dto.lineItems.map(item => ({
+    const lineItems: InvoiceLineItem[] = dto.lineItems.map((item) => ({
       ...item,
       amount: item.quantity * item.unitPrice,
       taxRate: dto.taxRate,
@@ -123,25 +123,26 @@ export class InvoiceService {
     // Calculate totals
     const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
     const taxAmount = dto.taxRate ? subtotal * (dto.taxRate / 100) : 0;
-    const discountAmount = dto.discountAmount || (dto.discountPercent ? subtotal * (dto.discountPercent / 100) : 0);
+    const discountAmount =
+      dto.discountAmount || (dto.discountPercent ? subtotal * (dto.discountPercent / 100) : 0);
     const totalAmount = subtotal + taxAmount - discountAmount;
 
     const invoice: Invoice = {
       id: uuidv4(),
-      invoiceNumber: this.generateInvoiceNumber(),
+      invoiceNumber: await this.generateInvoiceNumber(userId),
       proposalId: dto.proposalId,
       userId,
       status: 'draft',
-      
+
       clientName: dto.clientName,
       clientEmail: dto.clientEmail,
       clientCompany: dto.clientCompany,
       clientAddress: dto.clientAddress,
-      
+
       providerName: user.name || '',
       providerCompany: user.companyName || undefined,
       providerEmail: user.email,
-      
+
       lineItems,
       subtotal,
       taxAmount,
@@ -149,14 +150,14 @@ export class InvoiceService {
       totalAmount,
       amountPaid: 0,
       amountDue: totalAmount,
-      
+
       invoiceDate: new Date(),
       dueDate: dto.dueDate,
-      
+
       currency: dto.currency || 'USD',
       paymentTerms: dto.paymentTerms,
       notes: dto.notes,
-      
+
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -194,7 +195,7 @@ export class InvoiceService {
 
     // Extract line items from pricing blocks
     const lineItems: Omit<InvoiceLineItem, 'amount'>[] = [];
-    
+
     for (const block of proposal.blocks) {
       if (block.type === 'PRICING_TABLE') {
         for (const item of block.pricingItems) {
@@ -329,13 +330,58 @@ export class InvoiceService {
   }
 
   async getInvoice(userId: string, invoiceId: string): Promise<Invoice | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { metadata: true },
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, userId },
+    });
+    return invoice ? this.serialize(invoice) : null;
+  }
+
+  async getPublicInvoice(invoiceId: string): Promise<Invoice | null> {
+    const invoice = await this.prisma.invoice.findUnique({ where: { id: invoiceId } });
+    return invoice ? this.serialize(invoice) : null;
+  }
+
+  async createPublicCheckout(invoiceId: string, successUrl: string, cancelUrl: string) {
+    const invoice = await this.prisma.invoice.findUnique({ where: { id: invoiceId } });
+    if (!invoice) {
+      throw new BadRequestException('Invoice not found');
+    }
+    if (invoice.status === 'paid' || invoice.status === 'cancelled') {
+      throw new BadRequestException('Invoice cannot be paid');
+    }
+
+    const stripe = new (await import('stripe')).default(
+      this.configService.get<string>('STRIPE_SECRET_KEY') || '',
+      { apiVersion: '2024-06-20' },
+    );
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: invoice.clientEmail,
+      line_items: [
+        {
+          price_data: {
+            currency: invoice.currency.toLowerCase(),
+            product_data: { name: `Invoice ${invoice.invoiceNumber}` },
+            unit_amount: Math.round(invoice.amountDue * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: { invoiceId: invoice.id, type: 'client_invoice' },
+      payment_intent_data: {
+        metadata: { invoiceId: invoice.id, type: 'client_invoice' },
+      },
     });
 
-    const invoices = ((user as any)?.metadata?.invoices || []) as Invoice[];
-    return invoices.find(inv => inv.id === invoiceId) || null;
+    await this.prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { stripeCheckoutSessionId: session.id },
+    });
+
+    return { sessionId: session.id, url: session.url };
   }
 
   async getInvoicesByUser(
@@ -344,26 +390,51 @@ export class InvoiceService {
       status?: Invoice['status'];
       startDate?: Date;
       endDate?: Date;
+      page?: number;
+      limit?: number;
+      search?: string;
     },
-  ): Promise<Invoice[]> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { metadata: true },
-    });
+  ) {
+    const { page, limit, skip, take } = normalizePagination(filters);
+    const search = filters?.search?.trim();
+    const where = {
+      userId,
+      ...(filters?.status && filters.status !== 'all' ? { status: filters.status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { clientName: { contains: search, mode: 'insensitive' as const } },
+              { clientEmail: { contains: search, mode: 'insensitive' as const } },
+              { invoiceNumber: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+      ...(filters?.startDate || filters?.endDate
+        ? {
+            invoiceDate: {
+              ...(filters.startDate ? { gte: filters.startDate } : {}),
+              ...(filters.endDate ? { lte: filters.endDate } : {}),
+            },
+          }
+        : {}),
+    };
 
-    let invoices = ((user as any)?.metadata?.invoices || []) as Invoice[];
+    const [invoices, total] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
 
-    if (filters?.status) {
-      invoices = invoices.filter(inv => inv.status === filters.status);
-    }
-    if (filters?.startDate) {
-      invoices = invoices.filter(inv => new Date(inv.invoiceDate) >= filters.startDate!);
-    }
-    if (filters?.endDate) {
-      invoices = invoices.filter(inv => new Date(inv.invoiceDate) <= filters.endDate!);
-    }
-
-    return invoices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return paginatedResult(
+      invoices.map((invoice) => this.serialize(invoice)),
+      total,
+      page,
+      limit,
+    );
   }
 
   async getInvoiceStats(userId: string): Promise<{
@@ -374,35 +445,52 @@ export class InvoiceService {
     invoiceCount: number;
     averageInvoice: number;
   }> {
-    const invoices = await this.getInvoicesByUser(userId);
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const paidStatuses = ['paid', 'PAID'];
+    const openStatuses = ['sent', 'viewed'];
 
-    const paidInvoices = invoices.filter(inv => inv.status === 'paid');
-    const outstandingInvoices = invoices.filter(inv => ['sent', 'viewed'].includes(inv.status));
-    const overdueInvoices = invoices.filter(inv => 
-      ['sent', 'viewed'].includes(inv.status) && new Date(inv.dueDate) < now
-    );
-    const paidThisMonthInvoices = paidInvoices.filter(inv => 
-      inv.paidDate && new Date(inv.paidDate) >= startOfMonth
-    );
+    const [paid, outstanding, overdue, paidThisMonth, totals] = await Promise.all([
+      this.prisma.invoice.aggregate({
+        where: { userId, status: { in: paidStatuses } },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: { userId, status: { in: openStatuses } },
+        _sum: { amountDue: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: { userId, status: { in: openStatuses }, dueDate: { lt: now } },
+        _sum: { amountDue: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: { userId, status: { in: paidStatuses }, paidDate: { gte: startOfMonth } },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.invoice.aggregate({
+        where: { userId },
+        _count: true,
+        _avg: { totalAmount: true },
+      }),
+    ]);
 
     return {
-      totalRevenue: paidInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
-      outstanding: outstandingInvoices.reduce((sum, inv) => sum + inv.amountDue, 0),
-      overdue: overdueInvoices.reduce((sum, inv) => sum + inv.amountDue, 0),
-      paidThisMonth: paidThisMonthInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
-      invoiceCount: invoices.length,
-      averageInvoice: invoices.length > 0 
-        ? invoices.reduce((sum, inv) => sum + inv.totalAmount, 0) / invoices.length 
-        : 0,
+      totalRevenue: paid._sum.totalAmount || 0,
+      outstanding: outstanding._sum.amountDue || 0,
+      overdue: overdue._sum.amountDue || 0,
+      paidThisMonth: paidThisMonth._sum.totalAmount || 0,
+      invoiceCount: totals._count,
+      averageInvoice: totals._avg.totalAmount || 0,
     };
   }
 
   // Recurring Invoices
   async createRecurringInvoice(
     userId: string,
-    config: Omit<RecurringInvoiceConfig, 'id' | 'nextInvoiceDate' | 'invoiceCount' | 'lastGeneratedAt'>,
+    config: Omit<
+      RecurringInvoiceConfig,
+      'id' | 'nextInvoiceDate' | 'invoiceCount' | 'lastGeneratedAt'
+    >,
   ): Promise<RecurringInvoiceConfig> {
     const recurringConfig: RecurringInvoiceConfig = {
       ...config,
@@ -411,73 +499,234 @@ export class InvoiceService {
       invoiceCount: 0,
     };
 
-    await this.storeRecurringConfig(userId, recurringConfig);
-    return recurringConfig;
+    const created = await this.prisma.recurringInvoice.create({
+      data: {
+        id: recurringConfig.id,
+        userId,
+        template: JSON.parse(JSON.stringify(config.templateInvoice)),
+        frequency: config.frequency,
+        startDate: config.startDate,
+        endDate: config.endDate,
+        nextInvoiceDate: config.startDate,
+        isActive: config.isActive,
+      },
+    });
+
+    return {
+      ...recurringConfig,
+      id: created.id,
+      nextInvoiceDate: created.nextInvoiceDate,
+    };
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async processRecurringInvoices(): Promise<void> {
     this.logger.log('Processing recurring invoices');
+    const due = await this.prisma.recurringInvoice.findMany({
+      where: {
+        isActive: true,
+        nextInvoiceDate: { lte: new Date() },
+      },
+    });
 
-    // In production, this would query the database for all active recurring configs
-    // For now, this is a placeholder for the cron job
+    for (const config of due) {
+      try {
+        const template = config.template as unknown as CreateInvoiceDto;
+        await this.createInvoice(config.userId, {
+          ...template,
+          dueDate: template.dueDate
+            ? new Date(template.dueDate)
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        });
+        await this.prisma.recurringInvoice.update({
+          where: { id: config.id },
+          data: {
+            invoiceCount: { increment: 1 },
+            lastGeneratedAt: new Date(),
+            nextInvoiceDate: this.nextDate(config.nextInvoiceDate, config.frequency),
+            isActive: config.endDate
+              ? this.nextDate(config.nextInvoiceDate, config.frequency) <= config.endDate
+              : true,
+          },
+        });
+      } catch (error) {
+        this.logger.error(`Recurring invoice ${config.id} failed: ${(error as Error).message}`);
+      }
+    }
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_9AM)
   async sendOverdueReminders(): Promise<void> {
     this.logger.log('Checking for overdue invoices');
+    const overdue = await this.prisma.invoice.findMany({
+      where: {
+        status: { in: ['sent', 'viewed'] },
+        dueDate: { lt: new Date() },
+      },
+    });
 
-    // In production, query all overdue invoices and send reminders
+    for (const invoice of overdue) {
+      try {
+        await this.prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { status: 'overdue' },
+        });
+        await this.emailService.sendEmail({
+          to: invoice.clientEmail,
+          subject: `Overdue invoice ${invoice.invoiceNumber}`,
+          html: `<p>Invoice ${invoice.invoiceNumber} is overdue. Amount due: $${invoice.amountDue}.</p>`,
+        });
+      } catch (error) {
+        this.logger.error(`Overdue reminder ${invoice.id} failed: ${(error as Error).message}`);
+      }
+    }
   }
 
-  private generateInvoiceNumber(): string {
+  private nextDate(from: Date, frequency: string) {
+    const date = new Date(from);
+    switch (frequency) {
+      case 'weekly':
+        date.setDate(date.getDate() + 7);
+        break;
+      case 'biweekly':
+        date.setDate(date.getDate() + 14);
+        break;
+      case 'quarterly':
+        date.setMonth(date.getMonth() + 3);
+        break;
+      case 'annually':
+        date.setFullYear(date.getFullYear() + 1);
+        break;
+      default:
+        date.setMonth(date.getMonth() + 1);
+    }
+    return date;
+  }
+
+  private async generateInvoiceNumber(userId: string): Promise<string> {
     const year = new Date().getFullYear();
-    this.invoiceCounter++;
-    return `INV-${year}-${this.invoiceCounter.toString().padStart(5, '0')}`;
+    const count = await this.prisma.invoice.count({
+      where: { userId, invoiceNumber: { startsWith: `INV-${year}-` } },
+    });
+    return `INV-${year}-${(count + 1).toString().padStart(5, '0')}`;
+  }
+
+  private serialize(invoice: {
+    id: string;
+    invoiceNumber: string;
+    proposalId: string | null;
+    userId: string;
+    status: string;
+    clientName: string;
+    clientEmail: string;
+    clientCompany: string | null;
+    clientAddress: string | null;
+    providerName: string;
+    providerCompany: string | null;
+    providerEmail: string;
+    providerAddress: string | null;
+    lineItems: unknown;
+    subtotal: number;
+    taxAmount: number;
+    discountAmount: number;
+    totalAmount: number;
+    amountPaid: number;
+    amountDue: number;
+    invoiceDate: Date;
+    dueDate: Date;
+    paidDate: Date | null;
+    currency: string;
+    paymentTerms: string | null;
+    notes: string | null;
+    stripePaymentIntentId: string | null;
+    stripeInvoiceId: string | null;
+    pdfUrl: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): Invoice {
+    return {
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      proposalId: invoice.proposalId || undefined,
+      userId: invoice.userId,
+      status: invoice.status as Invoice['status'],
+      clientName: invoice.clientName,
+      clientEmail: invoice.clientEmail,
+      clientCompany: invoice.clientCompany || undefined,
+      clientAddress: invoice.clientAddress || undefined,
+      providerName: invoice.providerName,
+      providerCompany: invoice.providerCompany || undefined,
+      providerEmail: invoice.providerEmail,
+      providerAddress: invoice.providerAddress || undefined,
+      lineItems: (invoice.lineItems as InvoiceLineItem[]) || [],
+      subtotal: invoice.subtotal,
+      taxAmount: invoice.taxAmount,
+      discountAmount: invoice.discountAmount,
+      totalAmount: invoice.totalAmount,
+      amountPaid: invoice.amountPaid,
+      amountDue: invoice.amountDue,
+      invoiceDate: invoice.invoiceDate,
+      dueDate: invoice.dueDate,
+      paidDate: invoice.paidDate || undefined,
+      currency: invoice.currency,
+      paymentTerms: invoice.paymentTerms || undefined,
+      notes: invoice.notes || undefined,
+      stripePaymentIntentId: invoice.stripePaymentIntentId || undefined,
+      stripeInvoiceId: invoice.stripeInvoiceId || undefined,
+      pdfUrl: invoice.pdfUrl || undefined,
+      createdAt: invoice.createdAt,
+      updatedAt: invoice.updatedAt,
+    };
   }
 
   private async storeInvoice(userId: string, invoice: Invoice): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { metadata: true },
-    });
-
-    const invoices = ((user as any)?.metadata?.invoices || []) as Invoice[];
-    const existingIndex = invoices.findIndex(inv => inv.id === invoice.id);
-
-    if (existingIndex >= 0) {
-      invoices[existingIndex] = invoice;
-    } else {
-      invoices.push(invoice);
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        metadata: {
-          ...(user as any)?.metadata,
-          invoices,
-        },
+    await this.prisma.invoice.upsert({
+      where: { id: invoice.id },
+      create: {
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        proposalId: invoice.proposalId,
+        userId,
+        status: invoice.status,
+        clientName: invoice.clientName,
+        clientEmail: invoice.clientEmail,
+        clientCompany: invoice.clientCompany,
+        clientAddress: invoice.clientAddress,
+        providerName: invoice.providerName,
+        providerCompany: invoice.providerCompany,
+        providerEmail: invoice.providerEmail,
+        providerAddress: invoice.providerAddress,
+        lineItems: JSON.parse(JSON.stringify(invoice.lineItems)),
+        subtotal: invoice.subtotal,
+        taxAmount: invoice.taxAmount,
+        discountAmount: invoice.discountAmount,
+        totalAmount: invoice.totalAmount,
+        amountPaid: invoice.amountPaid,
+        amountDue: invoice.amountDue,
+        invoiceDate: invoice.invoiceDate,
+        dueDate: invoice.dueDate,
+        paidDate: invoice.paidDate,
+        currency: invoice.currency,
+        paymentTerms: invoice.paymentTerms,
+        notes: invoice.notes,
+        stripePaymentIntentId: invoice.stripePaymentIntentId,
+        stripeInvoiceId: invoice.stripeInvoiceId,
+        pdfUrl: invoice.pdfUrl,
       },
-    });
-  }
-
-  private async storeRecurringConfig(userId: string, config: RecurringInvoiceConfig): Promise<void> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { metadata: true },
-    });
-
-    const configs = ((user as any)?.metadata?.recurringInvoices || []) as RecurringInvoiceConfig[];
-    configs.push(config);
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        metadata: {
-          ...(user as any)?.metadata,
-          recurringInvoices: configs,
-        },
+      update: {
+        status: invoice.status,
+        lineItems: JSON.parse(JSON.stringify(invoice.lineItems)),
+        subtotal: invoice.subtotal,
+        taxAmount: invoice.taxAmount,
+        discountAmount: invoice.discountAmount,
+        totalAmount: invoice.totalAmount,
+        amountPaid: invoice.amountPaid,
+        amountDue: invoice.amountDue,
+        paidDate: invoice.paidDate,
+        notes: invoice.notes,
+        stripePaymentIntentId: invoice.stripePaymentIntentId,
+        stripeInvoiceId: invoice.stripeInvoiceId,
+        pdfUrl: invoice.pdfUrl,
       },
     });
   }
@@ -493,11 +742,7 @@ export class InvoiceService {
     await this.storeInvoice(userId, invoice);
   }
 
-  async refundInvoice(
-    userId: string,
-    invoiceId: string,
-    refundAmount?: number,
-  ): Promise<Invoice> {
+  async refundInvoice(userId: string, invoiceId: string, refundAmount?: number): Promise<Invoice> {
     const invoice = await this.getInvoice(userId, invoiceId);
     if (!invoice) {
       throw new BadRequestException('Invoice not found');

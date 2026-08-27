@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  UseGuards,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ContractManagementService } from './services/contract-management.service';
@@ -30,7 +22,8 @@ export class ContractsController {
   @ApiOperation({ summary: 'Create contract from proposal' })
   async createFromProposal(
     @Req() req: any,
-    @Body() body: {
+    @Body()
+    body: {
       proposalId: string;
       templateId?: string;
       customContent?: string;
@@ -50,37 +43,38 @@ export class ContractsController {
     });
   }
 
-  @Post(':proposalId/send')
+  @Post(':contractId/send')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Send contract for signature' })
   async sendContract(
     @Req() req: any,
-    @Param('proposalId') proposalId: string,
+    @Param('contractId') contractId: string,
     @Body() body: { recipientEmail: string },
   ) {
-    await this.contractService.sendContract(req.user.id, proposalId, body.recipientEmail);
+    await this.contractService.sendContract(req.user.id, contractId, body.recipientEmail);
     return { success: true };
   }
 
-  @Post(':proposalId/sign')
+  @Post(':contractId/sign')
   @ApiOperation({ summary: 'Sign contract (public endpoint)' })
   async signContract(
-    @Param('proposalId') proposalId: string,
-    @Body() body: {
+    @Param('contractId') contractId: string,
+    @Body()
+    body: {
       signatureUrl: string;
       signerName: string;
       signerEmail: string;
       signerIp?: string;
     },
   ) {
-    return this.contractService.signContract(proposalId, body);
+    return this.contractService.signContract(contractId, body);
   }
 
-  @Get(':proposalId')
-  @ApiOperation({ summary: 'Get contract by proposal ID (public for viewing)' })
-  async getContract(@Param('proposalId') proposalId: string) {
-    return this.contractService.getContract(proposalId);
+  @Get(':contractId')
+  @ApiOperation({ summary: 'Get contract (public for viewing)' })
+  async getContract(@Param('contractId') contractId: string) {
+    return this.contractService.getContract(contractId);
   }
 
   @Get()
@@ -91,12 +85,12 @@ export class ContractsController {
     return this.contractService.getContractsByUser(req.user.id);
   }
 
-  @Post(':proposalId/cancel')
+  @Post(':contractId/cancel')
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Cancel contract' })
-  async cancelContract(@Req() req: any, @Param('proposalId') proposalId: string) {
-    await this.contractService.cancelContract(req.user.id, proposalId);
+  async cancelContract(@Req() req: any, @Param('contractId') contractId: string) {
+    await this.contractService.cancelContract(req.user.id, contractId);
     return { success: true };
   }
 }

@@ -56,6 +56,29 @@ export class TeamsController {
     return this.teamsService.inviteMember(teamId, req.user.sub, data);
   }
 
+  @Get(':teamId/invitations')
+  async getInvitations(@Req() req: any, @Param('teamId') teamId: string) {
+    return this.teamsService.getInvitations(teamId, req.user.sub);
+  }
+
+  @Post(':teamId/invitations/:invitationId/resend')
+  async resendInvitation(
+    @Req() req: any,
+    @Param('teamId') teamId: string,
+    @Param('invitationId') invitationId: string,
+  ) {
+    return this.teamsService.resendInvitation(teamId, invitationId, req.user.sub);
+  }
+
+  @Delete(':teamId/invitations/:invitationId')
+  async cancelInvitation(
+    @Req() req: any,
+    @Param('teamId') teamId: string,
+    @Param('invitationId') invitationId: string,
+  ) {
+    return this.teamsService.cancelInvitation(teamId, invitationId, req.user.sub);
+  }
+
   @Put(':teamId/members/:memberId/role')
   async updateMemberRole(
     @Req() req: any,

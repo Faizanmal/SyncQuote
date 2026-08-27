@@ -34,7 +34,7 @@ export class CollaborationService {
     private prisma: PrismaService,
     private emailService: EmailService,
     private configService: ConfigService,
-  ) { }
+  ) {}
 
   // ==================== COLLABORATORS ====================
 
@@ -720,7 +720,8 @@ export class CollaborationService {
         select: { id: true, email: true, firstName: true },
       });
 
-      const commenterName = `${commenter.firstName || ''} ${commenter.lastName || ''}`.trim() || commenter.email;
+      const commenterName =
+        `${commenter.firstName || ''} ${commenter.lastName || ''}`.trim() || commenter.email;
       const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
       const proposalUrl = `${frontendUrl}/proposals/${proposalId}`;
 

@@ -19,7 +19,8 @@ import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DragDropContext, Draggable, Droppable, DroppableProvided, DraggableProvided } from '@hello-pangea/dnd';
+import { DragDropContext, Draggable, Droppable, DroppableProvided, DraggableProvided, DropResult } from '@hello-pangea/dnd';
+import { api } from '@/lib/api';
 
 interface FieldDefinition {
   id: string;
@@ -33,7 +34,7 @@ interface FieldDefinition {
   placeholder?: string;
   helpText?: string;
   options?: FieldOption[];
-  validation?: any;
+  validation?: Record<string, unknown>;
   isActive: boolean;
 }
 
@@ -90,27 +91,23 @@ export function CustomFieldsBuilder() {
   const { data: fields } = useQuery<FieldDefinition[]>({
     queryKey: ['custom-fields', selectedScope],
     queryFn: async () => {
-      const res = await fetch(`/api/custom-fields/definitions?scope=${selectedScope}`);
-      return res.json();
+      const { data } = await api.get('/custom-fields/definitions', { params: { scope: selectedScope } });
+      return data;
     },
   });
 
   const { data: groups } = useQuery({
     queryKey: ['field-groups', selectedScope],
     queryFn: async () => {
-      const res = await fetch(`/api/custom-fields/groups?scope=${selectedScope}`);
-      return res.json();
+      const { data } = await api.get('/custom-fields/groups', { params: { scope: selectedScope } });
+      return data;
     },
   });
 
   const createFieldMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch('/api/custom-fields/definitions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const { data } = await api.post('/custom-fields/definitions', payload);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-fields'] });
@@ -121,13 +118,9 @@ export function CustomFieldsBuilder() {
   });
 
   const updateFieldMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await fetch(`/api/custom-fields/definitions/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const { data: updated } = await api.put(`/custom-fields/definitions/${id}`, data);
+      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-fields'] });
@@ -139,7 +132,7 @@ export function CustomFieldsBuilder() {
 
   const deleteFieldMutation = useMutation({
     mutationFn: async (id: string) => {
-      await fetch(`/api/custom-fields/definitions/${id}`, { method: 'DELETE' });
+      await api.delete(`/custom-fields/definitions/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-fields'] });
@@ -149,19 +142,15 @@ export function CustomFieldsBuilder() {
 
   const reorderFieldsMutation = useMutation({
     mutationFn: async (orders: Array<{ id: string; order: number }>) => {
-      const res = await fetch('/api/custom-fields/definitions/reorder', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orders }),
-      });
-      return res.json();
+      const { data } = await api.put('/custom-fields/definitions/reorder', { orders });
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['custom-fields'] });
     },
   });
 
-  const handleDragEnd = (result: any) => {
+  const handleDragEnd = (result: DropResult) => {
     if (!result.destination || !fields) return;
 
     const items = Array.from(fields);
@@ -339,7 +328,7 @@ function FieldCard({
   onDelete 
 }: {
   field: FieldDefinition;
-  dragHandleProps: any;
+  dragHandleProps: DraggableProvided['dragHandleProps'];
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -397,7 +386,7 @@ function FieldCard({
 }
 
 function FieldEditorDialog({ field, open, onOpenChange, onSave }: { field?: FieldDefinition | null; scope: string; open: boolean; onOpenChange: (open: boolean) => void; onSave: (data: Partial<FieldDefinition>) => void }) {
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState({
     name: field?.name || '',
     label: field?.label || '',
     description: field?.description || '',
@@ -405,8 +394,8 @@ function FieldEditorDialog({ field, open, onOpenChange, onSave }: { field?: Fiel
     required: field?.required || false,
     placeholder: field?.placeholder || '',
     helpText: field?.helpText || '',
-    options: field?.options || [],
-    validation: field?.validation || {},
+    options: field?.options || [] as FieldOption[],
+    validation: (field?.validation || {}) as Record<string, string | number>,
   });
 
   const [newOption, setNewOption] = useState({ value: '', label: '' });
@@ -415,7 +404,7 @@ function FieldEditorDialog({ field, open, onOpenChange, onSave }: { field?: Fiel
     if (newOption.value && newOption.label) {
       setFormData({
         ...formData,
-        options: [...formData.options, { ...newOption, order: formData.options.length }],
+        options: [...(formData.options || []), { ...newOption, order: (formData.options || []).length }],
       });
       setNewOption({ value: '', label: '' });
     }
@@ -424,7 +413,7 @@ function FieldEditorDialog({ field, open, onOpenChange, onSave }: { field?: Fiel
   const removeOption = (index: number) => {
     setFormData({
       ...formData,
-      options: formData.options.filter((_: any, i: number) => i !== index),
+      options: (formData.options || []).filter((_, i: number) => i !== index),
     });
   };
 
@@ -495,7 +484,7 @@ function FieldEditorDialog({ field, open, onOpenChange, onSave }: { field?: Fiel
               <div>
                 <Label>Options</Label>
                 <div className="space-y-2 mt-2">
-                  {formData.options.map((option: FieldOption, index: number) => (
+                  {(formData.options || []).map((option: FieldOption, index: number) => (
                     <div key={index} className="flex items-center gap-2">
                       <Input readOnly value={option.label} className="flex-1" />
                       <Button
@@ -637,7 +626,7 @@ function FieldEditorDialog({ field, open, onOpenChange, onSave }: { field?: Fiel
 }
 
 function DynamicFormPreview({ fields }: { fields: FieldDefinition[] }) {
-  const [formValues, setFormValues] = useState<Record<string, any>>({});
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({});
 
   const renderField = (field: FieldDefinition) => {
     const commonProps = {

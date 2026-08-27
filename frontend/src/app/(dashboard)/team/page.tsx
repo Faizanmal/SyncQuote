@@ -59,6 +59,7 @@ interface TeamInvitation {
   invitedBy: string
   invitedAt: string
   expiresAt: string
+  token?: string
 }
 
 interface Workspace {
@@ -91,7 +92,7 @@ type InviteMemberForm = z.infer<typeof inviteMemberSchema>
 type CreateWorkspaceForm = z.infer<typeof createWorkspaceSchema>
 
 export default function TeamPage() {
-  const [selectedWorkspace, setSelectedWorkspace] = useState<string>('main')
+  const [workspaceOverride, setWorkspaceOverride] = useState<string>('')
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
   const [workspaceDialogOpen, setWorkspaceDialogOpen] = useState(false)
   const queryClient = useQueryClient()
@@ -105,43 +106,135 @@ export default function TeamPage() {
     resolver: zodResolver(createWorkspaceSchema),
   })
 
-  // Fetch team data
+  const toUiRole = (role?: string): TeamMember['role'] => {
+    const normalized = (role || 'member').toLowerCase()
+    if (normalized === 'owner' || normalized === 'admin' || normalized === 'member') {
+      return normalized
+    }
+    return 'member'
+  }
+
+  const mapMember = (raw: {
+    id: string
+    role?: string
+    permissions?: Record<string, boolean> | string[]
+    joinedAt?: string
+    user?: { name?: string | null; email?: string; companyLogo?: string | null; lastLoginAt?: string | null }
+  }): TeamMember => {
+    const permissions = raw.permissions
+    const permissionList = Array.isArray(permissions)
+      ? permissions
+      : Object.entries(permissions || {})
+          .filter(([, enabled]) => Boolean(enabled))
+          .map(([key]) => key)
+    const suspended = !Array.isArray(permissions) && Boolean(permissions?.suspended)
+
+    return {
+      id: raw.id,
+      name: raw.user?.name || raw.user?.email || 'Member',
+      email: raw.user?.email || '',
+      role: toUiRole(raw.role),
+      avatar: raw.user?.companyLogo || undefined,
+      status: suspended ? 'suspended' : 'active',
+      lastActive: raw.user?.lastLoginAt
+        ? new Date(raw.user.lastLoginAt).toLocaleString()
+        : '—',
+      joinedAt: raw.joinedAt ? new Date(raw.joinedAt).toLocaleDateString() : '—',
+      permissions: permissionList,
+    }
+  }
+
+  const { data: workspaces } = useQuery({
+    queryKey: ['teams'],
+    queryFn: async () => {
+      const { data } = await api.get('/teams')
+      const list = Array.isArray(data) ? data : []
+      return list.map((team: { id: string; name: string; slug?: string; members?: unknown[] }) => ({
+        id: team.id,
+        name: team.name,
+        domain: team.slug || '',
+        plan: 'team',
+        memberCount: team.members?.length || 0,
+        maxMembers: 50,
+        createdAt: '',
+        settings: {
+          allowInvitations: true,
+          requireApproval: false,
+          defaultRole: 'member' as const,
+        },
+      }))
+    },
+  })
+
+  const selectedWorkspace = workspaceOverride || workspaces?.[0]?.id || ''
+
   const { data: workspace } = useQuery({
-    queryKey: ['workspace', selectedWorkspace],
-    queryFn: () => api.get(`/workspaces/${selectedWorkspace}`).then(res => res.data),
+    queryKey: ['team', selectedWorkspace],
+    enabled: Boolean(selectedWorkspace),
+    queryFn: async () => {
+      const { data } = await api.get(`/teams/${selectedWorkspace}`)
+      return {
+        id: data.id,
+        name: data.name,
+        domain: data.slug || '',
+        plan: 'team',
+        memberCount: data.members?.length || 0,
+        maxMembers: 50,
+        createdAt: data.createdAt,
+        settings: {
+          allowInvitations: true,
+          requireApproval: false,
+          defaultRole: 'member' as const,
+        },
+      }
+    },
   })
 
   const { data: members } = useQuery({
     queryKey: ['team', 'members', selectedWorkspace],
-    queryFn: () => api.get(`/workspaces/${selectedWorkspace}/members`).then(res => res.data),
+    enabled: Boolean(selectedWorkspace),
+    queryFn: async () => {
+      const { data } = await api.get(`/teams/${selectedWorkspace}/members`)
+      return (Array.isArray(data) ? data : []).map(mapMember)
+    },
   })
 
   const { data: invitations } = useQuery({
     queryKey: ['team', 'invitations', selectedWorkspace],
-    queryFn: () => api.get(`/workspaces/${selectedWorkspace}/invitations`).then(res => res.data),
+    enabled: Boolean(selectedWorkspace),
+    queryFn: async () => {
+      const { data } = await api.get(`/teams/${selectedWorkspace}/invitations`)
+      return (Array.isArray(data) ? data : []).map((invitation: TeamInvitation & { role?: string }) => ({
+        ...invitation,
+        role: invitation.role === 'admin' ? 'admin' : 'member',
+        invitedAt: invitation.invitedAt ? new Date(invitation.invitedAt).toLocaleDateString() : '—',
+        expiresAt: invitation.expiresAt ? new Date(invitation.expiresAt).toLocaleDateString() : '—',
+      })) as TeamInvitation[]
+    },
   })
 
-  const { data: workspaces } = useQuery({
-    queryKey: ['workspaces'],
-    queryFn: () => api.get('/workspaces').then(res => res.data),
-  })
-
-  // Mutations
   const inviteMemberMutation = useMutation({
-    mutationFn: (data: InviteMemberForm) => api.post(`/workspaces/${selectedWorkspace}/invitations`, data),
-    onSuccess: () => {
-      toast.success('Invitation sent successfully!')
+    mutationFn: (data: InviteMemberForm) =>
+      api.post(`/teams/${selectedWorkspace}/members`, {
+        email: data.email,
+        role: data.role.toUpperCase(),
+        message: data.message || undefined,
+      }),
+    onSuccess: (response) => {
+      toast.success(response.data?.type === 'member' ? 'Member added to the team' : 'Invitation sent successfully!')
       setInviteDialogOpen(false)
       resetInvite()
+      queryClient.invalidateQueries({ queryKey: ['team', 'members', selectedWorkspace] })
       queryClient.invalidateQueries({ queryKey: ['team', 'invitations', selectedWorkspace] })
     },
-    onError: () => {
-      toast.error('Failed to send invitation')
+    onError: (err: unknown) => {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(message || 'Failed to send invitation')
     }
   })
 
   const removeMemberMutation = useMutation({
-    mutationFn: (memberId: string) => api.delete(`/workspaces/${selectedWorkspace}/members/${memberId}`),
+    mutationFn: (memberId: string) => api.delete(`/teams/${selectedWorkspace}/members/${memberId}`),
     onSuccess: () => {
       toast.success('Member removed successfully!')
       queryClient.invalidateQueries({ queryKey: ['team', 'members', selectedWorkspace] })
@@ -151,35 +244,81 @@ export default function TeamPage() {
     }
   })
 
-  const suspendMemberMutation = useMutation({
-    mutationFn: (memberId: string) => api.patch(`/workspaces/${selectedWorkspace}/members/${memberId}/suspend`),
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ memberId, role }: { memberId: string; role: string }) =>
+      api.put(`/teams/${selectedWorkspace}/members/${memberId}/role`, { role: role.toUpperCase() }),
     onSuccess: () => {
-      toast.success('Member suspended successfully!')
+      toast.success('Role updated')
+      queryClient.invalidateQueries({ queryKey: ['team', 'members', selectedWorkspace] })
+    },
+    onError: (err: unknown) => {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(message || 'Failed to update role')
+    }
+  })
+
+  const suspendMemberMutation = useMutation({
+    mutationFn: ({ memberId, suspended }: { memberId: string; suspended: boolean }) =>
+      api.put(`/teams/${selectedWorkspace}/members/${memberId}/permissions`, { suspended }),
+    onSuccess: (_data, variables) => {
+      toast.success(variables.suspended ? 'Member suspended' : 'Member reactivated')
       queryClient.invalidateQueries({ queryKey: ['team', 'members', selectedWorkspace] })
     },
     onError: () => {
-      toast.error('Failed to suspend member')
+      toast.error('Failed to update member status')
     }
   })
 
   const cancelInvitationMutation = useMutation({
-    mutationFn: (invitationId: string) => api.delete(`/workspaces/${selectedWorkspace}/invitations/${invitationId}`),
+    mutationFn: (invitationId: string) =>
+      api.delete(`/teams/${selectedWorkspace}/invitations/${invitationId}`),
     onSuccess: () => {
-      toast.success('Invitation cancelled successfully!')
+      toast.success('Invitation cancelled')
       queryClient.invalidateQueries({ queryKey: ['team', 'invitations', selectedWorkspace] })
     },
-    onError: () => {
-      toast.error('Failed to cancel invitation')
+    onError: (err: unknown) => {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(message || 'Failed to cancel invitation')
     }
   })
 
-  const createWorkspaceMutation = useMutation({
-    mutationFn: (data: CreateWorkspaceForm) => api.post('/workspaces', data),
+  const resendInvitationMutation = useMutation({
+    mutationFn: (invitationId: string) =>
+      api.post(`/teams/${selectedWorkspace}/invitations/${invitationId}/resend`),
     onSuccess: () => {
+      toast.success('Invitation resent')
+      queryClient.invalidateQueries({ queryKey: ['team', 'invitations', selectedWorkspace] })
+    },
+    onError: (err: unknown) => {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+      toast.error(message || 'Failed to resend invitation')
+    }
+  })
+
+  const copyInviteLink = async (token?: string) => {
+    if (!token) {
+      toast.error('This invitation does not have a shareable link')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/invite?token=${token}`)
+      toast.success('Invite link copied')
+    } catch {
+      toast.error('Could not copy invite link')
+    }
+  }
+
+  const createWorkspaceMutation = useMutation({
+    mutationFn: (data: CreateWorkspaceForm) =>
+      api.post('/teams', { name: data.name, settings: { domain: data.domain } }),
+    onSuccess: (response) => {
       toast.success('Workspace created successfully!')
       setWorkspaceDialogOpen(false)
       resetWorkspace()
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+      queryClient.invalidateQueries({ queryKey: ['teams'] })
+      if (response.data?.id) {
+        setWorkspaceOverride(response.data.id)
+      }
     },
     onError: () => {
       toast.error('Failed to create workspace')
@@ -243,7 +382,7 @@ export default function TeamPage() {
           </p>
         </div>
         <div className="flex items-center space-x-2">
-          <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
+          <Select value={selectedWorkspace} onValueChange={setWorkspaceOverride}>
             <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
@@ -467,24 +606,24 @@ export default function TeamPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => {}}>
+                            <DropdownMenuItem onClick={() => toast.message(member.email)}>
                               <Eye className="mr-2 h-4 w-4" />
                               View Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {}}>
+                            <DropdownMenuItem onClick={() => updateRoleMutation.mutate({ memberId: member.id, role: member.role === 'admin' ? 'member' : 'admin' })}>
                               <Edit className="mr-2 h-4 w-4" />
-                              Edit Role
+                              {member.role === 'admin' ? 'Make Member' : 'Make Admin'}
                             </DropdownMenuItem>
                             {member.status === 'active' ? (
                               <DropdownMenuItem
                                 className="text-orange-600"
-                                onClick={() => suspendMemberMutation.mutate(member.id)}
+                                onClick={() => suspendMemberMutation.mutate({ memberId: member.id, suspended: true })}
                               >
                                 <Ban className="mr-2 h-4 w-4" />
                                 Suspend
                               </DropdownMenuItem>
                             ) : (
-                              <DropdownMenuItem onClick={() => {}}>
+                              <DropdownMenuItem onClick={() => suspendMemberMutation.mutate({ memberId: member.id, suspended: false })}>
                                 <Check className="mr-2 h-4 w-4" />
                                 Reactivate
                               </DropdownMenuItem>
@@ -523,6 +662,13 @@ export default function TeamPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {invitations?.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      No pending invitations
+                    </TableCell>
+                  </TableRow>
+                )}
                 {invitations?.map((invitation: TeamInvitation) => (
                   <TableRow key={invitation.id}>
                     <TableCell>
@@ -553,11 +699,14 @@ export default function TeamPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => {}}>
+                          <DropdownMenuItem onClick={() => copyInviteLink(invitation.token)}>
                             <Copy className="mr-2 h-4 w-4" />
                             Copy Link
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {}}>
+                          <DropdownMenuItem
+                            onClick={() => resendInvitationMutation.mutate(invitation.id)}
+                            disabled={resendInvitationMutation.isPending}
+                          >
                             <Mail className="mr-2 h-4 w-4" />
                             Resend
                           </DropdownMenuItem>

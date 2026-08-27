@@ -60,6 +60,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import { toast } from 'sonner';
 
 // Types
@@ -189,14 +190,15 @@ export function TeamManagement() {
     }
   };
 
-  useEffect(() => {
-    fetchTeams();
-  }, []);
+  useEffect(() => deferEffect(() => {
+    void fetchTeams();
+  }), []);
 
   useEffect(() => {
-    if (currentTeam) {
-      fetchInvitations();
-    }
+    if (!currentTeam) return;
+    return deferEffect(() => {
+      void fetchInvitations();
+    });
   }, [currentTeam]);
 
   const createTeam = async () => {

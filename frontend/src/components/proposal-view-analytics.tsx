@@ -18,6 +18,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   AreaChart,
   Area,
@@ -112,9 +113,9 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [proposalId]);
+  useEffect(() => deferEffect(() => {
+    void fetchData();
+  }), [proposalId]);
 
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;

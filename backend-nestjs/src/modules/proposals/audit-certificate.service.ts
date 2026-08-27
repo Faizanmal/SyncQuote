@@ -6,206 +6,211 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export interface AuditTrailEntry {
-    action: string;
-    timestamp: Date;
-    ipAddress?: string;
-    userAgent?: string;
-    email?: string;
-    details?: string;
+  action: string;
+  timestamp: Date;
+  ipAddress?: string;
+  userAgent?: string;
+  email?: string;
+  details?: string;
 }
 
 export interface CertificateData {
-    proposalId: string;
-    proposalTitle: string;
-    proposalSlug: string;
-    ownerName: string;
-    ownerEmail: string;
-    recipientName?: string;
-    recipientEmail?: string;
-    signerName: string;
-    signerEmail: string;
-    signedAt: Date;
-    signatureIpAddress?: string;
-    auditTrail: AuditTrailEntry[];
-    certificateId: string;
-    generatedAt: Date;
+  proposalId: string;
+  proposalTitle: string;
+  proposalSlug: string;
+  ownerName: string;
+  ownerEmail: string;
+  recipientName?: string;
+  recipientEmail?: string;
+  signerName: string;
+  signerEmail: string;
+  signedAt: Date;
+  signatureIpAddress?: string;
+  auditTrail: AuditTrailEntry[];
+  certificateId: string;
+  generatedAt: Date;
 }
 
 @Injectable()
 export class AuditCertificateService {
-    private readonly logger = new Logger(AuditCertificateService.name);
+  private readonly logger = new Logger(AuditCertificateService.name);
 
-    constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
-    /**
-     * Generate a complete audit certificate for a signed proposal
-     */
-    async generateCertificate(proposalId: string): Promise<{ certificateUrl: string; pdfBuffer: Buffer }> {
-        // Collect all audit data
-        const certificateData = await this.collectAuditData(proposalId);
+  /**
+   * Generate a complete audit certificate for a signed proposal
+   */
+  async generateCertificate(
+    proposalId: string,
+  ): Promise<{ certificateUrl: string; pdfBuffer: Buffer }> {
+    // Collect all audit data
+    const certificateData = await this.collectAuditData(proposalId);
 
-        // Generate certificate HTML
-        const certificateHtml = this.createCertificateHtml(certificateData);
+    // Generate certificate HTML
+    const certificateHtml = this.createCertificateHtml(certificateData);
 
-        // Convert HTML to PDF using puppeteer
-        const certificatePdf = await this.htmlToPdf(certificateHtml);
+    // Convert HTML to PDF using puppeteer
+    const certificatePdf = await this.htmlToPdf(certificateHtml);
 
-        // Get the original proposal PDF if exists
-        const proposal = await this.prisma.proposal.findUnique({
-            where: { id: proposalId },
-            select: { pdfUrl: true },
-        });
+    // Get the original proposal PDF if exists
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { pdfUrl: true },
+    });
 
-        let finalPdf: Buffer;
+    let finalPdf: Buffer;
 
-        if (proposal?.pdfUrl) {
-            // Merge certificate with existing proposal PDF
-            finalPdf = await this.mergePdfs(proposal.pdfUrl, certificatePdf);
-        } else {
-            finalPdf = certificatePdf;
-        }
-
-        // For now, return the buffer. In production, upload to S3/R2
-        // const certificateUrl = await this.uploadToStorage(finalPdf, proposalId);
-        const certificateUrl = `/certificates/${proposalId}-certificate.pdf`;
-
-        return { certificateUrl, pdfBuffer: finalPdf };
+    if (proposal?.pdfUrl) {
+      // Merge certificate with existing proposal PDF
+      finalPdf = await this.mergePdfs(proposal.pdfUrl, certificatePdf);
+    } else {
+      finalPdf = certificatePdf;
     }
 
-    /**
-     * Collect all audit trail data for the proposal
-     */
-    async collectAuditData(proposalId: string): Promise<CertificateData> {
-        const proposal = await this.prisma.proposal.findUnique({
-            where: { id: proposalId },
-            include: {
-                user: {
-                    select: { name: true, email: true, companyName: true },
-                },
-                viewSessions: {
-                    orderBy: { startedAt: 'asc' },
-                    select: {
-                        ipAddress: true,
-                        userAgent: true,
-                        viewerEmail: true,
-                        viewerName: true,
-                        startedAt: true,
-                        totalDuration: true,
-                        scrollDepth: true,
-                    },
-                },
-                activities: {
-                    orderBy: { createdAt: 'asc' },
-                    select: {
-                        type: true,
-                        metadata: true,
-                        createdAt: true,
-                    },
-                },
-            },
-        });
+    // For now, return the buffer. In production, upload to S3/R2
+    // const certificateUrl = await this.uploadToStorage(finalPdf, proposalId);
+    const certificateUrl = `/certificates/${proposalId}-certificate.pdf`;
 
-        if (!proposal) {
-            throw new NotFoundException('Proposal not found');
-        }
+    return { certificateUrl, pdfBuffer: finalPdf };
+  }
 
-        // Build audit trail from various sources
-        const auditTrail: AuditTrailEntry[] = [];
+  /**
+   * Collect all audit trail data for the proposal
+   */
+  async collectAuditData(proposalId: string): Promise<CertificateData> {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: {
+        user: {
+          select: { name: true, email: true, companyName: true },
+        },
+        viewSessions: {
+          orderBy: { startedAt: 'asc' },
+          select: {
+            ipAddress: true,
+            userAgent: true,
+            viewerEmail: true,
+            viewerName: true,
+            startedAt: true,
+            totalDuration: true,
+            scrollDepth: true,
+          },
+        },
+        activities: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            type: true,
+            metadata: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
 
-        // Add creation event
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
+    }
+
+    // Build audit trail from various sources
+    const auditTrail: AuditTrailEntry[] = [];
+
+    // Add creation event
+    auditTrail.push({
+      action: 'Proposal Created',
+      timestamp: proposal.createdAt,
+      email: proposal.user.email,
+      details: `Created by ${proposal.user.name || proposal.user.email}`,
+    });
+
+    // Add sent event
+    if (proposal.sentAt) {
+      auditTrail.push({
+        action: 'Proposal Sent',
+        timestamp: proposal.sentAt,
+        email: proposal.user.email,
+        details: `Sent to ${proposal.recipientEmail}`,
+      });
+    }
+
+    // Add view sessions
+    for (const session of proposal.viewSessions) {
+      auditTrail.push({
+        action: 'Proposal Viewed',
+        timestamp: session.startedAt,
+        ipAddress: session.ipAddress || undefined,
+        userAgent: session.userAgent || undefined,
+        email: session.viewerEmail || undefined,
+        details: `Viewed for ${session.totalDuration} seconds, scroll depth: ${session.scrollDepth}%`,
+      });
+    }
+
+    // Add activities
+    for (const activity of proposal.activities) {
+      if (activity.type !== 'proposal_viewed') {
+        // Avoid duplicates
+        const metadata = (activity.metadata as any) || {};
         auditTrail.push({
-            action: 'Proposal Created',
-            timestamp: proposal.createdAt,
-            email: proposal.user.email,
-            details: `Created by ${proposal.user.name || proposal.user.email}`,
+          action: this.formatActivityType(activity.type),
+          timestamp: activity.createdAt,
+          ipAddress: metadata.ipAddress,
+          userAgent: metadata.userAgent,
+          details: metadata.details,
         });
-
-        // Add sent event
-        if (proposal.sentAt) {
-            auditTrail.push({
-                action: 'Proposal Sent',
-                timestamp: proposal.sentAt,
-                email: proposal.user.email,
-                details: `Sent to ${proposal.recipientEmail}`,
-            });
-        }
-
-        // Add view sessions
-        for (const session of proposal.viewSessions) {
-            auditTrail.push({
-                action: 'Proposal Viewed',
-                timestamp: session.startedAt,
-                ipAddress: session.ipAddress || undefined,
-                userAgent: session.userAgent || undefined,
-                email: session.viewerEmail || undefined,
-                details: `Viewed for ${session.totalDuration} seconds, scroll depth: ${session.scrollDepth}%`,
-            });
-        }
-
-        // Add activities
-        for (const activity of proposal.activities) {
-            if (activity.type !== 'proposal_viewed') { // Avoid duplicates
-                const metadata = activity.metadata as any || {};
-                auditTrail.push({
-                    action: this.formatActivityType(activity.type),
-                    timestamp: activity.createdAt,
-                    ipAddress: metadata.ipAddress,
-                    userAgent: metadata.userAgent,
-                    details: metadata.details,
-                });
-            }
-        }
-
-        // Add signature event
-        const signatureData = proposal.signatureData as any || {};
-        if (proposal.signedAt) {
-            auditTrail.push({
-                action: 'Proposal Signed',
-                timestamp: proposal.signedAt,
-                ipAddress: signatureData.ipAddress,
-                email: proposal.signerEmail || undefined,
-                details: `Signed by ${proposal.signerName || 'Unknown'}`,
-            });
-        }
-
-        // Sort by timestamp
-        auditTrail.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-
-        return {
-            proposalId: proposal.id,
-            proposalTitle: proposal.title,
-            proposalSlug: proposal.slug,
-            ownerName: proposal.user.name || proposal.user.companyName || 'Unknown',
-            ownerEmail: proposal.user.email,
-            recipientName: proposal.recipientName || undefined,
-            recipientEmail: proposal.recipientEmail || undefined,
-            signerName: proposal.signerName || signatureData.name || 'Unknown',
-            signerEmail: proposal.signerEmail || signatureData.email || 'Unknown',
-            signedAt: proposal.signedAt || new Date(),
-            signatureIpAddress: signatureData.ipAddress,
-            auditTrail,
-            certificateId: `CERT-${proposal.id.substring(0, 8).toUpperCase()}-${Date.now()}`,
-            generatedAt: new Date(),
-        };
+      }
     }
 
-    /**
-     * Generate HTML for the certificate
-     */
-    private createCertificateHtml(data: CertificateData): string {
-        const formatDate = (date: Date) => {
-            return new Date(date).toLocaleString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                timeZoneName: 'short',
-            });
-        };
+    // Add signature event
+    const signatureData = (proposal.signatureData as any) || {};
+    if (proposal.signedAt) {
+      auditTrail.push({
+        action: 'Proposal Signed',
+        timestamp: proposal.signedAt,
+        ipAddress: signatureData.ipAddress,
+        email: proposal.signerEmail || undefined,
+        details: `Signed by ${proposal.signerName || 'Unknown'}`,
+      });
+    }
 
-        const auditRows = data.auditTrail.map((entry, index) => `
+    // Sort by timestamp
+    auditTrail.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+    return {
+      proposalId: proposal.id,
+      proposalTitle: proposal.title,
+      proposalSlug: proposal.slug,
+      ownerName: proposal.user.name || proposal.user.companyName || 'Unknown',
+      ownerEmail: proposal.user.email,
+      recipientName: proposal.recipientName || undefined,
+      recipientEmail: proposal.recipientEmail || undefined,
+      signerName: proposal.signerName || signatureData.name || 'Unknown',
+      signerEmail: proposal.signerEmail || signatureData.email || 'Unknown',
+      signedAt: proposal.signedAt || new Date(),
+      signatureIpAddress: signatureData.ipAddress,
+      auditTrail,
+      certificateId: `CERT-${proposal.id.substring(0, 8).toUpperCase()}-${Date.now()}`,
+      generatedAt: new Date(),
+    };
+  }
+
+  /**
+   * Generate HTML for the certificate
+   */
+  private createCertificateHtml(data: CertificateData): string {
+    const formatDate = (date: Date) => {
+      return new Date(date).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short',
+      });
+    };
+
+    const auditRows = data.auditTrail
+      .map(
+        (entry, index) => `
       <tr>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 12px;">${index + 1}</td>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 12px;">${formatDate(entry.timestamp)}</td>
@@ -214,9 +219,11 @@ export class AuditCertificateService {
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 12px;">${entry.email || '-'}</td>
         <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 12px;">${entry.details || '-'}</td>
       </tr>
-    `).join('');
+    `,
+      )
+      .join('');
 
-        return `
+    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -392,81 +399,81 @@ export class AuditCertificateService {
 </body>
 </html>
     `;
+  }
+
+  /**
+   * Convert HTML to PDF using puppeteer
+   */
+  private async htmlToPdf(html: string): Promise<Buffer> {
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'load' });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
+        printBackground: true,
+      });
+
+      return Buffer.from(pdfBuffer);
+    } finally {
+      await browser.close();
     }
+  }
 
-    /**
-     * Convert HTML to PDF using puppeteer
-     */
-    private async htmlToPdf(html: string): Promise<Buffer> {
-        const browser = await puppeteer.launch({
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        });
+  /**
+   * Merge certificate PDF with the original proposal PDF
+   */
+  private async mergePdfs(originalPdfUrl: string, certificatePdf: Buffer): Promise<Buffer> {
+    try {
+      // Fetch the original PDF
+      const response = await fetch(originalPdfUrl);
+      const originalPdfBytes = await response.arrayBuffer();
 
-        try {
-            const page = await browser.newPage();
-            await page.setContent(html, { waitUntil: 'load' });
+      // Load both PDFs
+      const originalDoc = await PDFDocument.load(originalPdfBytes);
+      const certificateDoc = await PDFDocument.load(certificatePdf);
 
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
-                printBackground: true,
-            });
+      // Copy certificate pages to the original document
+      const certificatePages = await originalDoc.copyPages(
+        certificateDoc,
+        certificateDoc.getPageIndices(),
+      );
 
-            return Buffer.from(pdfBuffer);
-        } finally {
-            await browser.close();
-        }
+      // Add certificate pages at the end
+      for (const page of certificatePages) {
+        originalDoc.addPage(page);
+      }
+
+      // Save merged PDF
+      const mergedPdfBytes = await originalDoc.save();
+      return Buffer.from(mergedPdfBytes);
+    } catch (error) {
+      this.logger.error('Failed to merge PDFs, returning certificate only', error);
+      return certificatePdf;
     }
+  }
 
-    /**
-     * Merge certificate PDF with the original proposal PDF
-     */
-    private async mergePdfs(originalPdfUrl: string, certificatePdf: Buffer): Promise<Buffer> {
-        try {
-            // Fetch the original PDF
-            const response = await fetch(originalPdfUrl);
-            const originalPdfBytes = await response.arrayBuffer();
-
-            // Load both PDFs
-            const originalDoc = await PDFDocument.load(originalPdfBytes);
-            const certificateDoc = await PDFDocument.load(certificatePdf);
-
-            // Copy certificate pages to the original document
-            const certificatePages = await originalDoc.copyPages(
-                certificateDoc,
-                certificateDoc.getPageIndices(),
-            );
-
-            // Add certificate pages at the end
-            for (const page of certificatePages) {
-                originalDoc.addPage(page);
-            }
-
-            // Save merged PDF
-            const mergedPdfBytes = await originalDoc.save();
-            return Buffer.from(mergedPdfBytes);
-        } catch (error) {
-            this.logger.error('Failed to merge PDFs, returning certificate only', error);
-            return certificatePdf;
-        }
-    }
-
-    /**
-     * Format activity type for display
-     */
-    private formatActivityType(type: string): string {
-        const typeMap: Record<string, string> = {
-            proposal_created: 'Proposal Created',
-            proposal_sent: 'Proposal Sent',
-            proposal_viewed: 'Proposal Viewed',
-            proposal_approved: 'Proposal Approved',
-            proposal_declined: 'Proposal Declined',
-            proposal_signed: 'Proposal Signed',
-            comment_added: 'Comment Added',
-            proposal_updated: 'Proposal Updated',
-            pricing_updated: 'Pricing Updated',
-        };
-        return typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
+  /**
+   * Format activity type for display
+   */
+  private formatActivityType(type: string): string {
+    const typeMap: Record<string, string> = {
+      proposal_created: 'Proposal Created',
+      proposal_sent: 'Proposal Sent',
+      proposal_viewed: 'Proposal Viewed',
+      proposal_approved: 'Proposal Approved',
+      proposal_declined: 'Proposal Declined',
+      proposal_signed: 'Proposal Signed',
+      comment_added: 'Comment Added',
+      proposal_updated: 'Proposal Updated',
+      pricing_updated: 'Pricing Updated',
+    };
+    return typeMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
+  }
 }

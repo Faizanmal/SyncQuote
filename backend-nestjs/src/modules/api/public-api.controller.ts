@@ -23,6 +23,8 @@ import {
   ListProposalsQueryDto,
   ApiKeyPermission,
 } from './dto';
+import { normalizePagination, paginatedResult } from '../../common/pagination';
+import { PROPOSAL_SORT_FIELDS } from '../proposals/dto/list-proposals.dto';
 
 /**
  * Public API controller for third-party integrations
@@ -74,23 +76,18 @@ export class PublicApiController {
     @Query() query: ListProposalsQueryDto,
   ) {
     const auth = await this.authenticate(authHeader, ApiKeyPermission.PROPOSALS_READ);
+    const { page, limit, skip, take } = normalizePagination(query);
+    const sortBy = PROPOSAL_SORT_FIELDS.includes(query.sortBy as (typeof PROPOSAL_SORT_FIELDS)[number])
+      ? query.sortBy!
+      : 'createdAt';
+    const sortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc';
 
-    const {
-      page = 1,
-      limit = 20,
-      status,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
-      search,
-    } = query;
-    const skip = (page - 1) * limit;
-
-    const where: any = { userId: auth.userId };
-    if (status) where.status = status as ProposalStatus;
-    if (search) {
+    const where: Record<string, unknown> = { userId: auth.userId };
+    if (query.status) where.status = query.status as ProposalStatus;
+    if (query.search) {
       where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { recipientEmail: { contains: search, mode: 'insensitive' } },
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { recipientEmail: { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
@@ -98,7 +95,7 @@ export class PublicApiController {
       this.prisma.proposal.findMany({
         where,
         skip,
-        take: limit,
+        take,
         orderBy: { [sortBy]: sortOrder },
         select: {
           id: true,
@@ -119,15 +116,7 @@ export class PublicApiController {
       this.prisma.proposal.count({ where }),
     ]);
 
-    return {
-      data: proposals,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return paginatedResult(proposals, total, page, limit);
   }
 
   /**
@@ -281,15 +270,17 @@ export class PublicApiController {
     @Query('limit') limit: number = 20,
   ) {
     const auth = await this.authenticate(authHeader, ApiKeyPermission.TEMPLATES_READ);
-    const skip = (page - 1) * limit;
+    const pagination = normalizePagination({ page, limit });
+
+    const where = {
+      OR: [{ userId: auth.userId }, { isPublic: true }],
+    };
 
     const [templates, total] = await Promise.all([
       this.prisma.template.findMany({
-        where: {
-          OR: [{ userId: auth.userId }, { isPublic: true }],
-        },
-        skip,
-        take: limit,
+        where,
+        skip: pagination.skip,
+        take: pagination.take,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -301,17 +292,10 @@ export class PublicApiController {
           updatedAt: true,
         },
       }),
-      this.prisma.template.count({
-        where: {
-          OR: [{ userId: auth.userId }, { isPublic: true }],
-        },
-      }),
+      this.prisma.template.count({ where }),
     ]);
 
-    return {
-      data: templates,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    };
+    return paginatedResult(templates, total, pagination.page, pagination.limit);
   }
 
   /**
@@ -349,13 +333,13 @@ export class PublicApiController {
     @Query('limit') limit: number = 20,
   ) {
     const auth = await this.authenticate(authHeader, ApiKeyPermission.CLIENTS_READ);
-    const skip = (page - 1) * limit;
+    const pagination = normalizePagination({ page, limit });
 
     const [clients, total] = await Promise.all([
       this.prisma.client.findMany({
         where: { userId: auth.userId },
-        skip,
-        take: limit,
+        skip: pagination.skip,
+        take: pagination.take,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -370,10 +354,7 @@ export class PublicApiController {
       this.prisma.client.count({ where: { userId: auth.userId } }),
     ]);
 
-    return {
-      data: clients,
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    };
+    return paginatedResult(clients, total, pagination.page, pagination.limit);
   }
 
   // ==================== ANALYTICS API ====================

@@ -6,7 +6,7 @@ import { WebhooksService } from './webhooks.service';
 @ApiTags('webhooks')
 @Controller('webhooks')
 export class WebhooksController {
-  constructor(private webhooksService: WebhooksService) { }
+  constructor(private webhooksService: WebhooksService) {}
 
   @Post('stripe')
   @ApiOperation({ summary: 'Stripe webhook endpoint' })

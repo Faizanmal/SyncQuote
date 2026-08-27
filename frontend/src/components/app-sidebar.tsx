@@ -145,7 +145,7 @@ export function AppSidebar() {
   const displayName = user?.name?.trim() || user?.email || 'User';
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon" className="border-r bg-white dark:bg-gray-950">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white font-bold">

@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import {
   Plus,
   FileText,
@@ -102,7 +103,7 @@ interface ContractTemplate {
     type: string;
     label: string;
     required: boolean;
-    defaultValue?: any;
+    defaultValue?: string | number | boolean;
   }>;
   isTeamTemplate: boolean;
   usageCount: number;
@@ -240,10 +241,11 @@ export function ContractManagement() {
   });
 
   // Fetch contracts
-  const { data: contracts = mockContracts, isLoading } = useQuery({
+  const { data: contracts = [], isLoading } = useQuery({
     queryKey: ['contracts'],
     queryFn: async () => {
-      return mockContracts;
+      const { data } = await api.get('/contracts');
+      return Array.isArray(data) ? data : [];
     },
   });
 
@@ -251,20 +253,16 @@ export function ContractManagement() {
   const { data: templates = mockTemplates } = useQuery({
     queryKey: ['contract-templates'],
     queryFn: async () => {
-      return mockTemplates;
+      const { data } = await api.get('/contracts/templates');
+      return Array.isArray(data) ? data : [];
     },
   });
 
   // Create contract mutation
   const createContractMutation = useMutation({
     mutationFn: async (data: typeof newContract) => {
-      const response = await fetch('/api/contracts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed to create contract');
-      return response.json();
+      const response = await api.post('/contracts/from-proposal', data);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
@@ -279,11 +277,8 @@ export function ContractManagement() {
   // Request signature mutation
   const requestSignatureMutation = useMutation({
     mutationFn: async (contractId: string) => {
-      const response = await fetch(`/api/contracts/${contractId}/request-signature`, {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to request signature');
-      return response.json();
+      const response = await api.post(`/contracts/${contractId}/send`);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contracts'] });

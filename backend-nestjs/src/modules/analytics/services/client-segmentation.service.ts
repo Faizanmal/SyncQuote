@@ -92,98 +92,121 @@ export class ClientSegmentationService {
 
     // Define standard segments
     const segments: ClientSegment[] = [
-      await this.createSegment('high-value', 'High Value Clients', 
-        'Clients with total value above $50,000', 
-        { minValue: 50000 }, clientData),
-      
-      await this.createSegment('frequent-buyers', 'Frequent Buyers',
+      await this.createSegment(
+        'high-value',
+        'High Value Clients',
+        'Clients with total value above $50,000',
+        { minValue: 50000 },
+        clientData,
+      ),
+
+      await this.createSegment(
+        'frequent-buyers',
+        'Frequent Buyers',
         'Clients with 3+ proposals',
-        { proposalCountMin: 3 }, clientData),
-      
-      await this.createSegment('high-engagement', 'Highly Engaged',
+        { proposalCountMin: 3 },
+        clientData,
+      ),
+
+      await this.createSegment(
+        'high-engagement',
+        'Highly Engaged',
         'Clients with high engagement scores',
-        { engagementLevel: 'high' }, clientData),
-      
-      await this.createSegment('at-risk', 'At Risk',
+        { engagementLevel: 'high' },
+        clientData,
+      ),
+
+      await this.createSegment(
+        'at-risk',
+        'At Risk',
         'Clients with no activity in 90+ days',
-        { lastActivityDays: 90 }, clientData),
-      
-      await this.createSegment('new-clients', 'New Clients',
+        { lastActivityDays: 90 },
+        clientData,
+      ),
+
+      await this.createSegment(
+        'new-clients',
+        'New Clients',
         'Clients acquired in the last 30 days',
-        { lastActivityDays: -30 }, clientData), // Negative means within last X days
-      
-      await this.createSegment('high-conversion', 'High Conversion',
+        { lastActivityDays: -30 },
+        clientData,
+      ), // Negative means within last X days
+
+      await this.createSegment(
+        'high-conversion',
+        'High Conversion',
         'Clients with 50%+ win rate',
-        { winRateMin: 50 }, clientData),
-      
-      await this.createSegment('enterprise', 'Enterprise',
+        { winRateMin: 50 },
+        clientData,
+      ),
+
+      await this.createSegment(
+        'enterprise',
+        'Enterprise',
         'High-value clients with multiple projects',
-        { minValue: 100000, proposalCountMin: 5 }, clientData),
+        { minValue: 100000, proposalCountMin: 5 },
+        clientData,
+      ),
     ];
 
-    return segments.filter(s => s.clientCount > 0);
+    return segments.filter((s) => s.clientCount > 0);
   }
 
   private async getClientData(userId: string): Promise<Map<string, ClientSegmentMember>> {
-    const proposals = await this.prisma.proposal.findMany({
-      where: { userId },
-      select: {
-        id: true,
-        recipientEmail: true,
-        recipientName: true,
-        status: true,
-        totalAmount: true,
-        estimatedValue: true,
-        viewCount: true,
-        createdAt: true,
-        updatedAt: true,
-        signedAt: true,
-        approvedAt: true,
-      },
-    });
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        email: string;
+        name: string | null;
+        proposalCount: unknown;
+        wonCount: unknown;
+        totalValue: unknown;
+        totalViews: unknown;
+        lastActivity: Date | null;
+      }>
+    >`
+      SELECT
+        "recipientEmail" AS email,
+        MAX("recipientName") AS name,
+        COUNT(*)::int AS "proposalCount",
+        COUNT(*) FILTER (WHERE status::text IN ('APPROVED', 'SIGNED'))::int AS "wonCount",
+        COALESCE(
+          SUM(
+            CASE
+              WHEN status::text IN ('APPROVED', 'SIGNED')
+                THEN COALESCE("totalAmount", "estimatedValue", 0)
+              ELSE 0
+            END
+          ),
+          0
+        )::double precision AS "totalValue",
+        COALESCE(SUM("viewCount"), 0)::int AS "totalViews",
+        MAX(COALESCE("signedAt", "approvedAt", "updatedAt")) AS "lastActivity"
+      FROM "Proposal"
+      WHERE "userId" = ${userId}
+        AND "recipientEmail" IS NOT NULL
+      GROUP BY "recipientEmail"
+    `;
 
     const clientMap = new Map<string, ClientSegmentMember>();
 
-    for (const proposal of proposals) {
-      if (!proposal.recipientEmail) continue;
-
-      const existing = clientMap.get(proposal.recipientEmail) || {
-        id: proposal.recipientEmail,
-        email: proposal.recipientEmail,
-        name: proposal.recipientName || 'Unknown',
+    for (const row of rows) {
+      const proposalCount = Number(row.proposalCount) || 0;
+      const wonCount = Number(row.wonCount) || 0;
+      const client: ClientSegmentMember = {
+        id: row.email,
+        email: row.email,
+        name: row.name || 'Unknown',
         company: '',
-        totalValue: 0,
-        proposalCount: 0,
-        wonCount: 0,
-        winRate: 0,
-        lastActivity: new Date(0),
+        totalValue: Number(row.totalValue) || 0,
+        proposalCount,
+        wonCount,
+        winRate: proposalCount > 0 ? (wonCount / proposalCount) * 100 : 0,
+        lastActivity: row.lastActivity || new Date(0),
         engagementScore: 0,
-        totalViews: 0,
+        totalViews: Number(row.totalViews) || 0,
       };
-
-      existing.proposalCount++;
-      existing.totalViews += (proposal.viewCount || 0);
-
-      if (['APPROVED', 'SIGNED'].includes(proposal.status)) {
-        existing.wonCount++;
-        existing.totalValue += proposal.totalAmount || proposal.estimatedValue || 0;
-      }
-
-      const activityDate = proposal.signedAt || proposal.approvedAt || proposal.updatedAt;
-      if (activityDate > existing.lastActivity) {
-        existing.lastActivity = activityDate;
-      }
-
-      clientMap.set(proposal.recipientEmail, existing as ClientSegmentMember);
-    }
-
-    // Calculate derived metrics
-    for (const [email, client] of clientMap) {
-      const c = client as any;
-      c.winRate = c.proposalCount > 0 ? (c.wonCount / c.proposalCount) * 100 : 0;
-      c.averageValue = c.wonCount > 0 ? c.totalValue / c.wonCount : 0;
-      c.engagementScore = this.calculateEngagementScore(c);
-      clientMap.set(email, c);
+      client.engagementScore = this.calculateEngagementScore(client);
+      clientMap.set(row.email, client);
     }
 
     return clientMap;
@@ -201,7 +224,7 @@ export class ClientSegmentationService {
 
     // Recency (days since last activity)
     const daysSinceActivity = Math.floor(
-      (Date.now() - new Date(client.lastActivity).getTime()) / (1000 * 60 * 60 * 24)
+      (Date.now() - new Date(client.lastActivity).getTime()) / (1000 * 60 * 60 * 24),
     );
     score += Math.max(0, 25 - daysSinceActivity);
 
@@ -218,13 +241,13 @@ export class ClientSegmentationService {
     criteria: SegmentCriteria,
     clientData: Map<string, ClientSegmentMember>,
   ): Promise<ClientSegment> {
-    const clients = Array.from(clientData.values()).filter(client =>
-      this.matchesCriteria(client, criteria)
+    const clients = Array.from(clientData.values()).filter((client) =>
+      this.matchesCriteria(client, criteria),
     );
 
     const totalValue = clients.reduce((sum, c) => sum + c.totalValue, 0);
     const totalProposals = clients.reduce((sum, c) => sum + c.proposalCount, 0);
-    const wonProposals = clients.filter(c => c.winRate > 0).length;
+    const wonProposals = clients.filter((c) => c.winRate > 0).length;
 
     return {
       id,
@@ -242,21 +265,26 @@ export class ClientSegmentationService {
   private matchesCriteria(client: ClientSegmentMember, criteria: SegmentCriteria): boolean {
     if (criteria.minValue !== undefined && client.totalValue < criteria.minValue) return false;
     if (criteria.maxValue !== undefined && client.totalValue > criteria.maxValue) return false;
-    if (criteria.proposalCountMin !== undefined && client.proposalCount < criteria.proposalCountMin) return false;
-    if (criteria.proposalCountMax !== undefined && client.proposalCount > criteria.proposalCountMax) return false;
+    if (criteria.proposalCountMin !== undefined && client.proposalCount < criteria.proposalCountMin)
+      return false;
+    if (criteria.proposalCountMax !== undefined && client.proposalCount > criteria.proposalCountMax)
+      return false;
     if (criteria.winRateMin !== undefined && client.winRate < criteria.winRateMin) return false;
     if (criteria.winRateMax !== undefined && client.winRate > criteria.winRateMax) return false;
 
     if (criteria.lastActivityDays !== undefined) {
       const daysSinceActivity = Math.floor(
-        (Date.now() - new Date(client.lastActivity).getTime()) / (1000 * 60 * 60 * 24)
+        (Date.now() - new Date(client.lastActivity).getTime()) / (1000 * 60 * 60 * 24),
       );
-      if (criteria.lastActivityDays > 0 && daysSinceActivity < criteria.lastActivityDays) return false;
-      if (criteria.lastActivityDays < 0 && daysSinceActivity > Math.abs(criteria.lastActivityDays)) return false;
+      if (criteria.lastActivityDays > 0 && daysSinceActivity < criteria.lastActivityDays)
+        return false;
+      if (criteria.lastActivityDays < 0 && daysSinceActivity > Math.abs(criteria.lastActivityDays))
+        return false;
     }
 
     if (criteria.engagementLevel) {
-      const level = client.engagementScore >= 70 ? 'high' : client.engagementScore >= 40 ? 'medium' : 'low';
+      const level =
+        client.engagementScore >= 70 ? 'high' : client.engagementScore >= 40 ? 'medium' : 'low';
       if (level !== criteria.engagementLevel) return false;
     }
 
@@ -270,111 +298,138 @@ export class ClientSegmentationService {
     const benchmarks: PerformanceBenchmark[] = [];
 
     // Conversion Rate
-    benchmarks.push(this.createBenchmark(
-      'Conversion Rate',
-      userMetrics.conversionRate,
-      this.industryBenchmarks.conversionRate,
-      '%',
-    ));
+    benchmarks.push(
+      this.createBenchmark(
+        'Conversion Rate',
+        userMetrics.conversionRate,
+        this.industryBenchmarks.conversionRate,
+        '%',
+      ),
+    );
 
     // Average Deal Size
-    benchmarks.push(this.createBenchmark(
-      'Average Deal Size',
-      userMetrics.avgDealSize,
-      this.industryBenchmarks.avgDealSize,
-      '$',
-    ));
+    benchmarks.push(
+      this.createBenchmark(
+        'Average Deal Size',
+        userMetrics.avgDealSize,
+        this.industryBenchmarks.avgDealSize,
+        '$',
+      ),
+    );
 
     // Win Rate
-    benchmarks.push(this.createBenchmark(
-      'Win Rate',
-      userMetrics.winRate,
-      this.industryBenchmarks.winRate,
-      '%',
-    ));
+    benchmarks.push(
+      this.createBenchmark('Win Rate', userMetrics.winRate, this.industryBenchmarks.winRate, '%'),
+    );
 
     // Proposals Per Month
-    benchmarks.push(this.createBenchmark(
-      'Proposals Per Month',
-      userMetrics.proposalsPerMonth,
-      this.industryBenchmarks.proposalsPerMonth,
-      'count',
-    ));
+    benchmarks.push(
+      this.createBenchmark(
+        'Proposals Per Month',
+        userMetrics.proposalsPerMonth,
+        this.industryBenchmarks.proposalsPerMonth,
+        'count',
+      ),
+    );
 
     // Average Time to Close
-    benchmarks.push(this.createBenchmark(
-      'Time to Close (Days)',
-      userMetrics.avgTimeToClose,
-      this.industryBenchmarks.avgTimeToClose,
-      'days',
-      true, // Lower is better
-    ));
+    benchmarks.push(
+      this.createBenchmark(
+        'Time to Close (Days)',
+        userMetrics.avgTimeToClose,
+        this.industryBenchmarks.avgTimeToClose,
+        'days',
+        true, // Lower is better
+      ),
+    );
 
     // Client Retention
-    benchmarks.push(this.createBenchmark(
-      'Client Retention',
-      userMetrics.clientRetention,
-      this.industryBenchmarks.clientRetention,
-      '%',
-    ));
+    benchmarks.push(
+      this.createBenchmark(
+        'Client Retention',
+        userMetrics.clientRetention,
+        this.industryBenchmarks.clientRetention,
+        '%',
+      ),
+    );
 
     return benchmarks;
   }
 
-  private async calculateUserMetrics(userId: string): Promise<any> {
+  private async calculateUserMetrics(userId: string): Promise<{
+    conversionRate: number;
+    avgDealSize: number;
+    winRate: number;
+    proposalsPerMonth: number;
+    avgTimeToClose: number;
+    clientRetention: number;
+  }> {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const proposals = await this.prisma.proposal.findMany({
-      where: { userId },
-      select: {
-        status: true,
-        totalAmount: true,
-        estimatedValue: true,
-        createdAt: true,
-        sentAt: true,
-        signedAt: true,
-        approvedAt: true,
-        viewCount: true,
-        recipientEmail: true,
-      },
-    });
+    const [metricRows, returningRows] = await Promise.all([
+      this.prisma.$queryRaw<
+        Array<{
+          recent: unknown;
+          won: unknown;
+          sent: unknown;
+          wonValue: unknown;
+          uniqueClients: unknown;
+          avgCloseDays: unknown;
+        }>
+      >`
+        SELECT
+          COUNT(*) FILTER (WHERE "createdAt" >= ${thirtyDaysAgo})::int AS recent,
+          COUNT(*) FILTER (WHERE status::text IN ('APPROVED', 'SIGNED'))::int AS won,
+          COUNT(*) FILTER (
+            WHERE status::text IN ('SENT', 'VIEWED', 'APPROVED', 'SIGNED', 'DECLINED')
+          )::int AS sent,
+          COALESCE(
+            SUM(
+              CASE
+                WHEN status::text IN ('APPROVED', 'SIGNED')
+                  THEN COALESCE("totalAmount", "estimatedValue", 0)
+                ELSE 0
+              END
+            ),
+            0
+          )::double precision AS "wonValue",
+          COUNT(DISTINCT "recipientEmail") FILTER (WHERE "recipientEmail" IS NOT NULL)::int AS "uniqueClients",
+          AVG(EXTRACT(EPOCH FROM (COALESCE("signedAt", "approvedAt") - "sentAt")) / 86400)
+            FILTER (
+              WHERE "sentAt" IS NOT NULL
+                AND COALESCE("signedAt", "approvedAt") IS NOT NULL
+                AND status::text IN ('APPROVED', 'SIGNED')
+            )::double precision AS "avgCloseDays"
+        FROM "Proposal"
+        WHERE "userId" = ${userId}
+      `,
+      this.prisma.$queryRaw<Array<{ returning: unknown }>>`
+        SELECT COUNT(*)::int AS returning
+        FROM (
+          SELECT "recipientEmail"
+          FROM "Proposal"
+          WHERE "userId" = ${userId} AND "recipientEmail" IS NOT NULL
+          GROUP BY "recipientEmail"
+          HAVING COUNT(*) > 1
+        ) repeating_clients
+      `,
+    ]);
 
-    const recentProposals = proposals.filter(p => p.createdAt >= thirtyDaysAgo);
-    const wonProposals = proposals.filter(p => ['APPROVED', 'SIGNED'].includes(p.status));
-    const sentProposals = proposals.filter(p => ['SENT', 'VIEWED', 'APPROVED', 'SIGNED', 'DECLINED'].includes(p.status));
-
-    // Calculate time to close for won proposals
-    const closeTimes = wonProposals
-      .filter(p => p.sentAt && (p.signedAt || p.approvedAt))
-      .map(p => {
-        const closeDate = p.signedAt || p.approvedAt!;
-        return Math.floor((closeDate.getTime() - p.sentAt!.getTime()) / (1000 * 60 * 60 * 24));
-      });
-
-    // Calculate unique clients
-    const uniqueClients = new Set(proposals.map(p => p.recipientEmail || '').filter(e => e));
-    const returningClients = Array.from(uniqueClients).filter(email => 
-      proposals.filter(p => p.recipientEmail === email).length > 1
-    );
+    const metrics = metricRows[0];
+    const sent = Number(metrics?.sent) || 0;
+    const won = Number(metrics?.won) || 0;
+    const uniqueClients = Number(metrics?.uniqueClients) || 0;
+    const returning = Number(returningRows[0]?.returning) || 0;
+    const conversionRate = sent > 0 ? (won / sent) * 100 : 0;
 
     return {
-      conversionRate: sentProposals.length > 0 
-        ? (wonProposals.length / sentProposals.length) * 100 
-        : 0,
-      avgDealSize: wonProposals.length > 0
-        ? wonProposals.reduce((sum, p) => sum + (p.totalAmount || p.estimatedValue || 0), 0) / wonProposals.length
-        : 0,
-      winRate: sentProposals.length > 0
-        ? (wonProposals.length / sentProposals.length) * 100
-        : 0,
-      proposalsPerMonth: recentProposals.length,
-      avgTimeToClose: closeTimes.length > 0
-        ? closeTimes.reduce((a, b) => a + b, 0) / closeTimes.length
-        : 14,
-      clientRetention: uniqueClients.size > 0
-        ? (returningClients.length / uniqueClients.size) * 100
-        : 0,
+      conversionRate,
+      avgDealSize: won > 0 ? Number(metrics?.wonValue || 0) / won : 0,
+      winRate: conversionRate,
+      proposalsPerMonth: Number(metrics?.recent) || 0,
+      avgTimeToClose: Number(metrics?.avgCloseDays) || 14,
+      clientRetention: uniqueClients > 0 ? (returning / uniqueClients) * 100 : 0,
     };
   }
 
@@ -419,7 +474,11 @@ export class ClientSegmentationService {
     return Math.max(5, 50 - ((value - average) / average) * 45);
   }
 
-  private determineTrend(value: number, average: number, lowerIsBetter: boolean): 'up' | 'down' | 'stable' {
+  private determineTrend(
+    value: number,
+    average: number,
+    lowerIsBetter: boolean,
+  ): 'up' | 'down' | 'stable' {
     const diff = lowerIsBetter ? average - value : value - average;
     const threshold = average * 0.1;
 
@@ -446,7 +505,7 @@ export class ClientSegmentationService {
         improve: 'Consider bundling services or targeting higher-value clients.',
       },
       'Win Rate': {
-        good: 'Excellent win rate! Document what\'s working for your team.',
+        good: "Excellent win rate! Document what's working for your team.",
         improve: 'Qualify leads better and focus on ideal client profiles.',
       },
       'Proposals Per Month': {
@@ -463,8 +522,10 @@ export class ClientSegmentationService {
       },
     };
 
-    return recommendations[metric]?.[isGood ? 'good' : 'improve'] || 
-      (isGood ? 'You\'re performing above average!' : 'There\'s room for improvement.');
+    return (
+      recommendations[metric]?.[isGood ? 'good' : 'improve'] ||
+      (isGood ? "You're performing above average!" : "There's room for improvement.")
+    );
   }
 
   @Cron(CronExpression.EVERY_HOUR)

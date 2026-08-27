@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   Dialog,
   DialogContent,
@@ -52,9 +53,9 @@ export function TemplateGallery({ onSelectTemplate }: TemplateGalleryProps) {
     }
   };
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
+  useEffect(() => deferEffect(() => {
+    void fetchTemplates();
+  }), []);
 
   const handlePreview = (template: Template) => {
     setSelectedTemplate(template);

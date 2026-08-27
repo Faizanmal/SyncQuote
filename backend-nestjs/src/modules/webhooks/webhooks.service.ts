@@ -1,6 +1,9 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { BillingService } from '../billing/billing.service';
+import { PaymentsService } from '../payments/payments.service';
+import { TemplateMarketplaceService } from '../template-marketplace/template-marketplace.service';
 import Stripe from 'stripe';
 
 @Injectable()
@@ -11,6 +14,9 @@ export class WebhooksService {
   constructor(
     private prisma: PrismaService,
     private configService: ConfigService,
+    private billingService: BillingService,
+    private paymentsService: PaymentsService,
+    private templateMarketplaceService: TemplateMarketplaceService,
   ) {
     // Initialize Stripe
     const apiKey = this.configService.get<string>('STRIPE_SECRET_KEY');
@@ -26,10 +32,7 @@ export class WebhooksService {
   /**
    * Verify Stripe webhook signature and parse event
    */
-  async verifyAndParseWebhook(
-    rawBody: Buffer,
-    signature: string,
-  ): Promise<Stripe.Event> {
+  async verifyAndParseWebhook(rawBody: Buffer, signature: string): Promise<Stripe.Event> {
     const webhookSecret = this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
 
     if (!webhookSecret) {
@@ -42,11 +45,7 @@ export class WebhooksService {
     }
 
     try {
-      const event = this.stripe.webhooks.constructEvent(
-        rawBody,
-        signature,
-        webhookSecret,
-      );
+      const event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
       this.logger.log(`Webhook signature verified: ${event.id}`);
       return event;
     } catch (error) {
@@ -101,6 +100,9 @@ export class WebhooksService {
       case 'payment_intent.succeeded':
         await this.handlePaymentIntentSucceeded(event.data.object);
         break;
+      case 'checkout.session.completed':
+        await this.handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
       default:
         this.logger.log(`Unhandled event type: ${event.type}`);
     }
@@ -114,13 +116,15 @@ export class WebhooksService {
 
   private async handleInvoicePaid(invoice: any) {
     const customerId = invoice.customer;
+    if (!customerId) {
+      return;
+    }
 
-    // Update user subscription status
-    await this.prisma.user.update({
+    await this.prisma.user.updateMany({
       where: { stripeCustomerId: customerId },
       data: {
         subscriptionStatus: 'ACTIVE',
-        subscriptionEndsAt: new Date(invoice.period_end * 1000),
+        subscriptionEndsAt: invoice.period_end ? new Date(invoice.period_end * 1000) : undefined,
       },
     });
 
@@ -129,8 +133,11 @@ export class WebhooksService {
 
   private async handlePaymentFailed(invoice: any) {
     const customerId = invoice.customer;
+    if (!customerId) {
+      return;
+    }
 
-    await this.prisma.user.update({
+    await this.prisma.user.updateMany({
       where: { stripeCustomerId: customerId },
       data: { subscriptionStatus: 'PAST_DUE' },
     });
@@ -140,8 +147,11 @@ export class WebhooksService {
 
   private async handleSubscriptionDeleted(subscription: any) {
     const customerId = subscription.customer;
+    if (!customerId) {
+      return;
+    }
 
-    await this.prisma.user.update({
+    await this.prisma.user.updateMany({
       where: { stripeCustomerId: customerId },
       data: {
         subscriptionStatus: 'CANCELED',
@@ -154,12 +164,18 @@ export class WebhooksService {
 
   private async handleSubscriptionUpdated(subscription: any) {
     const customerId = subscription.customer;
+    if (!customerId) {
+      return;
+    }
 
-    await this.prisma.user.update({
+    await this.prisma.user.updateMany({
       where: { stripeCustomerId: customerId },
       data: {
         subscriptionStatus: subscription.status === 'active' ? 'ACTIVE' : 'PAST_DUE',
-        subscriptionEndsAt: new Date(subscription.current_period_end * 1000),
+        subscriptionEndsAt: subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000)
+          : undefined,
+        stripeSubscriptionId: subscription.id,
       },
     });
 
@@ -167,20 +183,87 @@ export class WebhooksService {
   }
 
   private async handlePaymentIntentSucceeded(paymentIntent: any) {
-    // Handle deposit payments for proposals
-    const metadata = paymentIntent.metadata;
+    const metadata = paymentIntent.metadata || {};
+
+    if (paymentIntent.id) {
+      await this.paymentsService.handlePaymentSuccess(paymentIntent.id);
+    }
+
+    if (metadata.invoiceId) {
+      await this.prisma.invoice.updateMany({
+        where: { id: metadata.invoiceId, status: { not: 'paid' } },
+        data: {
+          status: 'paid',
+          amountPaid: (paymentIntent.amount || 0) / 100,
+          amountDue: 0,
+          paidDate: new Date(),
+          stripePaymentIntentId: paymentIntent.id,
+        },
+      });
+    }
 
     if (metadata?.proposalId) {
-      await this.prisma.proposal.update({
+      await this.prisma.proposal.updateMany({
         where: { id: metadata.proposalId },
         data: {
-          depositPaid: true,
-          depositPaidAt: new Date(),
+          ...(metadata.paymentType === 'deposit'
+            ? { depositPaid: true, depositPaidAt: new Date() }
+            : {}),
           stripePaymentIntentId: paymentIntent.id,
         },
       });
 
       this.logger.log(`Deposit paid for proposal: ${metadata.proposalId}`);
+    }
+  }
+
+  private async handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+    if (session.metadata?.type === 'template_purchase') {
+      await this.templateMarketplaceService.fulfillPaidPurchase(session);
+      return;
+    }
+
+    if (session.mode === 'subscription') {
+      await this.billingService.applyCheckoutCompleted(session);
+      return;
+    }
+
+    const invoiceId = session.metadata?.invoiceId;
+    if (invoiceId) {
+      const paymentIntentId =
+        typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id;
+      await this.prisma.invoice.updateMany({
+        where: { id: invoiceId },
+        data: {
+          status: 'paid',
+          amountDue: 0,
+          paidDate: new Date(),
+          stripeCheckoutSessionId: session.id,
+          stripePaymentIntentId: paymentIntentId,
+        },
+      });
+    }
+
+    const paymentIntentId =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id;
+
+    await this.prisma.proposalPayment.updateMany({
+      where: {
+        metadata: { path: ['checkoutSessionId'], equals: session.id },
+      },
+      data: {
+        status: 'succeeded',
+        paidAt: new Date(),
+        ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
+      },
+    });
+
+    if (paymentIntentId) {
+      await this.paymentsService.handlePaymentSuccess(paymentIntentId);
     }
   }
 }

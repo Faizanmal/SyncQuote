@@ -48,6 +48,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import { toast } from 'sonner';
 
 interface WorkflowTemplate {
@@ -56,7 +57,7 @@ interface WorkflowTemplate {
   trigger: string;
   delayHours: number;
   action: string;
-  actionConfig: Record<string, any>;
+  actionConfig: Record<string, unknown>;
 }
 
 interface Workflow {
@@ -65,10 +66,10 @@ interface Workflow {
   description?: string;
   isActive: boolean;
   trigger: string;
-  triggerConditions?: Record<string, any>;
+  triggerConditions?: Record<string, unknown>;
   delayHours: number;
   action: string;
-  actionConfig: Record<string, any>;
+  actionConfig: Record<string, unknown>;
   targetTags: string[];
   executionCount: number;
   lastExecutedAt?: string;
@@ -78,7 +79,7 @@ interface Workflow {
     status: string;
     scheduledFor: string;
     executedAt?: string;
-    result?: Record<string, any>;
+    result?: Record<string, unknown>;
   }[];
   _count?: {
     executions: number;
@@ -119,13 +120,8 @@ export function AutomationWorkflows() {
     isActive: true,
     targetTags: '',
   });
-  const [actionConfig, setActionConfig] = useState<Record<string, any>>({});
+  const [actionConfig, setActionConfig] = useState<Record<string, string>>({});
   const api = useApi();
-
-  useEffect(() => {
-    fetchWorkflows();
-    fetchTemplates();
-  }, []);
 
   const fetchWorkflows = async () => {
     try {
@@ -148,6 +144,11 @@ export function AutomationWorkflows() {
       console.error('Failed to load templates:', error);
     }
   };
+
+  useEffect(() => deferEffect(() => {
+    void fetchWorkflows();
+    void fetchTemplates();
+  }), []);
 
   const handleCreate = async () => {
     try {
@@ -216,7 +217,7 @@ export function AutomationWorkflows() {
     }
   };
 
-  const useTemplate = (template: WorkflowTemplate) => {
+  const applyTemplate = (template: WorkflowTemplate) => {
     setFormData({
       name: template.name,
       description: template.description,
@@ -226,7 +227,11 @@ export function AutomationWorkflows() {
       isActive: true,
       targetTags: '',
     });
-    setActionConfig(template.actionConfig);
+    setActionConfig(
+      Object.fromEntries(
+        Object.entries(template.actionConfig).map(([key, value]) => [key, String(value ?? '')])
+      )
+    );
     setDialogOpen(true);
   };
 
@@ -242,7 +247,11 @@ export function AutomationWorkflows() {
         isActive: workflow.isActive,
         targetTags: workflow.targetTags.join(', '),
       });
-      setActionConfig(workflow.actionConfig);
+      setActionConfig(
+        Object.fromEntries(
+          Object.entries(workflow.actionConfig).map(([key, value]) => [key, String(value ?? '')])
+        )
+      );
     } else {
       resetForm();
     }
@@ -553,7 +562,7 @@ export function AutomationWorkflows() {
                 <div
                   key={index}
                   className="p-4 border rounded-lg hover:border-primary cursor-pointer transition-colors"
-                  onClick={() => useTemplate(template)}
+                  onClick={() => applyTemplate(template)}
                 >
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">

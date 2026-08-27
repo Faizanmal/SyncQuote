@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { History, GitCompare, Undo2, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +30,7 @@ interface Version {
   changeDescription?: string;
   createdBy?: string;
   createdAt: string;
-  snapshotData: any;
+  snapshotData: Record<string, unknown>;
 }
 
 interface VersionHistoryProps {
@@ -41,7 +42,7 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(true);
   const [comparing, setComparing] = useState<{ v1?: string; v2?: string }>({});
-  const [comparisonData, setComparisonData] = useState<any>(null);
+  const [comparisonData, setComparisonData] = useState<Record<string, unknown> | null>(null);
   const api = useApi();
 
   const loadVersions = async () => {
@@ -55,9 +56,9 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
     }
   };
 
-  useEffect(() => {
-    loadVersions();
-  }, [proposalId]);
+  useEffect(() => deferEffect(() => {
+    void loadVersions();
+  }), [proposalId]);
 
   const handleRestore = async (versionId: string, versionNumber: number) => {
     if (!confirm(`Restore to version ${versionNumber}? This will create a new version.`)) {

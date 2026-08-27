@@ -10,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   MousePointer2,
   ScrollText,
@@ -99,9 +101,15 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
   const fetchHeatmapData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/heatmaps/${proposalId}?range=${dateRange}`);
-      const data = await response.json();
-      setHeatmapData(data);
+      const [{ data: clicks }, { data: scroll }] = await Promise.all([
+        api.get(`/heatmaps/proposal/${proposalId}/clicks`),
+        api.get(`/heatmaps/proposal/${proposalId}/scroll-depth`),
+      ]);
+      setHeatmapData({
+        clicks: Array.isArray(clicks) ? clicks : clicks?.clicks || [],
+        scroll: scroll,
+        ...((typeof clicks === 'object' && clicks) || {}),
+      });
     } catch (error) {
       console.error('Failed to fetch heatmap data:', error);
     } finally {
@@ -111,9 +119,8 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
 
   const fetchViews = async () => {
     try {
-      const response = await fetch(`/api/heatmaps/${proposalId}/views?range=${dateRange}`);
-      const data = await response.json();
-      setViews(data.views || []);
+      const { data } = await api.get(`/heatmaps/proposal/${proposalId}/engagement`);
+      setViews(Array.isArray(data) ? data : data.views || []);
     } catch (error) {
       console.error('Failed to fetch views:', error);
     }
@@ -178,10 +185,10 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
     }
   }, [heatmapData, selectedView, opacity]);
 
-  useEffect(() => {
-    fetchHeatmapData();
-    fetchViews();
-  }, [proposalId, dateRange]);
+  useEffect(() => deferEffect(() => {
+    void fetchHeatmapData();
+    void fetchViews();
+  }), [proposalId, dateRange]);
 
   useEffect(() => {
     if (heatmapData && canvasRef.current) {
@@ -191,12 +198,12 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
 
   const exportHeatmap = async () => {
     try {
-      const response = await fetch(`/api/heatmaps/${proposalId}/export`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ range: dateRange }),
-      });
-      const blob = await response.blob();
+      const response = await api.post(
+        `/heatmaps/generate`,
+        { proposalId, range: dateRange },
+        { responseType: 'blob' },
+      );
+      const blob = response.data as Blob;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

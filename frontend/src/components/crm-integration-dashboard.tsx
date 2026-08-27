@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   RefreshCw,
   Link2,
@@ -93,15 +95,11 @@ export function CrmIntegrationDashboard() {
   const [ , ] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchIntegrations();
-  }, []);
-
   const fetchIntegrations = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/crm-integrations');
-      const data = await response.json();
+      const response = await api.get('/crm');
+      const data = response.data;
       setIntegrations(data.integrations || []);
       setContacts(data.contacts || []);
       setFieldMappings(data.fieldMappings || []);
@@ -112,12 +110,16 @@ export function CrmIntegrationDashboard() {
     }
   };
 
+  useEffect(() => deferEffect(() => {
+    void fetchIntegrations();
+  }), []);
+
   const connectCrm = async (provider: string) => {
     try {
-      const response = await fetch(`/api/crm-integrations/${provider}/connect`);
-      const data = await response.json();
+      const response = await api.get(`/crm/${provider}/connect`);
+      const data = response.data;
       if (data.authUrl) {
-        window.location.href = data.authUrl;
+        window.location.assign(data.authUrl);
       }
     } catch (error) {
       console.error('Failed to connect CRM:', error);
@@ -131,7 +133,7 @@ export function CrmIntegrationDashboard() {
 
   const disconnectCrm = async (integrationId: string) => {
     try {
-      await fetch(`/api/crm-integrations/${integrationId}`, { method: 'DELETE' });
+      await api.delete(`/crm/${integrationId}`);
       setIntegrations(prev => prev.filter(i => i.id !== integrationId));
       toast({
         title: 'Disconnected',
@@ -150,7 +152,7 @@ export function CrmIntegrationDashboard() {
   const syncNow = async (integrationId: string) => {
     try {
       setSyncing(integrationId);
-      await fetch(`/api/crm-integrations/${integrationId}/sync`, { method: 'POST' });
+      await api.post(`/crm/${integrationId}/sync`);
       toast({
         title: 'Sync started',
         description: 'CRM synchronization is in progress',
@@ -173,11 +175,7 @@ export function CrmIntegrationDashboard() {
 
   const toggleSync = async (integrationId: string, enabled: boolean) => {
     try {
-      await fetch(`/api/crm-integrations/${integrationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ syncEnabled: enabled }),
-      });
+      await api.put(`/crm/${integrationId}`, { syncEnabled: enabled });
       setIntegrations(prev =>
         prev.map(i => (i.id === integrationId ? { ...i, syncEnabled: enabled } : i))
       );

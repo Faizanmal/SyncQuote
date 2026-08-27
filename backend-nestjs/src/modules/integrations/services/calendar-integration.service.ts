@@ -101,21 +101,25 @@ export class CalendarIntegrationService {
         dateTime: event.end.toISOString(),
         timeZone: 'UTC',
       },
-      attendees: event.attendees?.map(email => ({ email })),
+      attendees: event.attendees?.map((email) => ({ email })),
       location: event.location,
-      conferenceData: event.conferenceLink ? undefined : {
-        createRequest: {
-          requestId: `syncquote-${Date.now()}`,
-          conferenceSolutionKey: { type: 'hangoutsMeet' },
-        },
-      },
-      reminders: event.reminders ? {
-        useDefault: false,
-        overrides: event.reminders.map(r => ({
-          method: r.method,
-          minutes: r.minutes,
-        })),
-      } : { useDefault: true },
+      conferenceData: event.conferenceLink
+        ? undefined
+        : {
+            createRequest: {
+              requestId: `syncquote-${Date.now()}`,
+              conferenceSolutionKey: { type: 'hangoutsMeet' },
+            },
+          },
+      reminders: event.reminders
+        ? {
+            useDefault: false,
+            overrides: event.reminders.map((r) => ({
+              method: r.method,
+              minutes: r.minutes,
+            })),
+          }
+        : { useDefault: true },
     };
 
     // Add proposal link to description if proposalId provided
@@ -147,11 +151,7 @@ export class CalendarIntegrationService {
     };
   }
 
-  async getEvents(
-    userId: string, 
-    startDate: Date, 
-    endDate: Date,
-  ): Promise<CalendarEvent[]> {
+  async getEvents(userId: string, startDate: Date, endDate: Date): Promise<CalendarEvent[]> {
     const calendar = await this.getGoogleCalendar(userId);
 
     const result = await calendar.events.list({
@@ -174,16 +174,21 @@ export class CalendarIntegrationService {
     }));
   }
 
-  async updateEvent(userId: string, eventId: string, updates: Partial<CalendarEvent>): Promise<CalendarEvent> {
+  async updateEvent(
+    userId: string,
+    eventId: string,
+    updates: Partial<CalendarEvent>,
+  ): Promise<CalendarEvent> {
     const calendar = await this.getGoogleCalendar(userId);
 
     const eventResource: calendar_v3.Schema$Event = {};
     if (updates.summary) eventResource.summary = updates.summary;
     if (updates.description) eventResource.description = updates.description;
-    if (updates.start) eventResource.start = { dateTime: updates.start.toISOString(), timeZone: 'UTC' };
+    if (updates.start)
+      eventResource.start = { dateTime: updates.start.toISOString(), timeZone: 'UTC' };
     if (updates.end) eventResource.end = { dateTime: updates.end.toISOString(), timeZone: 'UTC' };
     if (updates.location) eventResource.location = updates.location;
-    if (updates.attendees) eventResource.attendees = updates.attendees.map(email => ({ email }));
+    if (updates.attendees) eventResource.attendees = updates.attendees.map((email) => ({ email }));
 
     const result = await calendar.events.patch({
       calendarId: 'primary',
@@ -270,7 +275,7 @@ export class CalendarIntegrationService {
   }
 
   private async getGoogleCalendar(userId: string): Promise<calendar_v3.Calendar> {
-const token = await this.prisma.oAuthToken.findFirst({
+    const token = await this.prisma.oAuthToken.findFirst({
       where: {
         userId,
         provider: 'google_calendar',
@@ -289,7 +294,7 @@ const token = await this.prisma.oAuthToken.findFirst({
     // Check if token needs refresh
     if (token.expiresAt && token.expiresAt < new Date()) {
       const { credentials } = await this.oauth2Client.refreshAccessToken();
-      
+
       await this.prisma.oAuthToken.update({
         where: { id: token.id },
         data: {
@@ -321,8 +326,8 @@ const token = await this.prisma.oAuthToken.findFirst({
     });
 
     return {
-      google: tokens.some(t => t.provider === 'google_calendar'),
-      microsoft: tokens.some(t => t.provider === 'microsoft_calendar'),
+      google: tokens.some((t) => t.provider === 'google_calendar'),
+      microsoft: tokens.some((t) => t.provider === 'microsoft_calendar'),
     };
   }
 }

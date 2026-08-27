@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import {
   Send, Reply, Eye, UserPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import io, { Socket } from 'socket.io-client';
 
 interface Collaborator {
@@ -65,7 +66,7 @@ interface OnlineUser {
 }
 
 export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [ , setShowCollaborators] = useState(false);
   const [newComment, setNewComment] = useState('');
@@ -96,65 +97,62 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
       toast.info('New suggestion received');
     });
 
-    newSocket.on('typing:start', ({ userId, _userName }: any) => {
+    newSocket.on('typing:start', ({ userId }: { userId: string; _userName?: string }) => {
       setOnlineUsers(prev => 
         prev.map(u => u.userId === userId ? { ...u, typing: true } : u)
       );
     });
 
-    newSocket.on('typing:stop', ({ userId }: any) => {
+    newSocket.on('typing:stop', ({ userId }: { userId: string }) => {
       setOnlineUsers(prev =>
         prev.map(u => u.userId === userId ? { ...u, typing: false } : u)
       );
     });
 
-    setSocket(newSocket);
+    socketRef.current = newSocket;
 
     return () => {
       newSocket.disconnect();
+      socketRef.current = null;
     };
   }, [proposalId, queryClient]);
 
   const { data: collaborators } = useQuery({
     queryKey: ['collaborators', proposalId],
     queryFn: async () => {
-      const res = await fetch(`/api/collaboration/${proposalId}/collaborators`);
-      return res.json();
+      const res = await api.get(`/collaboration/proposals/${proposalId}/collaborators`);
+      return res.data;
     },
   });
 
   const { data: reviewCycles } = useQuery({
     queryKey: ['review-cycles', proposalId],
     queryFn: async () => {
-      const res = await fetch(`/api/collaboration/${proposalId}/review-cycles`);
-      return res.json();
+      const res = await api.get(`/collaboration/proposals/${proposalId}/review-cycles`);
+      return res.data;
     },
   });
 
   const { data: comments } = useQuery({
     queryKey: ['comments', proposalId],
     queryFn: async () => {
-      const res = await fetch(`/api/collaboration/${proposalId}/comments`);
-      return res.json();
+      const res = await api.get(`/collaboration/proposals/${proposalId}/comments`);
+      return res.data;
     },
   });
 
   const { data: suggestions } = useQuery({
     queryKey: ['suggestions', proposalId],
     queryFn: async () => {
-      const res = await fetch(`/api/collaboration/${proposalId}/suggestions`);
-      return res.json();
+      const res = await api.get(`/collaboration/proposals/${proposalId}/suggestions`);
+      return res.data;
     },
   });
 
   const _addCollaboratorMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch(`/api/collaboration/${proposalId}/collaborators`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (data: Record<string, unknown>) => {
+      const res = await api.post(`/collaboration/collaborators`, { ...data, proposalId });
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['collaborators', proposalId] });
@@ -163,13 +161,9 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
   });
 
   const createCommentMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch(`/api/collaboration/${proposalId}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (data: Record<string, unknown>) => {
+      const res = await api.post(`/collaboration/comments`, { ...data, proposalId });
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', proposalId] });
@@ -180,10 +174,8 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
 
   const resolveCommentMutation = useMutation({
     mutationFn: async (commentId: string) => {
-      const res = await fetch(`/api/collaboration/${proposalId}/comments/${commentId}/resolve`, {
-        method: 'POST',
-      });
-      return res.json();
+      const res = await api.post(`/collaboration/comments/${commentId}/resolve`);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['comments', proposalId] });
@@ -193,12 +185,8 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
 
   const respondToSuggestionMutation = useMutation({
     mutationFn: async ({ suggestionId, accepted }: { suggestionId: string; accepted: boolean }) => {
-      const res = await fetch(`/api/collaboration/${proposalId}/suggestions/${suggestionId}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accepted }),
-      });
-      return res.json();
+      const res = await api.post(`/collaboration/suggestions/${suggestionId}/respond`, { accepted });
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suggestions', proposalId] });
@@ -207,8 +195,8 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
   });
 
   const handleTyping = (typing: boolean) => {
-    if (socket) {
-      socket.emit(typing ? 'typing:start' : 'typing:stop', { proposalId });
+    if (socketRef.current) {
+      socketRef.current.emit(typing ? 'typing:start' : 'typing:stop', { proposalId });
     }
   };
 
@@ -536,6 +524,6 @@ function CommentThread({
   );
 }
 
-function cn(...classes: any[]) {
+function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }

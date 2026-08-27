@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
+import { unwrapList } from '@/lib/pagination';
 import {
   Plus,
   FileText,
@@ -209,13 +211,11 @@ export function InvoiceManagement() {
   });
 
   // Fetch invoices
-  const { data: invoices = mockInvoices, isLoading } = useQuery({
+  const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
-      // In production, fetch from API
-      // const response = await fetch('/api/invoices');
-      // return response.json();
-      return mockInvoices;
+      const { data } = await api.get('/invoices', { params: { page: 1, limit: 50 } });
+      return unwrapList(data);
     },
   });
 
@@ -223,20 +223,16 @@ export function InvoiceManagement() {
   const { data: stats = mockStats } = useQuery({
     queryKey: ['invoice-stats'],
     queryFn: async () => {
-      return mockStats;
+      const { data } = await api.get('/invoices/stats');
+      return data as InvoiceStats;
     },
   });
 
   // Create invoice mutation
   const createInvoiceMutation = useMutation({
-    mutationFn: async (data: typeof newInvoice) => {
-      const response = await fetch('/api/invoices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed to create invoice');
-      return response.json();
+    mutationFn: async (payload: typeof newInvoice) => {
+      const { data: created } = await api.post('/invoices', payload);
+      return created;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -251,11 +247,8 @@ export function InvoiceManagement() {
   // Send invoice mutation
   const sendInvoiceMutation = useMutation({
     mutationFn: async (invoiceId: string) => {
-      const response = await fetch(`/api/invoices/${invoiceId}/send`, {
-        method: 'POST',
-      });
-      if (!response.ok) throw new Error('Failed to send invoice');
-      return response.json();
+      const { data } = await api.post(`/invoices/${invoiceId}/send`);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
@@ -269,13 +262,12 @@ export function InvoiceManagement() {
   // Record payment mutation
   const recordPaymentMutation = useMutation({
     mutationFn: async ({ invoiceId, data }: { invoiceId: string; data: typeof payment }) => {
-      const response = await fetch(`/api/invoices/${invoiceId}/payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      const { data: result } = await api.post(`/invoices/${invoiceId}/payment`, {
+        amount: data.amount,
+        method: data.paymentMethod,
+        reference: data.reference,
       });
-      if (!response.ok) throw new Error('Failed to record payment');
-      return response.json();
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] });

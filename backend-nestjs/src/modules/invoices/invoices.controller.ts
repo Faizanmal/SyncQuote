@@ -1,16 +1,28 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Req,
-} from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InvoiceService, CreateInvoiceDto } from './services/invoice.service';
+import { PaginationQueryDto } from '../../common/dto/pagination.dto';
+
+class ListInvoicesQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(({ value }) => (value === 'all' || value === '' ? undefined : value))
+  @IsString()
+  status?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  endDate?: string;
+}
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
@@ -33,7 +45,8 @@ export class InvoicesController {
   async createFromProposal(
     @Req() req: any,
     @Param('proposalId') proposalId: string,
-    @Body() body: {
+    @Body()
+    body: {
       dueDate?: string;
       paymentTerms?: string;
       notes?: string;
@@ -47,17 +60,15 @@ export class InvoicesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all invoices' })
-  async getInvoices(
-    @Req() req: any,
-    @Query('status') status?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-  ) {
-    return this.invoiceService.getInvoicesByUser(req.user.id, {
-      status: status as any,
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
+  @ApiOperation({ summary: 'List invoices (paginated)' })
+  async getInvoices(@Req() req: any, @Query() query: ListInvoicesQueryDto) {
+    const userId = req.user?.id || req.user?.sub;
+    return this.invoiceService.getInvoicesByUser(userId, {
+      status: query.status as any,
+      startDate: query.startDate ? new Date(query.startDate) : undefined,
+      endDate: query.endDate ? new Date(query.endDate) : undefined,
+      page: query.page,
+      limit: query.limit,
     });
   }
 
@@ -85,7 +96,8 @@ export class InvoicesController {
   async recordPayment(
     @Req() req: any,
     @Param('invoiceId') invoiceId: string,
-    @Body() body: {
+    @Body()
+    body: {
       amount: number;
       method: string;
       reference?: string;
@@ -116,7 +128,8 @@ export class InvoicesController {
   @ApiOperation({ summary: 'Create recurring invoice configuration' })
   async createRecurring(
     @Req() req: any,
-    @Body() body: {
+    @Body()
+    body: {
       templateInvoice: any;
       frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'annually';
       startDate: string;

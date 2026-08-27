@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   FlaskConical,
   Plus,
@@ -97,9 +99,8 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
   const fetchTests = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/ab-testing${proposalId ? `?proposalId=${proposalId}` : ''}`);
-      const data = await response.json();
-      setTests(data.tests || []);
+      const { data } = await api.get('/ab-tests', { params: proposalId ? { proposalId } : {} });
+      setTests(Array.isArray(data) ? data : data.tests || []);
     } catch (error) {
       console.error('Failed to fetch tests:', error);
     } finally {
@@ -107,14 +108,13 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
     }
   };
 
-  useEffect(() => {
-    fetchTests();
-  }, [proposalId]);
+  useEffect(() => deferEffect(() => {
+    void fetchTests();
+  }), [proposalId]);
 
   const fetchTestResults = async (testId: string) => {
     try {
-      const response = await fetch(`/api/ab-testing/${testId}/results`);
-      const data = await response.json();
+      const { data } = await api.get(`/ab-tests/${testId}/results`);
       setTestResults(data);
     } catch (error) {
       console.error('Failed to fetch results:', error);
@@ -123,10 +123,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
 
   const createTest = async () => {
     try {
-      const response = await fetch('/api/ab-testing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data } = await api.post('/ab-tests', {
           name: testName,
           proposalId,
           trafficSplit,
@@ -134,10 +131,8 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
           confidenceLevel,
           autoSelectWinner,
           variants,
-        }),
-      });
-      const data = await response.json();
-      setTests(prev => [...prev, data.test]);
+        });
+      setTests(prev => [...prev, data.test || data]);
       setShowCreateDialog(false);
       resetForm();
       toast({
@@ -156,11 +151,8 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
 
   const updateTestStatus = async (testId: string, status: string) => {
     try {
-      await fetch(`/api/ab-testing/${testId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
+      const action = status === 'running' ? 'start' : status === 'paused' ? 'pause' : 'complete';
+      await api.post(`/ab-tests/${testId}/${action}`);
       setTests(prev => prev.map(t => (t.id === testId ? { ...t, status: status as ABTest['status'] } : t)));
       toast({
         title: 'Test updated',
@@ -178,11 +170,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
 
   const selectWinner = async (testId: string, variantId: string) => {
     try {
-      await fetch(`/api/ab-testing/${testId}/winner`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ variantId }),
-      });
+      await api.post(`/ab-tests/${testId}/complete`);
       setTests(prev => prev.map(t => (t.id === testId ? { ...t, status: 'winner_selected', winnerId: variantId } : t)));
       toast({
         title: 'Winner selected',
@@ -200,7 +188,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
 
   const deleteTest = async (testId: string) => {
     try {
-      await fetch(`/api/ab-testing/${testId}`, { method: 'DELETE' });
+      await api.delete(`/ab-tests/${testId}`);
       setTests(prev => prev.filter(t => t.id !== testId));
       toast({
         title: 'Test deleted',

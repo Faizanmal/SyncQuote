@@ -4,6 +4,7 @@ import { CalendarIntegrationService } from './services/calendar-integration.serv
 import { DocumentManagementService } from './services/document-management.service';
 import { CommunicationToolsService } from './services/communication-tools.service';
 import { IntegrationsController } from './integrations.controller';
+import { IntegrationsCatalogService } from './services/integrations-catalog.service';
 
 @Module({
   imports: [PrismaModule],
@@ -12,11 +13,8 @@ import { IntegrationsController } from './integrations.controller';
     CalendarIntegrationService,
     DocumentManagementService,
     CommunicationToolsService,
+    IntegrationsCatalogService,
   ],
-  exports: [
-    CalendarIntegrationService,
-    DocumentManagementService,
-    CommunicationToolsService,
-  ],
+  exports: [CalendarIntegrationService, DocumentManagementService, CommunicationToolsService],
 })
 export class IntegrationsModule {}

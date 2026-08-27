@@ -1,20 +1,10 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiMarketplaceService } from './services/api-marketplace.service';
 
 @ApiTags('API Marketplace')
-@Controller('marketplace')
+@Controller('api-marketplace')
 export class ApiMarketplaceController {
   constructor(private readonly marketplaceService: ApiMarketplaceService) {}
 

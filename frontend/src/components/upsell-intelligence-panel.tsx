@@ -11,6 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   Sparkles,
   TrendingUp,
@@ -114,9 +116,8 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
   const fetchRecommendations = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/upsell/recommendations${proposalId ? `?proposalId=${proposalId}` : ''}`);
-      const data = await response.json();
-      setRecommendations(data.recommendations || []);
+      const { data } = await api.post('/upsell/recommendations', { proposalId });
+      setRecommendations(Array.isArray(data) ? data : data.recommendations || []);
     } catch (error) {
       console.error('Failed to fetch recommendations:', error);
     } finally {
@@ -126,9 +127,8 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
 
   const fetchBundles = async () => {
     try {
-      const response = await fetch(`/api/upsell/bundles${proposalId ? `?proposalId=${proposalId}` : ''}`);
-      const data = await response.json();
-      setBundles(data.bundles || []);
+      const { data } = await api.post('/upsell/bundles', { proposalId });
+      setBundles(Array.isArray(data) ? data : data.bundles || []);
     } catch (error) {
       console.error('Failed to fetch bundles:', error);
     }
@@ -136,9 +136,8 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
 
   const fetchPricingOptimizations = async () => {
     try {
-      const response = await fetch(`/api/upsell/pricing-optimization${proposalId ? `?proposalId=${proposalId}` : ''}`);
-      const data = await response.json();
-      setPricingOptimizations(data.optimizations || []);
+      const { data } = await api.post('/upsell/optimize-pricing', { proposalId });
+      setPricingOptimizations(Array.isArray(data) ? data : data.optimizations || []);
     } catch (error) {
       console.error('Failed to fetch pricing optimizations:', error);
     }
@@ -146,31 +145,25 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
 
   const fetchMetrics = async () => {
     try {
-      const response = await fetch('/api/upsell/metrics');
-      const data = await response.json();
-      setMetrics(data.metrics);
+      const { data } = await api.get('/upsell/performance');
+      setMetrics(data.metrics || data);
     } catch (error) {
       console.error('Failed to fetch metrics:', error);
     }
   };
 
-  useEffect(() => {
-    fetchRecommendations();
-    fetchBundles();
-    fetchPricingOptimizations();
-    fetchMetrics();
-  }, [proposalId]);
+  useEffect(() => deferEffect(() => {
+    void fetchRecommendations();
+    void fetchBundles();
+    void fetchPricingOptimizations();
+    void fetchMetrics();
+  }), [proposalId]);
 
   const generateRecommendations = async () => {
     try {
       setGenerating(true);
-      const response = await fetch('/api/upsell/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposalId }),
-      });
-      const data = await response.json();
-      setRecommendations(data.recommendations || []);
+      const { data } = await api.post('/upsell/recommendations', { proposalId });
+      setRecommendations(Array.isArray(data) ? data : data.recommendations || []);
       toast({
         title: 'Recommendations generated',
         description: `${data.recommendations?.length || 0} new recommendations created`,
@@ -189,11 +182,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
 
   const updateRecommendationStatus = async (id: string, status: 'accepted' | 'rejected') => {
     try {
-      await fetch(`/api/upsell/recommendations/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
+      await api.post('/upsell/track-conversion', { id, status });
       setRecommendations(prev => prev.map(r => (r.id === id ? { ...r, status } : r)));
       toast({
         title: status === 'accepted' ? 'Recommendation accepted' : 'Recommendation rejected',
@@ -211,7 +200,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
 
   const applyPricingOptimization = async (id: string) => {
     try {
-      await fetch(`/api/upsell/pricing-optimization/${id}/apply`, { method: 'POST' });
+      await api.post('/upsell/optimize-price', { id });
       fetchPricingOptimizations();
       toast({
         title: 'Price updated',
@@ -230,11 +219,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
   const updateSettings = async (newSettings: Partial<UpsellSettings>) => {
     try {
       const updated = { ...settings, ...newSettings };
-      await fetch('/api/upsell/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
-      });
+      await api.post('/upsell/optimize-pricing', updated);
       setSettings(updated);
       toast({
         title: 'Settings updated',

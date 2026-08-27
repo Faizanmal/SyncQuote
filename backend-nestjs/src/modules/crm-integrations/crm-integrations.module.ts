@@ -33,5 +33,4 @@ import { PrismaModule } from '../prisma/prisma.module';
   ],
   exports: [CrmIntegrationsService, CrmSyncService, CrmOutboundSyncService],
 })
-export class CrmIntegrationsModule { }
-
+export class CrmIntegrationsModule {}

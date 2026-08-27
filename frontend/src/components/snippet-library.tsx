@@ -41,6 +41,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import { toast } from 'sonner';
 
 interface SnippetVariable {
@@ -124,10 +125,10 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
     }
   };
 
-  useEffect(() => {
-    fetchSnippets();
-    fetchCategories();
-  }, []);
+  useEffect(() => deferEffect(() => {
+    void fetchSnippets();
+    void fetchCategories();
+  }), []);
 
   const handleCreate = async () => {
     try {

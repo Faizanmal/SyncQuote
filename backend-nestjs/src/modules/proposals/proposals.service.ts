@@ -1,9 +1,37 @@
-import { Injectable, NotFoundException, ForbiddenException, Logger, Inject, Optional } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { nanoid } from 'nanoid';
+import { Prisma, ProposalStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from '../events/events.gateway';
 import { AuditCertificateService } from './audit-certificate.service';
 import { CrmOutboundSyncService } from '../crm-integrations/crm-outbound-sync.service';
+import { ListProposalsQueryDto } from './dto/list-proposals.dto';
+import { normalizePagination, paginatedResult } from '../../common/pagination';
+
+const LIST_SELECT = {
+  id: true,
+  title: true,
+  slug: true,
+  status: true,
+  recipientEmail: true,
+  recipientName: true,
+  totalAmount: true,
+  estimatedValue: true,
+  currency: true,
+  viewCount: true,
+  sentAt: true,
+  viewedAt: true,
+  signedAt: true,
+  expiresAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 
 @Injectable()
 export class ProposalsService {
@@ -14,15 +42,14 @@ export class ProposalsService {
     private eventsGateway: EventsGateway,
     private auditCertificateService: AuditCertificateService,
     @Optional() private crmOutboundSyncService?: CrmOutboundSyncService,
-  ) { }
-
+  ) {}
 
   async create(userId: string, data: any) {
     const slug = nanoid(12); // Generate unique slug for public URL
 
-    return this.prisma.proposal.create({
+    const proposal = await this.prisma.proposal.create({
       data: {
-        ...data,
+        ...this.toProposalWriteData(data),
         slug,
         userId,
       },
@@ -34,20 +61,47 @@ export class ProposalsService {
         },
       },
     });
+
+    return this.withClientAliases(proposal);
   }
 
-  async findAll(userId: string) {
-    return this.prisma.proposal.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        blocks: {
-          include: {
-            pricingItems: true,
-          },
-        },
-      },
-    });
+  async findAll(userId: string, query: ListProposalsQueryDto = {}) {
+    const { page, limit, skip, take } = normalizePagination(query);
+    const sortBy = query.sortBy || 'createdAt';
+    const sortOrder = query.sortOrder || 'desc';
+
+    const where: Prisma.ProposalWhereInput = { userId };
+
+    if (query.status) {
+      where.status = query.status as ProposalStatus;
+    }
+
+    if (query.search?.trim()) {
+      const search = query.search.trim();
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { recipientEmail: { contains: search, mode: 'insensitive' } },
+        { recipientName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [proposals, total] = await Promise.all([
+      this.prisma.proposal.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { [sortBy]: sortOrder },
+        select: LIST_SELECT,
+      }),
+      this.prisma.proposal.count({ where }),
+    ]);
+
+    return paginatedResult(
+      proposals.map((proposal) => this.withClientAliases(proposal)),
+      total,
+      page,
+      limit,
+    );
   }
 
   async findOne(id: string, userId?: string) {
@@ -82,7 +136,7 @@ export class ProposalsService {
       throw new ForbiddenException('Access denied');
     }
 
-    return proposal;
+    return this.withClientAliases(proposal);
   }
 
   async findBySlug(slug: string, metadata?: any) {
@@ -117,7 +171,7 @@ export class ProposalsService {
       await this.eventsGateway.notifyProposalViewed(proposal.id, metadata);
     }
 
-    return proposal;
+    return this.withClientAliases(proposal);
   }
 
   async update(id: string, userId: string, data: any) {
@@ -127,9 +181,9 @@ export class ProposalsService {
       throw new ForbiddenException('Cannot edit locked proposal');
     }
 
-    return this.prisma.proposal.update({
+    const updated = await this.prisma.proposal.update({
       where: { id },
-      data,
+      data: this.toProposalWriteData(data),
       include: {
         blocks: {
           include: {
@@ -138,6 +192,8 @@ export class ProposalsService {
         },
       },
     });
+
+    return this.withClientAliases(updated);
   }
 
   async delete(id: string, userId: string) {
@@ -185,7 +241,32 @@ export class ProposalsService {
       });
     }
 
-    return updated;
+    return this.withClientAliases(updated);
+  }
+
+  /**
+   * Frontend forms send clientName/clientEmail; Prisma stores recipientName/recipientEmail.
+   */
+  private toProposalWriteData(data: Record<string, unknown> = {}) {
+    const { clientName, clientEmail, ...rest } = data;
+    const writeData: Record<string, unknown> = { ...rest };
+
+    const recipientName = rest.recipientName ?? clientName;
+    const recipientEmail = rest.recipientEmail ?? clientEmail;
+    if (recipientName !== undefined) writeData.recipientName = recipientName;
+    if (recipientEmail !== undefined) writeData.recipientEmail = recipientEmail;
+
+    return writeData;
+  }
+
+  private withClientAliases<T extends { recipientName?: string | null; recipientEmail?: string | null }>(
+    proposal: T,
+  ) {
+    return {
+      ...proposal,
+      clientName: proposal.recipientName ?? '',
+      clientEmail: proposal.recipientEmail ?? '',
+    };
   }
 
   /**
@@ -195,7 +276,8 @@ export class ProposalsService {
     try {
       this.logger.log(`Generating audit certificate for proposal ${proposalId}`);
 
-      const { certificateUrl, pdfBuffer } = await this.auditCertificateService.generateCertificate(proposalId);
+      const { certificateUrl, pdfBuffer } =
+        await this.auditCertificateService.generateCertificate(proposalId);
 
       // Update proposal with certificate URL
       // In production, you would upload pdfBuffer to S3/R2 and use that URL
@@ -210,4 +292,3 @@ export class ProposalsService {
     }
   }
 }
-

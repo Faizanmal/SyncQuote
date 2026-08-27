@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { daysUntil } from '@/lib/time';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
@@ -162,9 +163,7 @@ export default function BillingPage() {
   const currentPlan = subscription?.plan || 'free';
   const isTrialing = subscription?.status === 'trialing';
   const trialDaysLeft = subscription?.trialEndsAt
-    ? Math.ceil(
-        (new Date(subscription.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-      )
+    ? daysUntil(subscription.trialEndsAt)
     : 0;
 
   return (

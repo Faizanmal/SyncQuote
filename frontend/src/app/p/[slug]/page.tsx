@@ -99,7 +99,7 @@ export default function PublicProposalPage() {
     } catch (error) {
       console.error('Failed to start tracking session:', error);
     }
-  }, [proposal?.id, proposal?.clientEmail, proposal?.clientName]);
+  }, [proposal]);
 
   const updateSession = useCallback(async () => {
     if (!sessionIdRef.current) return;

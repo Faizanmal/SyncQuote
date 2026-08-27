@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -41,15 +41,12 @@ export function CoBrowsingOverlay({
         clearLingerAlerts
     } = useSocket({ proposalId, userId });
 
-    const [isMinimized, setIsMinimized] = useState(minimized);
-
-    useEffect(() => {
-        setIsMinimized(minimized);
-    }, [minimized]);
+    const [uncontrolledMinimized, setUncontrolledMinimized] = useState(minimized);
+    const isMinimized = onMinimizeChange ? minimized : uncontrolledMinimized;
 
     const handleMinimize = () => {
         const newState = !isMinimized;
-        setIsMinimized(newState);
+        setUncontrolledMinimized(newState);
         onMinimizeChange?.(newState);
     };
 

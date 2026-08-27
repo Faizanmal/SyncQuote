@@ -26,6 +26,10 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class TemplateMarketplaceController {
   constructor(private readonly marketplaceService: TemplateMarketplaceService) {}
 
+  private userId(req: any) {
+    return req.user?.id || req.user?.sub || req.user?.userId;
+  }
+
   // ==================== PUBLIC ENDPOINTS ====================
 
   /**
@@ -41,8 +45,7 @@ export class TemplateMarketplaceController {
    */
   @Get('templates/:id')
   async getTemplate(@Param('id') id: string, @Request() req: any) {
-    const userId = req.user?.id;
-    return this.marketplaceService.getTemplate(id, userId);
+    return this.marketplaceService.getTemplate(id, this.userId(req));
   }
 
   /**
@@ -69,7 +72,7 @@ export class TemplateMarketplaceController {
   @Post('publish')
   @UseGuards(JwtAuthGuard)
   async publishTemplate(@Request() req: any, @Body() dto: PublishTemplateDto) {
-    return this.marketplaceService.publishTemplate(req.user.id, dto);
+    return this.marketplaceService.publishTemplate(this.userId(req), dto);
   }
 
   /**
@@ -82,7 +85,7 @@ export class TemplateMarketplaceController {
     @Param('id') id: string,
     @Body() dto: UpdateMarketplaceTemplateDto,
   ) {
-    return this.marketplaceService.updateListing(req.user.id, id, dto);
+    return this.marketplaceService.updateListing(this.userId(req), id, dto);
   }
 
   /**
@@ -91,7 +94,7 @@ export class TemplateMarketplaceController {
   @Post('purchase')
   @UseGuards(JwtAuthGuard)
   async purchaseTemplate(@Request() req: any, @Body() dto: PurchaseTemplateDto) {
-    return this.marketplaceService.purchaseTemplate(req.user.id, dto);
+    return this.marketplaceService.purchaseTemplate(this.userId(req), dto);
   }
 
   /**
@@ -100,7 +103,7 @@ export class TemplateMarketplaceController {
   @Post('reviews')
   @UseGuards(JwtAuthGuard)
   async createReview(@Request() req: any, @Body() dto: CreateReviewDto) {
-    return this.marketplaceService.createReview(req.user.id, dto);
+    return this.marketplaceService.createReview(this.userId(req), dto);
   }
 
   /**
@@ -109,7 +112,7 @@ export class TemplateMarketplaceController {
   @Put('reviews/:id')
   @UseGuards(JwtAuthGuard)
   async updateReview(@Request() req: any, @Param('id') id: string, @Body() dto: UpdateReviewDto) {
-    return this.marketplaceService.updateReview(req.user.id, id, dto);
+    return this.marketplaceService.updateReview(this.userId(req), id, dto);
   }
 
   /**
@@ -118,7 +121,7 @@ export class TemplateMarketplaceController {
   @Delete('reviews/:id')
   @UseGuards(JwtAuthGuard)
   async deleteReview(@Request() req: any, @Param('id') id: string) {
-    return this.marketplaceService.deleteReview(req.user.id, id);
+    return this.marketplaceService.deleteReview(this.userId(req), id);
   }
 
   /**
@@ -127,7 +130,7 @@ export class TemplateMarketplaceController {
   @Post('report')
   @UseGuards(JwtAuthGuard)
   async reportTemplate(@Request() req: any, @Body() dto: ReportTemplateDto) {
-    return this.marketplaceService.reportTemplate(req.user.id, dto);
+    return this.marketplaceService.reportTemplate(this.userId(req), dto);
   }
 
   // ==================== SELLER ENDPOINTS ====================
@@ -138,7 +141,7 @@ export class TemplateMarketplaceController {
   @Get('seller/templates')
   @UseGuards(JwtAuthGuard)
   async getSellerTemplates(@Request() req: any) {
-    return this.marketplaceService.getSellerTemplates(req.user.id);
+    return this.marketplaceService.getSellerTemplates(this.userId(req));
   }
 
   /**
@@ -147,7 +150,7 @@ export class TemplateMarketplaceController {
   @Get('seller/stats')
   @UseGuards(JwtAuthGuard)
   async getSellerStats(@Request() req: any) {
-    return this.marketplaceService.getSellerStats(req.user.id);
+    return this.marketplaceService.getSellerStats(this.userId(req));
   }
 
   // ==================== BUYER ENDPOINTS ====================
@@ -158,6 +161,6 @@ export class TemplateMarketplaceController {
   @Get('purchases')
   @UseGuards(JwtAuthGuard)
   async getUserPurchases(@Request() req: any) {
-    return this.marketplaceService.getUserPurchases(req.user.id);
+    return this.marketplaceService.getUserPurchases(this.userId(req));
   }
 }

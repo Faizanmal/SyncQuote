@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -14,6 +15,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CalendarIntegrationService } from './services/calendar-integration.service';
 import { DocumentManagementService } from './services/document-management.service';
 import { CommunicationToolsService } from './services/communication-tools.service';
+import { IntegrationsCatalogService } from './services/integrations-catalog.service';
 
 @ApiTags('Integrations')
 @ApiBearerAuth()
@@ -24,14 +26,80 @@ export class IntegrationsController {
     private readonly calendarService: CalendarIntegrationService,
     private readonly documentService: DocumentManagementService,
     private readonly communicationService: CommunicationToolsService,
+    private readonly catalogService: IntegrationsCatalogService,
   ) {}
+
+  private userId(req: any) {
+    return req.user?.id || req.user?.sub || req.user?.userId;
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'List integration catalog' })
+  listCatalog(
+    @Req() req: any,
+    @Query('search') search?: string,
+    @Query('category') category?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.catalogService.list(this.userId(req), search, category, status);
+  }
+
+  @Post()
+  createIntegration(@Req() req: any, @Body() body: any) {
+    return this.catalogService.create(this.userId(req), body);
+  }
+
+  @Get('webhooks')
+  listWebhooks(@Req() req: any) {
+    return this.catalogService.listWebhooks(this.userId(req));
+  }
+
+  @Post('webhooks')
+  createWebhook(@Req() req: any, @Body() body: any) {
+    return this.catalogService.createWebhook(this.userId(req), body);
+  }
+
+  @Post('webhooks/:webhookId/test')
+  testWebhook(@Req() req: any, @Param('webhookId') webhookId: string) {
+    return this.catalogService.testWebhook(this.userId(req), webhookId);
+  }
+
+  @Get('api/endpoints')
+  listEndpoints() {
+    return this.catalogService.listEndpoints();
+  }
+
+  @Get('api/keys')
+  listApiKeys(@Req() req: any) {
+    return this.catalogService.listApiKeys(this.userId(req));
+  }
+
+  @Post('api/keys')
+  createApiKey(@Req() req: any, @Body() body: any) {
+    return this.catalogService.createApiKey(this.userId(req), body);
+  }
+
+  @Get('templates')
+  listTemplates(@Query('category') category?: string) {
+    return this.catalogService.listTemplates(category);
+  }
+
+  @Post('marketplace/:templateId/install')
+  installTemplate(@Req() req: any, @Param('templateId') templateId: string) {
+    return this.catalogService.installTemplate(this.userId(req), templateId);
+  }
+
+  @Get('analytics')
+  analytics(@Req() req: any) {
+    return this.catalogService.analytics(this.userId(req));
+  }
 
   // ==================== Connection Status ====================
 
   @Get('status')
   @ApiOperation({ summary: 'Get all integration connection statuses' })
   async getConnectionStatus(@Req() req: any) {
-    const userId = req.user.id;
+    const userId = this.userId(req);
     const [calendar, documents, communication] = await Promise.all([
       this.calendarService.getCalendarStatus(userId),
       this.documentService.getConnectionStatus(userId),
@@ -56,10 +124,7 @@ export class IntegrationsController {
 
   @Post('calendar/google/callback')
   @ApiOperation({ summary: 'Handle Google Calendar OAuth callback' })
-  async handleGoogleCalendarCallback(
-    @Req() req: any,
-    @Body() body: { code: string },
-  ) {
+  async handleGoogleCalendarCallback(@Req() req: any, @Body() body: { code: string }) {
     await this.calendarService.handleGoogleCallback(req.user.id, body.code);
     return { success: true };
   }
@@ -71,11 +136,7 @@ export class IntegrationsController {
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
   ) {
-    return this.calendarService.getEvents(
-      req.user.id,
-      new Date(startDate),
-      new Date(endDate),
-    );
+    return this.calendarService.getEvents(req.user.id, new Date(startDate), new Date(endDate));
   }
 
   @Post('calendar/events')
@@ -106,7 +167,8 @@ export class IntegrationsController {
   @ApiOperation({ summary: 'Schedule proposal meeting' })
   async scheduleProposalMeeting(
     @Req() req: any,
-    @Body() body: {
+    @Body()
+    body: {
       proposalId: string;
       title: string;
       startTime: string;
@@ -138,10 +200,7 @@ export class IntegrationsController {
 
   @Post('documents/google-drive/callback')
   @ApiOperation({ summary: 'Handle Google Drive OAuth callback' })
-  async handleGoogleDriveCallback(
-    @Req() req: any,
-    @Body() body: { code: string },
-  ) {
+  async handleGoogleDriveCallback(@Req() req: any, @Body() body: { code: string }) {
     await this.documentService.handleGoogleDriveCallback(req.user.id, body.code);
     return { success: true };
   }
@@ -165,10 +224,7 @@ export class IntegrationsController {
 
   @Post('documents/dropbox/callback')
   @ApiOperation({ summary: 'Handle Dropbox OAuth callback' })
-  async handleDropboxCallback(
-    @Req() req: any,
-    @Body() body: { code: string },
-  ) {
+  async handleDropboxCallback(@Req() req: any, @Body() body: { code: string }) {
     await this.documentService.handleDropboxCallback(req.user.id, body.code);
     return { success: true };
   }
@@ -191,10 +247,7 @@ export class IntegrationsController {
 
   @Delete('documents/:provider')
   @ApiOperation({ summary: 'Disconnect document storage' })
-  async disconnectDocumentStorage(
-    @Req() req: any,
-    @Param('provider') provider: string,
-  ) {
+  async disconnectDocumentStorage(@Req() req: any, @Param('provider') provider: string) {
     await this.documentService.disconnectProvider(req.user.id, provider);
     return { success: true };
   }
@@ -210,10 +263,7 @@ export class IntegrationsController {
 
   @Post('communication/slack/callback')
   @ApiOperation({ summary: 'Handle Slack OAuth callback' })
-  async handleSlackCallback(
-    @Req() req: any,
-    @Body() body: { code: string },
-  ) {
+  async handleSlackCallback(@Req() req: any, @Body() body: { code: string }) {
     await this.communicationService.handleSlackCallback(req.user.id, body.code);
     return { success: true };
   }
@@ -226,10 +276,7 @@ export class IntegrationsController {
 
   @Post('communication/slack/message')
   @ApiOperation({ summary: 'Send Slack message' })
-  async sendSlackMessage(
-    @Req() req: any,
-    @Body() body: { channel: string; text: string },
-  ) {
+  async sendSlackMessage(@Req() req: any, @Body() body: { channel: string; text: string }) {
     await this.communicationService.sendSlackMessage(req.user.id, body);
     return { success: true };
   }
@@ -243,10 +290,7 @@ export class IntegrationsController {
 
   @Post('communication/zoom/callback')
   @ApiOperation({ summary: 'Handle Zoom OAuth callback' })
-  async handleZoomCallback(
-    @Req() req: any,
-    @Body() body: { code: string },
-  ) {
+  async handleZoomCallback(@Req() req: any, @Body() body: { code: string }) {
     await this.communicationService.handleZoomCallback(req.user.id, body.code);
     return { success: true };
   }
@@ -255,7 +299,8 @@ export class IntegrationsController {
   @ApiOperation({ summary: 'Create Zoom meeting' })
   async createZoomMeeting(
     @Req() req: any,
-    @Body() body: {
+    @Body()
+    body: {
       topic: string;
       startTime: string;
       duration: number;
@@ -275,14 +320,10 @@ export class IntegrationsController {
     @Param('proposalId') proposalId: string,
     @Body() body: { startTime: string; duration: number },
   ) {
-    return this.communicationService.createProposalReviewMeeting(
-      req.user.id,
-      proposalId,
-      {
-        startTime: new Date(body.startTime),
-        duration: body.duration,
-      },
-    );
+    return this.communicationService.createProposalReviewMeeting(req.user.id, proposalId, {
+      startTime: new Date(body.startTime),
+      duration: body.duration,
+    });
   }
 
   @Get('communication/zoom/meetings')
@@ -293,11 +334,22 @@ export class IntegrationsController {
 
   @Delete('communication/:provider')
   @ApiOperation({ summary: 'Disconnect communication tool' })
-  async disconnectCommunicationTool(
-    @Req() req: any,
-    @Param('provider') provider: string,
-  ) {
+  async disconnectCommunicationTool(@Req() req: any, @Param('provider') provider: string) {
     await this.communicationService.disconnectProvider(req.user.id, provider);
     return { success: true };
+  }
+
+  @Patch(':integrationId')
+  updateIntegration(
+    @Req() req: any,
+    @Param('integrationId') integrationId: string,
+    @Body() body: any,
+  ) {
+    return this.catalogService.update(this.userId(req), integrationId, body);
+  }
+
+  @Post(':integrationId/sync')
+  syncIntegration(@Req() req: any, @Param('integrationId') integrationId: string) {
+    return this.catalogService.sync(this.userId(req), integrationId);
   }
 }

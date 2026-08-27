@@ -73,6 +73,7 @@ export class CommentsService {
     return this.prisma.comment.findMany({
       where: { proposalId },
       orderBy: { createdAt: 'desc' },
+      take: 500,
     });
   }
 }

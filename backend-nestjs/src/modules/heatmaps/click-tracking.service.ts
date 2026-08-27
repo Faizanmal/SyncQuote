@@ -36,78 +36,63 @@ export class ClickTrackingService {
 
   // Get click analytics for a proposal
   async getClickAnalytics(proposalId: string): Promise<ClickAnalyticsDto> {
-    const clicks = await this.prisma.proposalInteraction.findMany({
-      where: {
-        proposalId,
-        type: InteractionType.CLICK,
-      },
-      select: {
-        elementId: true,
-        elementType: true,
-        elementText: true,
-        sessionId: true,
-        timestamp: true,
-        metadata: true,
-      },
-    });
+    const [totals, topRows, sectionRows] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ totalClicks: unknown; uniqueElements: unknown }>>`
+        SELECT
+          COUNT(*)::int AS "totalClicks",
+          COUNT(DISTINCT COALESCE("elementId", CONCAT("elementType", ':', "elementText")))::int AS "uniqueElements"
+        FROM "ProposalInteraction"
+        WHERE "proposalId" = ${proposalId} AND type = ${InteractionType.CLICK}
+      `,
+      this.prisma.$queryRaw<
+        Array<{
+          elementId: string | null;
+          elementType: string | null;
+          elementText: string | null;
+          clicks: unknown;
+          uniqueUsers: unknown;
+        }>
+      >`
+        SELECT
+          "elementId",
+          "elementType",
+          "elementText",
+          COUNT(*)::int AS clicks,
+          COUNT(DISTINCT "sessionId")::int AS "uniqueUsers"
+        FROM "ProposalInteraction"
+        WHERE "proposalId" = ${proposalId} AND type = ${InteractionType.CLICK}
+        GROUP BY 1, 2, 3
+        ORDER BY clicks DESC
+        LIMIT 20
+      `,
+      this.prisma.$queryRaw<Array<{ section: string; clicks: unknown }>>`
+        SELECT
+          COALESCE(metadata->>'section', 'unknown') AS section,
+          COUNT(*)::int AS clicks
+        FROM "ProposalInteraction"
+        WHERE "proposalId" = ${proposalId} AND type = ${InteractionType.CLICK}
+        GROUP BY 1
+      `,
+    ]);
 
-    const totalClicks = clicks.length;
-    const uniqueSessions = new Set(clicks.map((c) => c.sessionId)).size;
-
-    // Group by element
-    const elementMap = new Map<string, any>();
-
-    for (const click of clicks) {
-      const key = click.elementId || `${click.elementType}:${click.elementText}`;
-
-      if (!elementMap.has(key)) {
-        elementMap.set(key, {
-          elementId: click.elementId,
-          elementType: click.elementType || 'unknown',
-          elementText: click.elementText,
-          clicks: 0,
-          sessions: new Set(),
-          timestamps: [],
-        });
-      }
-
-      const element = elementMap.get(key);
-      element.clicks++;
-      element.sessions.add(click.sessionId);
-      element.timestamps.push(click.timestamp);
-    }
-
-    // Calculate top elements
-    const topElements = Array.from(elementMap.values())
-      .map((element: any) => {
-        // Calculate avg time before click (from session start)
-        const avgTime = this.calculateAvgTimeBeforeClick(element.timestamps);
-
-        return {
-          elementId: element.elementId,
-          elementType: element.elementType,
-          elementText: element.elementText,
-          clicks: element.clicks,
-          uniqueUsers: element.sessions.size,
-          avgTimeBeforeClick: avgTime,
-        };
-      })
-      .sort((a, b) => b.clicks - a.clicks)
-      .slice(0, 20);
-
-    // Group by section (from metadata if available)
+    const summary = totals[0];
     const clicksBySection: Record<string, number> = {};
-    for (const click of clicks) {
-      const metadata = (click.metadata || {}) as Record<string, any>;
-      const section = metadata.section || 'unknown';
-      clicksBySection[section] = (clicksBySection[section] || 0) + 1;
+    for (const row of sectionRows) {
+      clicksBySection[row.section || 'unknown'] = Number(row.clicks) || 0;
     }
 
     return {
       proposalId,
-      totalClicks,
-      uniqueElements: elementMap.size,
-      topElements,
+      totalClicks: Number(summary?.totalClicks) || 0,
+      uniqueElements: Number(summary?.uniqueElements) || 0,
+      topElements: topRows.map((element) => ({
+        elementId: element.elementId || undefined,
+        elementType: element.elementType || 'unknown',
+        elementText: element.elementText || undefined,
+        clicks: Number(element.clicks) || 0,
+        uniqueUsers: Number(element.uniqueUsers) || 0,
+        avgTimeBeforeClick: 0,
+      })),
       clicksBySection,
     };
   }
@@ -116,31 +101,22 @@ export class ClickTrackingService {
   async getClickHeatmapData(
     proposalId: string,
   ): Promise<Array<{ x: number; y: number; value: number }>> {
-    const clicks = await this.prisma.proposalInteraction.findMany({
-      where: {
-        proposalId,
-        type: InteractionType.CLICK,
-      },
-      select: { x: true, y: true, viewportWidth: true, viewportHeight: true },
-    });
+    const gridSize = 20;
+    const rows = await this.prisma.$queryRaw<Array<{ x: unknown; y: unknown; value: unknown }>>`
+      SELECT
+        (FLOOR(x / ${gridSize}) * ${gridSize})::int AS x,
+        (FLOOR(y / ${gridSize}) * ${gridSize})::int AS y,
+        COUNT(*)::int AS value
+      FROM "ProposalInteraction"
+      WHERE "proposalId" = ${proposalId} AND type = ${InteractionType.CLICK}
+      GROUP BY 1, 2
+    `;
 
-    // Normalize coordinates and group by proximity
-    const grid = new Map<string, number>();
-    const gridSize = 20; // Group clicks in 20px buckets
-
-    for (const click of clicks) {
-      const gridX = Math.floor(click.x / gridSize) * gridSize;
-      const gridY = Math.floor(click.y / gridSize) * gridSize;
-      const key = `${gridX},${gridY}`;
-
-      grid.set(key, (grid.get(key) || 0) + 1);
-    }
-
-    // Convert to data points
-    return Array.from(grid.entries()).map(([key, count]) => {
-      const [x, y] = key.split(',').map(Number);
-      return { x, y, value: count };
-    });
+    return rows.map((row) => ({
+      x: Number(row.x) || 0,
+      y: Number(row.y) || 0,
+      value: Number(row.value) || 0,
+    }));
   }
 
   // Get most clicked elements
@@ -163,15 +139,6 @@ export class ClickTrackingService {
       elementText: click.elementText,
       clicks: click._count,
     }));
-  }
-
-  // Private helper
-  private calculateAvgTimeBeforeClick(timestamps: Date[]): number {
-    if (timestamps.length === 0) return 0;
-
-    // Group by session and calculate time from session start
-    // For now, simplified - return 0
-    return 0;
   }
 
   // Batch record interactions

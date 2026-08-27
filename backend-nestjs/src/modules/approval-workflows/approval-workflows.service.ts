@@ -65,7 +65,7 @@ export class ApprovalWorkflowsService {
     private prisma: PrismaService,
     private emailService: EmailService,
     private configService: ConfigService,
-  ) { }
+  ) {}
 
   /**
    * Create a new approval workflow

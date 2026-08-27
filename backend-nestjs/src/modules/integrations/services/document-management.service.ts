@@ -87,7 +87,7 @@ export class DocumentManagementService {
   ): Promise<DocumentFile[]> {
     const drive = await this.getGoogleDrive(userId);
 
-    let q = "trashed = false";
+    let q = 'trashed = false';
     if (folderId) {
       q += ` and '${folderId}' in parents`;
     }
@@ -97,7 +97,8 @@ export class DocumentManagementService {
 
     const result = await drive.files.list({
       q,
-      fields: 'files(id, name, mimeType, size, webViewLink, thumbnailLink, createdTime, modifiedTime)',
+      fields:
+        'files(id, name, mimeType, size, webViewLink, thumbnailLink, createdTime, modifiedTime)',
       orderBy: 'modifiedTime desc',
       pageSize: 50,
     });
@@ -159,7 +160,11 @@ export class DocumentManagementService {
     return Buffer.from(response.data as ArrayBuffer);
   }
 
-  async createGoogleDriveFolder(userId: string, folderName: string, parentId?: string): Promise<string> {
+  async createGoogleDriveFolder(
+    userId: string,
+    folderName: string,
+    parentId?: string,
+  ): Promise<string> {
     const drive = await this.getGoogleDrive(userId);
 
     const fileMetadata: drive_v3.Schema$File = {
@@ -211,15 +216,15 @@ export class DocumentManagementService {
         provider: 'dropbox',
         accessToken: response.data.access_token,
         refreshToken: response.data.refresh_token,
-        expiresAt: response.data.expires_in 
-          ? new Date(Date.now() + response.data.expires_in * 1000) 
+        expiresAt: response.data.expires_in
+          ? new Date(Date.now() + response.data.expires_in * 1000)
           : undefined,
       },
       update: {
         accessToken: response.data.access_token,
         refreshToken: response.data.refresh_token,
-        expiresAt: response.data.expires_in 
-          ? new Date(Date.now() + response.data.expires_in * 1000) 
+        expiresAt: response.data.expires_in
+          ? new Date(Date.now() + response.data.expires_in * 1000)
           : undefined,
       },
     });
@@ -260,33 +265,31 @@ export class DocumentManagementService {
     const accessToken = await this.getDropboxToken(userId);
     const filePath = path ? `${path}/${fileName}` : `/${fileName}`;
 
-    const response = await axios.post(
-      'https://content.dropboxapi.com/2/files/upload',
-      file,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/octet-stream',
-          'Dropbox-API-Arg': JSON.stringify({
-            path: filePath,
-            mode: 'add',
-            autorename: true,
-          }),
-        },
+    const response = await axios.post('https://content.dropboxapi.com/2/files/upload', file, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/octet-stream',
+        'Dropbox-API-Arg': JSON.stringify({
+          path: filePath,
+          mode: 'add',
+          autorename: true,
+        }),
       },
-    );
+    });
 
     // Get shareable link
-    const shareResponse = await axios.post(
-      'https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings',
-      { path: response.data.path_lower },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+    const shareResponse = await axios
+      .post(
+        'https://api.dropboxapi.com/2/sharing/create_shared_link_with_settings',
+        { path: response.data.path_lower },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
         },
-      },
-    ).catch(() => ({ data: { url: '' } }));
+      )
+      .catch(() => ({ data: { url: '' } }));
 
     return {
       id: response.data.id,
@@ -299,17 +302,13 @@ export class DocumentManagementService {
   async downloadFromDropbox(userId: string, path: string): Promise<Buffer> {
     const accessToken = await this.getDropboxToken(userId);
 
-    const response = await axios.post(
-      'https://content.dropboxapi.com/2/files/download',
-      null,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Dropbox-API-Arg': JSON.stringify({ path }),
-        },
-        responseType: 'arraybuffer',
+    const response = await axios.post('https://content.dropboxapi.com/2/files/download', null, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Dropbox-API-Arg': JSON.stringify({ path }),
       },
-    );
+      responseType: 'arraybuffer',
+    });
 
     return Buffer.from(response.data);
   }
@@ -331,23 +330,22 @@ export class DocumentManagementService {
     }
 
     // Generate proposal content as JSON
-    const content = JSON.stringify({
-      title: proposal.title,
-      status: proposal.status,
-      blocks: proposal.blocks,
-      createdAt: proposal.createdAt,
-      updatedAt: proposal.updatedAt,
-    }, null, 2);
+    const content = JSON.stringify(
+      {
+        title: proposal.title,
+        status: proposal.status,
+        blocks: proposal.blocks,
+        createdAt: proposal.createdAt,
+        updatedAt: proposal.updatedAt,
+      },
+      null,
+      2,
+    );
 
     const fileName = `SyncQuote_${proposal.title.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.json`;
 
     if (provider === 'google_drive') {
-      return this.uploadToGoogleDrive(
-        userId,
-        Buffer.from(content),
-        fileName,
-        'application/json',
-      );
+      return this.uploadToGoogleDrive(userId, Buffer.from(content), fileName, 'application/json');
     } else {
       return this.uploadToDropbox(userId, Buffer.from(content), fileName);
     }
@@ -370,7 +368,7 @@ export class DocumentManagementService {
     // Store attachment reference in proposal metadata
     const currentMetadata = (proposal.metadata as any) || {};
     const attachments = currentMetadata.attachments || [];
-    
+
     attachments.push({
       fileId,
       provider,
@@ -405,7 +403,7 @@ export class DocumentManagementService {
 
     if (token.expiresAt && token.expiresAt < new Date()) {
       const { credentials } = await this.googleOAuth2Client.refreshAccessToken();
-      
+
       await this.prisma.oAuthToken.update({
         where: { id: token.id },
         data: {
@@ -492,9 +490,9 @@ export class DocumentManagementService {
     });
 
     return {
-      googleDrive: tokens.some(t => t.provider === 'google_drive'),
-      dropbox: tokens.some(t => t.provider === 'dropbox'),
-      oneDrive: tokens.some(t => t.provider === 'onedrive'),
+      googleDrive: tokens.some((t) => t.provider === 'google_drive'),
+      dropbox: tokens.some((t) => t.provider === 'dropbox'),
+      oneDrive: tokens.some((t) => t.provider === 'onedrive'),
     };
   }
 

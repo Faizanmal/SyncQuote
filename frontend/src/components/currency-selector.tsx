@@ -12,6 +12,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { deferEffect } from '@/lib/defer-effect';
 
 interface CurrencySelectorProps {
   value: string;
@@ -57,7 +58,9 @@ export function CurrencySelector({
 
   useEffect(() => {
     if (showConversionRate && baseCurrency && value !== baseCurrency) {
-      fetchConversionRate();
+      return deferEffect(() => {
+        void fetchConversionRate();
+      });
     }
   }, [value, baseCurrency, showConversionRate]);
 
@@ -137,12 +140,21 @@ export function CurrencyConverter({
   };
 
   useEffect(() => {
-    if (fromCurrency !== toCurrency) {
-      convertAmount();
-    } else {
-      setConverted(amount);
+    if (fromCurrency === toCurrency) {
+      return;
     }
+    return deferEffect(() => {
+      void convertAmount();
+    });
   }, [amount, fromCurrency, toCurrency]);
+
+  if (fromCurrency === toCurrency) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        {formatCurrency(amount, fromCurrency)} ≈ {formatCurrency(amount, toCurrency)}
+      </div>
+    );
+  }
 
   if (loading) {
     return <span className="text-muted-foreground">Converting...</span>;

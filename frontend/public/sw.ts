@@ -372,7 +372,13 @@ function openIndexedDB(): Promise<IDBDatabase> {
 }
 
 // Helper: Get pending items from IndexedDB
-function getPendingItems(db: IDBDatabase, storeName: string): Promise<any[]> {
+interface PendingItem {
+  id: number;
+  data: unknown;
+  timestamp?: number;
+}
+
+function getPendingItems(db: IDBDatabase, storeName: string): Promise<PendingItem[]> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(storeName, 'readonly');
     const store = transaction.objectStore(storeName);
@@ -396,7 +402,7 @@ function removePendingItem(db: IDBDatabase, storeName: string, id: number): Prom
 }
 
 // Helper: Notify all clients
-async function notifyClients(type: string, data: any): Promise<void> {
+async function notifyClients(type: string, data: unknown): Promise<void> {
   const clients = await self.clients.matchAll({ type: 'window' });
   
   for (const client of clients) {

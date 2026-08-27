@@ -27,6 +27,7 @@ export class TemplatesService {
     return this.prisma.template.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      take: 100,
       select: {
         id: true,
         name: true,

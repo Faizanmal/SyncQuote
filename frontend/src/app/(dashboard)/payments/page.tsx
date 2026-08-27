@@ -41,6 +41,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { ContractManagement } from '@/components/contract-management'
 import { LineChart as RechartsLineChart, Line, AreaChart, Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
 import CountUp from 'react-countup'
 
@@ -209,15 +210,13 @@ interface Customer {
 }
 
 const createInvoiceSchema = z.object({
-  customerId: z.string().min(1, 'Customer is required'),
+  clientName: z.string().min(1, 'Customer name is required'),
+  clientEmail: z.string().email('Valid email is required'),
   dueDate: z.string().min(1, 'Due date is required'),
-  items: z.array(z.object({
-    description: z.string().min(1),
-    quantity: z.number().min(1),
-    unitPrice: z.number().min(0),
-  })).min(1, 'At least one item is required'),
+  itemDescription: z.string().min(1, 'Item description is required'),
+  itemQuantity: z.coerce.number().min(1),
+  itemUnitPrice: z.coerce.number().min(0),
   notes: z.string().optional(),
-  autoCollection: z.boolean().optional(),
 })
 
 const createSubscriptionSchema = z.object({
@@ -237,7 +236,7 @@ const createPlanSchema = z.object({
   features: z.array(z.string()).optional(),
 })
 
-type CreateInvoiceForm = z.infer<typeof createInvoiceSchema>
+type CreateInvoiceForm = z.output<typeof createInvoiceSchema>
 type CreateSubscriptionForm = z.infer<typeof createSubscriptionSchema>
 type CreatePlanForm = z.infer<typeof createPlanSchema>
 
@@ -251,9 +250,13 @@ export default function PaymentsPage() {
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
   const queryClient = useQueryClient()
 
-  const { register: registerInvoice, handleSubmit: handleInvoiceSubmit, formState: { errors: invoiceErrors }, reset: resetInvoice } = useForm<CreateInvoiceForm>({
+  const { register: registerInvoice, handleSubmit: handleInvoiceSubmit, formState: { errors: invoiceErrors }, reset: resetInvoice } = useForm<
+    z.input<typeof createInvoiceSchema>,
+    unknown,
+    CreateInvoiceForm
+  >({
     resolver: zodResolver(createInvoiceSchema),
-    defaultValues: { autoCollection: true }
+    defaultValues: { itemQuantity: 1, itemUnitPrice: 0 },
   })
 
   const { register: registerSubscription, handleSubmit: handleSubscriptionSubmit, formState: { errors: subscriptionErrors }, reset: resetSubscription } = useForm<CreateSubscriptionForm>({
@@ -299,7 +302,7 @@ export default function PaymentsPage() {
 
   // Mutations
   const createInvoiceMutation = useMutation({
-    mutationFn: (data: CreateInvoiceForm) => api.post('/payments/invoices', data),
+    mutationFn: (data: Record<string, unknown>) => api.post('/payments/invoices', data),
     onSuccess: () => {
       toast.success('Invoice created successfully!')
       setInvoiceDialogOpen(false)
@@ -371,7 +374,17 @@ export default function PaymentsPage() {
   })
 
   const onCreateInvoice = (data: CreateInvoiceForm) => {
-    createInvoiceMutation.mutate(data)
+    createInvoiceMutation.mutate({
+      clientName: data.clientName,
+      clientEmail: data.clientEmail,
+      dueDate: data.dueDate,
+      items: [{
+        description: data.itemDescription,
+        quantity: data.itemQuantity,
+        unitPrice: data.itemUnitPrice,
+      }],
+      notes: data.notes,
+    })
   }
 
   const onCreateSubscription = (data: CreateSubscriptionForm) => {
@@ -575,6 +588,7 @@ export default function PaymentsPage() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="contracts">Contracts</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
@@ -891,19 +905,17 @@ export default function PaymentsPage() {
                 <form onSubmit={handleInvoiceSubmit(onCreateInvoice)} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="customerId">Customer</Label>
-                      <Select {...registerInvoice('customerId')}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">John Doe - Acme Corp</SelectItem>
-                          <SelectItem value="2">Jane Smith - Tech Solutions</SelectItem>
-                          <SelectItem value="3">Bob Johnson - StartupXYZ</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      {invoiceErrors.customerId && (
-                        <p className="text-sm text-red-500 mt-1">{invoiceErrors.customerId.message}</p>
+                      <Label htmlFor="clientName">Customer name</Label>
+                      <Input id="clientName" {...registerInvoice('clientName')} placeholder="Acme Corp" />
+                      {invoiceErrors.clientName && (
+                        <p className="text-sm text-red-500 mt-1">{invoiceErrors.clientName.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="clientEmail">Customer email</Label>
+                      <Input id="clientEmail" type="email" {...registerInvoice('clientEmail')} placeholder="billing@acme.com" />
+                      {invoiceErrors.clientEmail && (
+                        <p className="text-sm text-red-500 mt-1">{invoiceErrors.clientEmail.message}</p>
                       )}
                     </div>
                     <div>
@@ -919,20 +931,11 @@ export default function PaymentsPage() {
                     </div>
                   </div>
                   <div>
-                    <Label>Invoice Items</Label>
-                    <div className="space-y-2 mt-2">
-                      <div className="grid grid-cols-4 gap-2 p-3 border rounded">
-                        <Input placeholder="Description" />
-                        <Input type="number" placeholder="Quantity" />
-                        <Input type="number" placeholder="Unit Price" />
-                        <div className="flex items-center justify-center text-sm font-medium">
-                          $0.00
-                        </div>
-                      </div>
-                      <Button type="button" variant="outline" size="sm">
-                        <Plus className="mr-1 h-3 w-3" />
-                        Add Item
-                      </Button>
+                    <Label>Invoice item</Label>
+                    <div className="grid grid-cols-4 gap-2 p-3 border rounded mt-2">
+                      <Input placeholder="Description" {...registerInvoice('itemDescription')} />
+                      <Input type="number" placeholder="Quantity" {...registerInvoice('itemQuantity')} />
+                      <Input type="number" placeholder="Unit Price" {...registerInvoice('itemUnitPrice')} />
                     </div>
                   </div>
                   <div>
@@ -943,16 +946,6 @@ export default function PaymentsPage() {
                       placeholder="Thank you for your business..."
                       rows={3}
                     />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="autoCollection"
-                      {...registerInvoice('autoCollection')}
-                    />
-                    <Label htmlFor="autoCollection" className="text-sm">
-                      Enable automatic payment collection
-                    </Label>
                   </div>
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setInvoiceDialogOpen(false)}>
@@ -1043,6 +1036,10 @@ export default function PaymentsPage() {
               </TableBody>
             </Table>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="contracts" className="space-y-4">
+          <ContractManagement />
         </TabsContent>
 
         <TabsContent value="subscriptions" className="space-y-4">

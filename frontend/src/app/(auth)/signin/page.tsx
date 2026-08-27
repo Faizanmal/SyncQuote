@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,15 +22,70 @@ const signinSchema = z.object({
 
 type SigninFormData = z.infer<typeof signinSchema>;
 
-export default function SignInPage() {
+function safeNextPath(next: string | null) {
+  if (next && next.startsWith('/') && !next.startsWith('//')) {
+    return next;
+  }
+  return null;
+}
+
+function SignInContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('token');
+  const nextPath = safeNextPath(searchParams.get('next'));
   const setAuth = useAuthStore((state: AuthState) => state.setAuth);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<SigninFormData>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<SigninFormData>({
     resolver: zodResolver(signinSchema),
   });
+
+  useEffect(() => {
+    if (!inviteToken) {
+      return;
+    }
+
+    sessionStorage.setItem('pendingInviteToken', inviteToken);
+
+    let cancelled = false;
+    const loadInvite = async () => {
+      try {
+        const { data } = await api.get<{ email: string }>(`/team-invites/${inviteToken}`);
+        if (!cancelled) {
+          setValue('email', data.email);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+            || 'This invitation is invalid or has expired',
+          );
+        }
+      }
+    };
+
+    void loadInvite();
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteToken, setValue]);
+
+  const finishSignIn = async (accessToken: string) => {
+    if (inviteToken) {
+      try {
+        await api.post(`/team-invites/${inviteToken}/accept`, {}, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+      } catch {
+        // Pending invites are also applied on sign-in; continue to the app.
+      }
+      sessionStorage.removeItem('pendingInviteToken');
+    }
+
+    router.push(inviteToken ? '/team' : (nextPath || '/dashboard'));
+  };
 
   const onSubmit = async (data: SigninFormData) => {
     setIsLoading(true);
@@ -44,7 +99,7 @@ export default function SignInPage() {
 
       const response = await api.post('/auth/signin', signinData);
       setAuth(response.data.user, response.data.accessToken);
-      router.push('/dashboard');
+      await finishSignIn(response.data.accessToken);
     } catch (err: unknown) {
       setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Invalid email or password');
     } finally {
@@ -53,6 +108,9 @@ export default function SignInPage() {
   };
 
   const handleGoogleSignin = () => {
+    if (inviteToken) {
+      sessionStorage.setItem('pendingInviteToken', inviteToken);
+    }
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
     window.location.href = `${apiUrl}/auth/google`;
   };
@@ -61,7 +119,9 @@ export default function SignInPage() {
     <Card>
       <CardHeader>
         <CardTitle>Welcome back</CardTitle>
-        <CardDescription>Sign in to your account</CardDescription>
+        <CardDescription>
+          {inviteToken ? 'Sign in to accept your team invitation' : 'Sign in to your account'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -80,6 +140,7 @@ export default function SignInPage() {
                 type="email"
                 placeholder="you@example.com"
                 className="pl-10"
+                readOnly={Boolean(inviteToken)}
                 {...register('email')}
               />
             </div>
@@ -161,11 +222,27 @@ export default function SignInPage() {
       <CardFooter className="flex justify-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-blue-600 hover:underline">
+          <Link href={inviteToken ? `/signup?token=${inviteToken}` : '/signup'} className="text-blue-600 hover:underline">
             Sign up
           </Link>
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense
+      fallback={
+        <Card>
+          <CardContent className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </CardContent>
+        </Card>
+      }
+    >
+      <SignInContent />
+    </Suspense>
   );
 }

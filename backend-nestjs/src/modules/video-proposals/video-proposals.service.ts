@@ -23,7 +23,7 @@ export class VideoProposalsService {
     private loom: LoomService,
     private vidyard: VidyardService,
     private analytics: VideoAnalyticsService,
-  ) { }
+  ) {}
 
   // Create video record
   async createVideo(userId: string, dto: CreateVideoDto) {

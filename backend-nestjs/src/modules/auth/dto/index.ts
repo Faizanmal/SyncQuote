@@ -15,6 +15,11 @@ export class SignUpDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  inviteToken?: string;
 }
 
 export class SignInDto {
@@ -50,6 +55,18 @@ export class ChangePasswordDto {
 }
 
 export class RequestPasswordResetDto {
+  @ApiProperty({ example: 'user@example.com' })
+  @IsEmail()
+  email: string;
+}
+
+export class VerifyEmailDto {
+  @ApiProperty()
+  @IsString()
+  token: string;
+}
+
+export class ResendVerificationDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
   email: string;

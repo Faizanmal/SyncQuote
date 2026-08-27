@@ -6,11 +6,7 @@ import { ContractManagementService } from './services/contract-management.servic
 import { ContractsController } from './contracts.controller';
 
 @Module({
-  imports: [
-    PrismaModule,
-    forwardRef(() => EmailModule),
-    forwardRef(() => StorageModule),
-  ],
+  imports: [PrismaModule, forwardRef(() => EmailModule), forwardRef(() => StorageModule)],
   controllers: [ContractsController],
   providers: [ContractManagementService],
   exports: [ContractManagementService],

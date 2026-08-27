@@ -1,4 +1,14 @@
-import { IsString, IsUUID, IsOptional, IsArray, IsEnum, IsNumber, IsBoolean, IsDateString, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsUUID,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+  IsDateString,
+  IsObject,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum ContractStatus {
@@ -127,7 +137,10 @@ export class ContractVariableDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ description: 'Variable type', enum: ['text', 'number', 'date', 'boolean', 'select'] })
+  @ApiProperty({
+    description: 'Variable type',
+    enum: ['text', 'number', 'date', 'boolean', 'select'],
+  })
   @IsEnum(['text', 'number', 'date', 'boolean', 'select'])
   type: 'text' | 'number' | 'date' | 'boolean' | 'select';
 

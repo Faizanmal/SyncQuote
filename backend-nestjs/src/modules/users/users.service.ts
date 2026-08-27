@@ -45,7 +45,15 @@ export class UsersService {
   }
 
   sanitizeUser(user: any) {
-    const { password, refreshToken, passwordResetToken, passwordResetExpires, ...sanitized } = user;
+    const {
+      password,
+      refreshToken,
+      passwordResetToken,
+      passwordResetExpires,
+      emailVerificationToken,
+      emailVerificationExpires,
+      ...sanitized
+    } = user;
     return sanitized;
   }
 }

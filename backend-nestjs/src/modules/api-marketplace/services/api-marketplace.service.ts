@@ -136,7 +136,8 @@ export class ApiMarketplaceService {
         id: 'app-salesforce',
         name: 'Salesforce',
         slug: 'salesforce',
-        description: 'Sync your proposals with Salesforce CRM. Automatically create deals, update stages, and sync contacts.',
+        description:
+          'Sync your proposals with Salesforce CRM. Automatically create deals, update stages, and sync contacts.',
         shortDescription: 'Connect SyncQuote with Salesforce CRM',
         developer: {
           id: 'dev-1',
@@ -170,7 +171,8 @@ export class ApiMarketplaceService {
         id: 'app-slack',
         name: 'Slack',
         slug: 'slack',
-        description: 'Get real-time notifications in Slack when proposals are viewed, approved, or signed.',
+        description:
+          'Get real-time notifications in Slack when proposals are viewed, approved, or signed.',
         shortDescription: 'Slack notifications for proposal activity',
         developer: {
           id: 'dev-1',
@@ -204,7 +206,8 @@ export class ApiMarketplaceService {
         id: 'app-zapier',
         name: 'Zapier',
         slug: 'zapier',
-        description: 'Connect SyncQuote to 5,000+ apps through Zapier. Automate your workflow with custom triggers and actions.',
+        description:
+          'Connect SyncQuote to 5,000+ apps through Zapier. Automate your workflow with custom triggers and actions.',
         shortDescription: 'Automate workflows with Zapier',
         developer: {
           id: 'dev-1',
@@ -239,21 +242,22 @@ export class ApiMarketplaceService {
     let apps = [...sampleApps];
 
     if (filters?.category) {
-      apps = apps.filter(a => a.category === filters.category);
+      apps = apps.filter((a) => a.category === filters.category);
     }
     if (filters?.search) {
       const search = filters.search.toLowerCase();
-      apps = apps.filter(a => 
-        a.name.toLowerCase().includes(search) ||
-        a.description.toLowerCase().includes(search) ||
-        a.tags.some(t => t.toLowerCase().includes(search))
+      apps = apps.filter(
+        (a) =>
+          a.name.toLowerCase().includes(search) ||
+          a.description.toLowerCase().includes(search) ||
+          a.tags.some((t) => t.toLowerCase().includes(search)),
       );
     }
     if (filters?.featured) {
-      apps = apps.filter(a => a.featured);
+      apps = apps.filter((a) => a.featured);
     }
     if (filters?.free) {
-      apps = apps.filter(a => a.pricing.type === 'free');
+      apps = apps.filter((a) => a.pricing.type === 'free');
     }
 
     const total = apps.length;
@@ -266,7 +270,7 @@ export class ApiMarketplaceService {
 
   async getApp(appId: string): Promise<MarketplaceApp | null> {
     const { apps } = await this.listApps();
-    return apps.find(a => a.id === appId) || null;
+    return apps.find((a) => a.id === appId) || null;
   }
 
   async getFeaturedApps(): Promise<MarketplaceApp[]> {
@@ -339,7 +343,7 @@ export class ApiMarketplaceService {
     });
 
     const installations = ((user as any)?.metadata?.appInstallations || []) as AppInstallation[];
-    return installations.find(i => i.appId === appId) || null;
+    return installations.find((i) => i.appId === appId) || null;
   }
 
   async getUserInstallations(userId: string): Promise<AppInstallation[]> {
@@ -348,8 +352,9 @@ export class ApiMarketplaceService {
       select: { metadata: true },
     });
 
-    return ((user as any)?.metadata?.appInstallations || [])
-      .filter((i: AppInstallation) => i.status === 'active');
+    return ((user as any)?.metadata?.appInstallations || []).filter(
+      (i: AppInstallation) => i.status === 'active',
+    );
   }
 
   async updateInstallationConfig(
@@ -372,7 +377,10 @@ export class ApiMarketplaceService {
 
   async registerApp(
     developerId: string,
-    appData: Omit<MarketplaceApp, 'id' | 'rating' | 'reviewCount' | 'installCount' | 'status' | 'createdAt' | 'updatedAt'>,
+    appData: Omit<
+      MarketplaceApp,
+      'id' | 'rating' | 'reviewCount' | 'installCount' | 'status' | 'createdAt' | 'updatedAt'
+    >,
   ): Promise<MarketplaceApp> {
     // Validate app data
     if (!appData.name || !appData.description || !appData.endpoints.install) {
@@ -525,7 +533,7 @@ export class ApiMarketplaceService {
     // Update last used
     await this.prisma.apiKey.update({
       where: { id: key.id },
-      data: { 
+      data: {
         lastUsedAt: new Date(),
         usageCount: { increment: 1 },
       },
@@ -543,7 +551,7 @@ export class ApiMarketplaceService {
     });
 
     const installations = ((user as any)?.metadata?.appInstallations || []) as AppInstallation[];
-    const existingIndex = installations.findIndex(i => i.appId === installation.appId);
+    const existingIndex = installations.findIndex((i) => i.appId === installation.appId);
 
     if (existingIndex >= 0) {
       installations[existingIndex] = installation;

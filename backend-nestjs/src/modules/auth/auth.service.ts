@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   ConflictException,
   UnauthorizedException,
   BadRequestException,
@@ -11,22 +12,28 @@ import { nanoid } from 'nanoid';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
+import { TeamsService } from '../teams/teams.service';
 import { SignUpDto, SignInDto, ResetPasswordDto, ChangePasswordDto } from './dto';
+
+type SessionContext = { ip?: string; userAgent?: string };
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
     private jwtService: JwtService,
     private emailService: EmailService,
     private configService: ConfigService,
+    private teamsService: TeamsService,
   ) {}
 
   /**
    * Sign up with email/password
    */
-  async signUp(dto: SignUpDto) {
+  async signUp(dto: SignUpDto, session?: SessionContext) {
     // Check if user exists
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -51,14 +58,24 @@ export class AuthService {
       },
     });
 
-    // Send verification email
-    await this.sendVerificationEmail(user.email);
+    await this.sendVerificationEmail(user.id, user.email);
+
+    if (dto.inviteToken) {
+      try {
+        await this.teamsService.acceptInvitationByToken(dto.inviteToken, user.id);
+      } catch (error) {
+        this.logger.warn(`Invite token on signup was not applied: ${(error as Error).message}`);
+      }
+    }
+
+    await this.teamsService.acceptPendingInvitationsForEmail(user.email, user.id);
 
     // Generate tokens
     const tokens = await this.generateTokens(user.id, user.email);
 
     // Save refresh token
     await this.updateRefreshToken(user.id, tokens.refreshToken);
+    await this.recordLoginSession(user.id, session);
 
     return {
       user: this.usersService.sanitizeUser(user),
@@ -69,7 +86,7 @@ export class AuthService {
   /**
    * Sign in with email/password
    */
-  async signIn(dto: SignInDto) {
+  async signIn(dto: SignInDto, session?: SessionContext) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -95,6 +112,8 @@ export class AuthService {
 
     // Save refresh token
     await this.updateRefreshToken(user.id, tokens.refreshToken);
+    await this.teamsService.acceptPendingInvitationsForEmail(user.email, user.id);
+    await this.recordLoginSession(user.id, session);
 
     return {
       user: this.usersService.sanitizeUser(user),
@@ -105,7 +124,7 @@ export class AuthService {
   /**
    * Google OAuth sign in/up
    */
-  async googleAuth(profile: any) {
+  async googleAuth(profile: any, session?: SessionContext) {
     const email = profile.email ?? profile.emails?.[0]?.value;
     const googleId = profile.id;
 
@@ -153,6 +172,9 @@ export class AuthService {
     const tokens = await this.generateTokens(user.id, user.email);
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
+    await this.teamsService.acceptPendingInvitationsForEmail(user.email, user.id);
+    await this.recordLoginSession(user.id, session);
+
     return {
       user: this.usersService.sanitizeUser(user),
       ...tokens,
@@ -192,6 +214,11 @@ export class AuthService {
       where: { id: userId },
       data: { refreshToken: null },
     });
+    try {
+      await this.prisma.userSession.deleteMany({ where: { userId } });
+    } catch (error) {
+      this.logger.warn(`Could not clear sessions on logout: ${(error as Error).message}`);
+    }
     return { message: 'Logged out successfully' };
   }
 
@@ -220,8 +247,13 @@ export class AuthService {
       },
     });
 
-    // Send email
-    await this.emailService.sendPasswordResetEmail(email, resetToken);
+    try {
+      await this.emailService.sendPasswordResetEmail(email, resetToken);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send password reset email to ${email}: ${(error as Error).message}`,
+      );
+    }
 
     return { message: 'If the email exists, a reset link has been sent' };
   }
@@ -287,21 +319,94 @@ export class AuthService {
   }
 
   /**
-   * Verify email
+   * Verify email with the token from the signup email
    */
   async verifyEmail(token: string) {
-    // This would need a proper email verification token system
-    // For now, this is a placeholder
-    throw new Error('Not implemented');
+    const user = await this.prisma.user.findFirst({
+      where: {
+        emailVerificationToken: token,
+        emailVerificationExpires: { gte: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    if (user.emailVerified) {
+      return { message: 'Email already verified' };
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerified: true,
+        emailVerifiedAt: new Date(),
+        emailVerificationToken: null,
+        emailVerificationExpires: null,
+      },
+    });
+
+    return { message: 'Email verified successfully' };
   }
 
   /**
-   * Send verification email
+   * Resend verification email. Same response whether or not the account exists.
    */
-  private async sendVerificationEmail(email: string) {
+  async resendVerificationEmail(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (user && !user.emailVerified) {
+      await this.sendVerificationEmail(user.id, user.email);
+    }
+
+    return { message: 'If the email exists and is unverified, a link has been sent' };
+  }
+
+  /**
+   * Store a verification token and send the email. Signup still succeeds if mail fails.
+   */
+  private async sendVerificationEmail(userId: string, email: string) {
     const verificationToken = nanoid(32);
-    // Store token and send email
-    await this.emailService.sendVerificationEmail(email, verificationToken);
+    const emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationToken: verificationToken,
+        emailVerificationExpires,
+      },
+    });
+
+    try {
+      await this.emailService.sendVerificationEmail(email, verificationToken);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send verification email to ${email}: ${(error as Error).message}`,
+      );
+    }
+  }
+
+  private async recordLoginSession(userId: string, session?: SessionContext) {
+    try {
+      const policy = await this.prisma.securityPolicy.findUnique({ where: { userId } });
+      const minutes =
+        !policy?.sessionTimeout || policy.sessionTimeout === 3600 ? 60 : policy.sessionTimeout;
+      await this.prisma.userSession.create({
+        data: {
+          userId,
+          token: nanoid(48),
+          ipAddress: session?.ip || null,
+          userAgent: session?.userAgent || '',
+          lastActivityAt: new Date(),
+          expiresAt: new Date(Date.now() + minutes * 60 * 1000),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(`Could not record login session: ${(error as Error).message}`);
+    }
   }
 
   /**

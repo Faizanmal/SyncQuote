@@ -20,7 +20,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { api } from '@/lib/api';
+import { unwrapList, unwrapPagination } from '@/lib/pagination';
 import {
   Plus,
   Search,
@@ -37,7 +45,7 @@ interface Proposal {
   id: string;
   title: string;
   slug: string;
-  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'APPROVED' | 'DECLINED';
+  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'APPROVED' | 'DECLINED' | 'SIGNED';
   viewCount: number;
   createdAt: string;
   updatedAt: string;
@@ -49,22 +57,31 @@ const statusConfig = {
   VIEWED: { label: 'Viewed', variant: 'default' as const },
   APPROVED: { label: 'Approved', variant: 'default' as const },
   DECLINED: { label: 'Declined', variant: 'destructive' as const },
+  SIGNED: { label: 'Signed', variant: 'default' as const },
 };
+
+const PAGE_SIZE = 20;
 
 export default function ProposalsPage() {
   const [searchTerm, setSearchTerm] = useState('');
+  const [page, setPage] = useState(1);
 
-  const { data: proposals, isLoading } = useQuery<Proposal[]>({
-    queryKey: ['proposals'],
+  const { data, isLoading } = useQuery({
+    queryKey: ['proposals', page, searchTerm],
     queryFn: async () => {
-      const response = await api.get('/proposals');
+      const response = await api.get('/proposals', {
+        params: {
+          page,
+          limit: PAGE_SIZE,
+          ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}),
+        },
+      });
       return response.data;
     },
   });
 
-  const filteredProposals = proposals?.filter((proposal) =>
-    proposal.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const proposals = unwrapList<Proposal>(data);
+  const pagination = unwrapPagination(data);
 
   const copyLink = (slug: string) => {
     const url = `${window.location.origin}/p/${slug}`;
@@ -96,7 +113,10 @@ export default function ProposalsPage() {
           <Input
             placeholder="Search proposals..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
             className="pl-10"
           />
         </div>
@@ -105,7 +125,7 @@ export default function ProposalsPage() {
       <div className="bg-white dark:bg-gray-950 rounded-lg border">
         {isLoading ? (
           <div className="text-center py-12 text-gray-500">Loading...</div>
-        ) : !filteredProposals || filteredProposals.length === 0 ? (
+        ) : proposals.length === 0 ? (
           <div className="text-center py-12">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               {searchTerm ? 'No proposals found' : 'No proposals yet'}
@@ -125,84 +145,117 @@ export default function ProposalsPage() {
             )}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Views</TableHead>
-                <TableHead>Last Updated</TableHead>
-                <TableHead className="w-12.5"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProposals.map((proposal) => (
-                <TableRow key={proposal.id}>
-                  <TableCell>
-                    <Link
-                      href={`/proposals/${proposal.slug}`}
-                      className="font-medium text-gray-900 dark:text-white hover:text-blue-600"
-                    >
-                      {proposal.title}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={statusConfig[proposal.status].variant}>
-                      {statusConfig[proposal.status].label}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
-                      <Eye className="h-4 w-4" />
-                      {proposal.viewCount}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-gray-600 dark:text-gray-400">
-                    {formatDistanceToNow(new Date(proposal.updatedAt), {
-                      addSuffix: true,
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/p/${proposal.slug}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/proposals/${proposal.slug}/edit`}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => copyLink(proposal.slug)}>
-                          <Copy className="mr-2 h-4 w-4" />
-                          Copy Link
-                        </DropdownMenuItem>
-                        {proposal.status === 'DRAFT' && (
-                          <DropdownMenuItem>
-                            <Send className="mr-2 h-4 w-4" />
-                            Send
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem className="text-red-600">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Views</TableHead>
+                  <TableHead>Last Updated</TableHead>
+                  <TableHead className="w-12.5"></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {proposals.map((proposal) => (
+                  <TableRow key={proposal.id}>
+                    <TableCell>
+                      <Link
+                        href={`/proposals/${proposal.slug}`}
+                        className="font-medium text-gray-900 dark:text-white hover:text-blue-600"
+                      >
+                        {proposal.title}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusConfig[proposal.status]?.variant || 'secondary'}>
+                        {statusConfig[proposal.status]?.label || proposal.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                        <Eye className="h-4 w-4" />
+                        {proposal.viewCount}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-400">
+                      {formatDistanceToNow(new Date(proposal.updatedAt), {
+                        addSuffix: true,
+                      })}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/p/${proposal.slug}`}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/proposals/${proposal.slug}/edit`}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => copyLink(proposal.slug)}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copy Link
+                          </DropdownMenuItem>
+                          {proposal.status === 'DRAFT' && (
+                            <DropdownMenuItem>
+                              <Send className="mr-2 h-4 w-4" />
+                              Send
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem className="text-red-600">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {pagination && pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between border-t px-4 py-3">
+                <p className="text-sm text-gray-500">
+                  Page {pagination.page} of {pagination.totalPages} · {pagination.total} total
+                </p>
+                <Pagination className="mx-0 w-auto">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (pagination.page > 1) setPage(pagination.page - 1);
+                        }}
+                        className={pagination.page <= 1 ? 'pointer-events-none opacity-50' : ''}
+                      />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (pagination.hasMore) setPage(pagination.page + 1);
+                        }}
+                        className={!pagination.hasMore ? 'pointer-events-none opacity-50' : ''}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -1,4 +1,12 @@
-import { IsString, IsUUID, IsOptional, IsArray, IsEnum, IsNumber, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsUUID,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export enum CommunicationProvider {

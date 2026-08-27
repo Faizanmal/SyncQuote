@@ -41,6 +41,12 @@ import { IntegrationsModule } from './modules/integrations/integrations.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
 import { ApiMarketplaceModule } from './modules/api-marketplace/api-marketplace.module';
+import { TemplateMarketplaceModule } from './modules/template-marketplace/template-marketplace.module';
+import { BillingModule } from './modules/billing/billing.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { ApprovalWorkflowsModule } from './modules/approval-workflows/approval-workflows.module';
+import { SecurityModule } from './modules/security/security.module';
 
 @Module({
   imports: [
@@ -144,6 +150,12 @@ import { ApiMarketplaceModule } from './modules/api-marketplace/api-marketplace.
     ContractsModule,
     InvoicesModule,
     ApiMarketplaceModule,
+    TemplateMarketplaceModule,
+    BillingModule,
+    MonitoringModule,
+    DocumentsModule,
+    ApprovalWorkflowsModule,
+    SecurityModule,
   ],
 })
 export class AppModule {}

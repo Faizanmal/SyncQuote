@@ -22,13 +22,13 @@ declare module 'saml2-js' {
     create_login_request_url(
       idp: IdentityProvider,
       options: { relay_state?: string },
-      callback: (err: any, loginUrl: string) => void
+      callback: (err: any, loginUrl: string) => void,
     ): void;
 
     post_assert(
       idp: IdentityProvider,
       options: { request_body: { SAMLResponse: string } },
-      callback: (err: any, samlAssert: any) => void
+      callback: (err: any, samlAssert: any) => void,
     ): void;
   }
 

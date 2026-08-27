@@ -13,6 +13,8 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   Video,
   Play,
@@ -85,9 +87,8 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
   const fetchVideos = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/video-proposals${proposalId ? `?proposalId=${proposalId}` : ''}`);
-      const data = await response.json();
-      setVideos(data.videos || []);
+      const { data } = await api.get(proposalId ? `/video/proposal/${proposalId}` : '/video');
+      setVideos(Array.isArray(data) ? data : data.videos || []);
     } catch (error) {
       console.error('Failed to fetch videos:', error);
     } finally {
@@ -97,18 +98,17 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
 
   const fetchIntegrations = async () => {
     try {
-      const response = await fetch('/api/video-proposals/integrations');
-      const data = await response.json();
-      setIntegrations(data.integrations || []);
+      const { data } = await api.get('/video/providers');
+      setIntegrations(Array.isArray(data) ? data : data.integrations || []);
     } catch (error) {
       console.error('Failed to fetch integrations:', error);
     }
   };
 
-  useEffect(() => {
-    fetchVideos();
-    fetchIntegrations();
-  }, [proposalId]);
+  useEffect(() => deferEffect(() => {
+    void fetchVideos();
+    void fetchIntegrations();
+  }), [proposalId]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -122,10 +122,9 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
 
   const connectIntegration = async (provider: string) => {
     try {
-      const response = await fetch(`/api/video-proposals/integrations/${provider}/connect`);
-      const data = await response.json();
+      const { data } = await api.get(`/video/connect/${provider}`);
       if (data.authUrl) {
-        window.location.href = data.authUrl;
+        window.location.assign(data.authUrl);
       }
     } catch (error) {
       console.error('Failed to connect integration:', error);
@@ -139,19 +138,14 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
 
   const addVideo = async () => {
     try {
-      const response = await fetch('/api/video-proposals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data } = await api.post('/video', {
           proposalId,
           url: videoUrl,
           title: videoTitle,
           position: videoPosition,
           personalized,
-        }),
-      });
-      const data = await response.json();
-      setVideos(prev => [...prev, data.video]);
+        });
+      setVideos(prev => [...prev, data.video || data]);
       setShowAddDialog(false);
       resetForm();
       toast({
@@ -170,7 +164,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
 
   const deleteVideo = async (videoId: string) => {
     try {
-      await fetch(`/api/video-proposals/${videoId}`, { method: 'DELETE' });
+      await api.delete(`/video/${videoId}`);
       setVideos(prev => prev.filter(v => v.id !== videoId));
       toast({
         title: 'Video removed',
@@ -236,12 +230,11 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
       formData.append('proposalId', proposalId || '');
       formData.append('title', `Recording ${new Date().toLocaleDateString()}`);
 
-      const response = await fetch('/api/video-proposals/upload', {
-        method: 'POST',
-        body: formData,
+      const response = await api.post('/video/screen-recording/start', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const data = await response.json();
-      setVideos(prev => [...prev, data.video]);
+      const data = response.data;
+      setVideos(prev => [...prev, data.video || data]);
       toast({
         title: 'Recording saved',
         description: 'Your video recording has been saved',

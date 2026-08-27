@@ -34,10 +34,10 @@ describe('Authentication (e2e)', () => {
         await app.close();
     });
 
-    describe('/api/v1/auth/register (POST)', () => {
+    describe('/api/v1/auth/signup (POST)', () => {
         it('should register a new user', () => {
             return request(app.getHttpServer())
-                .post('/api/v1/auth/register')
+                .post('/api/v1/auth/signup')
                 .send({
                     email: 'test@example.com',
                     password: 'SecurePass123!',
@@ -53,7 +53,7 @@ describe('Authentication (e2e)', () => {
 
         it('should fail with invalid email', () => {
             return request(app.getHttpServer())
-                .post('/api/v1/auth/register')
+                .post('/api/v1/auth/signup')
                 .send({
                     email: 'invalid-email',
                     password: 'SecurePass123!',
@@ -63,7 +63,7 @@ describe('Authentication (e2e)', () => {
 
         it('should fail with weak password', () => {
             return request(app.getHttpServer())
-                .post('/api/v1/auth/register')
+                .post('/api/v1/auth/signup')
                 .send({
                     email: 'test2@example.com',
                     password: '123',
@@ -72,11 +72,10 @@ describe('Authentication (e2e)', () => {
         });
     });
 
-    describe('/api/v1/auth/login (POST)', () => {
+    describe('/api/v1/auth/signin (POST)', () => {
         beforeAll(async () => {
-            // Create a test user
             await request(app.getHttpServer())
-                .post('/api/v1/auth/register')
+                .post('/api/v1/auth/signup')
                 .send({
                     email: 'login@example.com',
                     password: 'SecurePass123!',
@@ -85,7 +84,7 @@ describe('Authentication (e2e)', () => {
 
         it('should login with valid credentials', () => {
             return request(app.getHttpServer())
-                .post('/api/v1/auth/login')
+                .post('/api/v1/auth/signin')
                 .send({
                     email: 'login@example.com',
                     password: 'SecurePass123!',
@@ -93,13 +92,13 @@ describe('Authentication (e2e)', () => {
                 .expect(200)
                 .expect((res) => {
                     expect(res.body).toHaveProperty('accessToken');
-                    expect(res.body).toHaveProperty('refreshToken');
+                    expect(res.body).toHaveProperty('user');
                 });
         });
 
         it('should fail with invalid password', () => {
             return request(app.getHttpServer())
-                .post('/api/v1/auth/login')
+                .post('/api/v1/auth/signin')
                 .send({
                     email: 'login@example.com',
                     password: 'WrongPassword',
@@ -109,7 +108,7 @@ describe('Authentication (e2e)', () => {
 
         it('should fail with non-existent user', () => {
             return request(app.getHttpServer())
-                .post('/api/v1/auth/login')
+                .post('/api/v1/auth/signin')
                 .send({
                     email: 'nonexistent@example.com',
                     password: 'SecurePass123!',

@@ -39,6 +39,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { TemplateMarketplace } from '@/components/template-marketplace-browser'
+import { useSearchParams } from 'next/navigation'
 
 interface Template {
   id: string
@@ -146,6 +148,10 @@ type CreateTemplateForm = z.infer<typeof createTemplateSchema>
 type CreateWorkflowForm = z.infer<typeof createWorkflowSchema>
 
 export default function DocumentsPage() {
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get('tab') === 'marketplace' ? 'marketplace' : 'templates',
+  )
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [workflowDialogOpen, setWorkflowDialogOpen] = useState(false)
@@ -275,7 +281,7 @@ export default function DocumentsPage() {
 
   const filteredTemplates = templates?.filter((template: Template) => 
     template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    template.description.toLowerCase().includes(searchQuery.toLowerCase())
+    (template.description || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
@@ -299,9 +305,10 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="templates" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
           <TabsTrigger value="versions">Version Control</TabsTrigger>
           <TabsTrigger value="workflows">Approval Workflows</TabsTrigger>
           <TabsTrigger value="branding">Branding & Themes</TabsTrigger>
@@ -520,6 +527,10 @@ export default function DocumentsPage() {
               </DialogContent>
             </Dialog>
           )}
+        </TabsContent>
+
+        <TabsContent value="marketplace" className="space-y-4">
+          <TemplateMarketplace />
         </TabsContent>
 
         <TabsContent value="versions" className="space-y-4">

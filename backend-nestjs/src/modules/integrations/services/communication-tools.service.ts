@@ -94,16 +94,12 @@ export class CommunicationToolsService {
   async sendSlackMessage(userId: string, message: SlackMessage): Promise<void> {
     const token = await this.getSlackToken(userId);
 
-    const response = await axios.post(
-      'https://slack.com/api/chat.postMessage',
-      message,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+    const response = await axios.post('https://slack.com/api/chat.postMessage', message, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
-    );
+    });
 
     if (!response.data.ok) {
       throw new BadRequestException(`Slack message failed: ${response.data.error}`);
@@ -118,7 +114,13 @@ export class CommunicationToolsService {
   ): Promise<void> {
     const proposal = await this.prisma.proposal.findFirst({
       where: { id: proposalId, userId },
-      select: { title: true, recipientName: true, recipientEmail: true, slug: true, totalAmount: true },
+      select: {
+        title: true,
+        recipientName: true,
+        recipientEmail: true,
+        slug: true,
+        totalAmount: true,
+      },
     });
 
     if (!proposal) return;
@@ -169,13 +171,10 @@ export class CommunicationToolsService {
   async getSlackChannels(userId: string): Promise<{ id: string; name: string }[]> {
     const token = await this.getSlackToken(userId);
 
-    const response = await axios.get(
-      'https://slack.com/api/conversations.list',
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { types: 'public_channel,private_channel', limit: 100 },
-      },
-    );
+    const response = await axios.get('https://slack.com/api/conversations.list', {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { types: 'public_channel,private_channel', limit: 100 },
+    });
 
     if (!response.data.ok) {
       throw new BadRequestException(`Failed to get channels: ${response.data.error}`);
@@ -192,7 +191,8 @@ export class CommunicationToolsService {
   async getTeamsAuthUrl(userId: string): Promise<string> {
     const clientId = this.configService.get('MICROSOFT_CLIENT_ID');
     const redirectUri = this.configService.get('MICROSOFT_TEAMS_REDIRECT_URI');
-    const scope = 'https://graph.microsoft.com/ChannelMessage.Send https://graph.microsoft.com/Chat.ReadWrite';
+    const scope =
+      'https://graph.microsoft.com/ChannelMessage.Send https://graph.microsoft.com/Chat.ReadWrite';
 
     return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${userId}`;
   }
@@ -426,13 +426,10 @@ export class CommunicationToolsService {
   async getZoomMeetings(userId: string): Promise<any[]> {
     const token = await this.getZoomToken(userId);
 
-    const response = await axios.get(
-      'https://api.zoom.us/v2/users/me/meetings',
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { type: 'upcoming', page_size: 30 },
-      },
-    );
+    const response = await axios.get('https://api.zoom.us/v2/users/me/meetings', {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { type: 'upcoming', page_size: 30 },
+    });
 
     return response.data.meetings || [];
   }
@@ -506,9 +503,9 @@ export class CommunicationToolsService {
     });
 
     return {
-      slack: tokens.some(t => t.provider === 'slack'),
-      teams: tokens.some(t => t.provider === 'microsoft_teams'),
-      zoom: tokens.some(t => t.provider === 'zoom'),
+      slack: tokens.some((t) => t.provider === 'slack'),
+      teams: tokens.some((t) => t.provider === 'microsoft_teams'),
+      zoom: tokens.some((t) => t.provider === 'zoom'),
     };
   }
 

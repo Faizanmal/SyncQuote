@@ -13,5 +13,4 @@ import { CrmIntegrationsModule } from '../crm-integrations/crm-integrations.modu
   providers: [ProposalsService, InteractivePricingService, AuditCertificateService],
   exports: [ProposalsService, InteractivePricingService, AuditCertificateService],
 })
-export class ProposalsModule { }
-
+export class ProposalsModule {}

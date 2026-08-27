@@ -77,7 +77,8 @@ export class SmartPricingService {
       confidence: this.calculateConfidence(dto, historicalData),
       reasoning: aiSuggestions?.reasoning || this.generatePricingReasoning(dto, basePrice),
       marketComparison: this.getMarketComparison(priceRange.mid, dto),
-      recommendations: aiSuggestions?.recommendations || this.generateRecommendations(dto, basePrice),
+      recommendations:
+        aiSuggestions?.recommendations || this.generateRecommendations(dto, basePrice),
       pricingTiers,
     };
   }
@@ -141,7 +142,8 @@ export class SmartPricingService {
     const wonProposals = proposals.length;
     const avgPrice =
       proposals.length > 0
-        ? proposals.reduce((sum, p) => sum + (p.totalAmount || p.estimatedValue || 0), 0) / proposals.length
+        ? proposals.reduce((sum, p) => sum + (p.totalAmount || p.estimatedValue || 0), 0) /
+          proposals.length
         : 5000;
 
     return {
@@ -167,7 +169,8 @@ export class SmartPricingService {
     // Apply hours-based calculation if provided
     if (dto.estimatedHours) {
       const hourlyRate = (historicalData.avgPrice || 5000) / 40; // Assume 40 hours average project
-      const hoursBasedPrice = dto.estimatedHours * hourlyRate * this.complexityMultipliers[dto.complexity];
+      const hoursBasedPrice =
+        dto.estimatedHours * hourlyRate * this.complexityMultipliers[dto.complexity];
       basePrice = (basePrice + hoursBasedPrice) / 2; // Average both methods
     }
 
@@ -226,8 +229,12 @@ export class SmartPricingService {
   private generatePricingReasoning(dto: SmartPricingSuggestionDto, basePrice: number): string {
     const factors: string[] = [];
 
-    factors.push(`Industry (${dto.industry}) typically commands ${this.industryMultipliers[dto.industry] > 1 ? 'higher' : 'standard'} rates`);
-    factors.push(`${dto.complexity} complexity projects require ${dto.complexity === ProjectComplexity.ENTERPRISE ? 'premium' : 'appropriate'} pricing`);
+    factors.push(
+      `Industry (${dto.industry}) typically commands ${this.industryMultipliers[dto.industry] > 1 ? 'higher' : 'standard'} rates`,
+    );
+    factors.push(
+      `${dto.complexity} complexity projects require ${dto.complexity === ProjectComplexity.ENTERPRISE ? 'premium' : 'appropriate'} pricing`,
+    );
 
     if (dto.estimatedHours) {
       factors.push(`Estimated ${dto.estimatedHours} hours of work factored into calculation`);
@@ -259,7 +266,9 @@ export class SmartPricingService {
     const recommendations: string[] = [];
 
     if (dto.complexity === ProjectComplexity.ENTERPRISE) {
-      recommendations.push('Consider offering milestone-based payment terms for enterprise projects');
+      recommendations.push(
+        'Consider offering milestone-based payment terms for enterprise projects',
+      );
       recommendations.push('Include dedicated support or account management in the proposal');
     }
 
@@ -290,12 +299,7 @@ export class SmartPricingService {
     return {
       basic: {
         price: Math.round(basePrice * 0.7),
-        features: [
-          'Core deliverables',
-          'Standard timeline',
-          'Email support',
-          '1 revision round',
-        ],
+        features: ['Core deliverables', 'Standard timeline', 'Email support', '1 revision round'],
       },
       standard: {
         price: basePrice,
@@ -436,9 +440,7 @@ Provide a JSON response with:
     let bonus = 0;
 
     const hasDeposit = proposal.depositRequired;
-    const hasMultipleTiers = proposal.blocks?.some(
-      (b: any) => b.pricingItems?.length > 3,
-    );
+    const hasMultipleTiers = proposal.blocks?.some((b: any) => b.pricingItems?.length > 3);
 
     if (hasDeposit) {
       bonus += 5;
@@ -482,7 +484,7 @@ Provide a JSON response with:
 
   private getStructuralRecommendations(proposal: any): string[] {
     return [
-      'Lead with the client\'s problem and your solution',
+      "Lead with the client's problem and your solution",
       'Include social proof (testimonials, case studies)',
       'Break content into scannable sections',
       'End with a clear call-to-action',
@@ -547,7 +549,9 @@ Provide specific content improvements and additional recommendations.`;
   }
 
   private extractTips(content: string): string[] {
-    const lines = content.split('\n').filter((line) => line.trim().startsWith('-') || line.trim().startsWith('•'));
+    const lines = content
+      .split('\n')
+      .filter((line) => line.trim().startsWith('-') || line.trim().startsWith('•'));
     return lines.map((line) => line.replace(/^[-•]\s*/, '').trim()).slice(0, 5);
   }
 }

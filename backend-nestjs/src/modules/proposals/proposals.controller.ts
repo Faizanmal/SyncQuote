@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ProposalsService } from './proposals.service';
 import { GetUser } from '../auth/decorators/get-user.decorator';
+import { ListProposalsQueryDto } from './dto/list-proposals.dto';
 
 @ApiTags('proposals')
 @Controller('proposals')
@@ -30,9 +31,21 @@ export class ProposalsController {
   @Get()
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all proposals for current user' })
-  findAll(@GetUser('sub') userId: string) {
-    return this.proposalsService.findAll(userId);
+  @ApiOperation({ summary: 'List proposals for the current user (paginated)' })
+  findAll(@GetUser('sub') userId: string, @Query() query: ListProposalsQueryDto) {
+    return this.proposalsService.findAll(userId, query);
+  }
+
+  @Get('public/:slug')
+  @ApiOperation({ summary: 'Get proposal by slug (public)' })
+  findBySlug(@Param('slug') slug: string, @Query('ip') ip?: string) {
+    return this.proposalsService.findBySlug(slug, { ip });
+  }
+
+  @Post('public/:slug/approve')
+  @ApiOperation({ summary: 'Approve and sign proposal (public)' })
+  approve(@Param('slug') slug: string, @Body() signatureData: any) {
+    return this.proposalsService.approve(slug, signatureData);
   }
 
   @Get(':id')
@@ -57,18 +70,5 @@ export class ProposalsController {
   @ApiOperation({ summary: 'Delete proposal' })
   delete(@Param('id') id: string, @GetUser('sub') userId: string) {
     return this.proposalsService.delete(id, userId);
-  }
-
-  // Public endpoints (no auth required)
-  @Get('public/:slug')
-  @ApiOperation({ summary: 'Get proposal by slug (public)' })
-  findBySlug(@Param('slug') slug: string, @Query('ip') ip?: string) {
-    return this.proposalsService.findBySlug(slug, { ip });
-  }
-
-  @Post('public/:slug/approve')
-  @ApiOperation({ summary: 'Approve and sign proposal (public)' })
-  approve(@Param('slug') slug: string, @Body() signatureData: any) {
-    return this.proposalsService.approve(slug, signatureData);
   }
 }

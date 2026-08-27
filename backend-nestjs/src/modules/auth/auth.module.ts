@@ -9,11 +9,13 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
+import { TeamsModule } from '../teams/teams.module';
 
 @Module({
   imports: [
     UsersModule,
     EmailModule,
+    TeamsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],

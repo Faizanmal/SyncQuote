@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   TrendingUp, 
@@ -33,10 +34,22 @@ interface ProposalEngagement {
   lastViewedAt?: string;
 }
 
+interface FunnelMetrics {
+  created?: number;
+  sent?: number;
+  viewed?: number;
+  approved?: number;
+  percentages?: {
+    sent?: number;
+    viewed?: number;
+    approved?: number;
+  };
+}
+
 export function AnalyticsDashboard() {
   const [metrics, setMetrics] = useState<AnalyticsMetrics | null>(null);
   const [engagement, setEngagement] = useState<ProposalEngagement[]>([]);
-  const [funnel, setFunnel] = useState<any>(null);
+  const [funnel, setFunnel] = useState<FunnelMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const api = useApi();
 
@@ -59,9 +72,9 @@ export function AnalyticsDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
+  useEffect(() => deferEffect(() => {
+    void fetchAnalytics();
+  }), []);
 
   if (loading) {
     return <div className="flex items-center justify-center p-8">Loading analytics...</div>;

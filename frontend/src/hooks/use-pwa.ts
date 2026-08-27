@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { api } from '@/lib/api';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -7,6 +8,18 @@ interface BeforeInstallPromptEvent extends Event {
     platform: string;
   }>;
   prompt(): Promise<void>;
+}
+
+interface NavigatorStandalone extends Navigator {
+  standalone?: boolean;
+}
+
+interface SyncManager {
+  register(tag: string): Promise<void>;
+}
+
+interface ServiceWorkerRegistrationWithSync extends ServiceWorkerRegistration {
+  sync: SyncManager;
 }
 
 interface UsePWAReturn {
@@ -21,27 +34,19 @@ interface UsePWAReturn {
 
 export function usePWA(): UsePWAReturn {
   const [isInstallable, setIsInstallable] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [isOnline, setIsOnline] = useState(true);
+  const [isInstalled, setIsInstalled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    if (window.matchMedia('(display-mode: standalone)').matches) return true;
+    return (window.navigator as NavigatorStandalone).standalone === true;
+  });
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
   const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
-    // Check if already installed
-    const checkInstalled = () => {
-      if (window.matchMedia('(display-mode: standalone)').matches) {
-        setIsInstalled(true);
-      }
-      // iOS Safari check
-      if ((window.navigator as any).standalone === true) {
-        setIsInstalled(true);
-      }
-    };
-
-    checkInstalled();
-
-    // Listen for beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -63,9 +68,6 @@ export function usePWA(): UsePWAReturn {
     window.addEventListener('appinstalled', handleAppInstalled);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    // Set initial online status
-    setIsOnline(navigator.onLine);
 
     // Register service worker
     if ('serviceWorker' in navigator) {
@@ -195,11 +197,7 @@ export function usePushNotifications() {
       setSubscription(sub);
 
       // Send subscription to server
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sub),
-      });
+      await api.post('/notifications/push/subscribe', sub);
 
       return sub;
     } catch (error) {
@@ -215,11 +213,7 @@ export function usePushNotifications() {
       await subscription.unsubscribe();
       
       // Notify server
-      await fetch('/api/push/unsubscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: subscription.endpoint }),
-      });
+      await api.post('/notifications/push/unsubscribe', { endpoint: subscription.endpoint });
 
       setIsSubscribed(false);
       setSubscription(null);
@@ -241,11 +235,9 @@ export function usePushNotifications() {
 
 // Hook for background sync
 export function useBackgroundSync() {
-  const [isSupported, setIsSupported] = useState(false);
-
-  useEffect(() => {
-    setIsSupported('sync' in ServiceWorkerRegistration.prototype);
-  }, []);
+  const [isSupported] = useState(
+    () => typeof ServiceWorkerRegistration !== 'undefined' && 'sync' in ServiceWorkerRegistration.prototype
+  );
 
   const registerSync = useCallback(async (tag: string): Promise<boolean> => {
     if (!isSupported || !('serviceWorker' in navigator)) {
@@ -254,7 +246,7 @@ export function useBackgroundSync() {
 
     try {
       const reg = await navigator.serviceWorker.ready;
-      await (reg as any).sync.register(tag);
+      await (reg as ServiceWorkerRegistrationWithSync).sync.register(tag);
       return true;
     } catch (error) {
       console.error('Background sync registration error:', error);
@@ -262,14 +254,14 @@ export function useBackgroundSync() {
     }
   }, [isSupported]);
 
-  const queueProposalSync = useCallback(async (proposalData: any): Promise<boolean> => {
+  const queueProposalSync = useCallback(async (proposalData: unknown): Promise<boolean> => {
     // Store in IndexedDB for background sync
     const db = await openDatabase();
     await addPendingItem(db, 'pendingProposals', proposalData);
     return registerSync('sync-proposals');
   }, [registerSync]);
 
-  const queueInvoiceSync = useCallback(async (invoiceData: any): Promise<boolean> => {
+  const queueInvoiceSync = useCallback(async (invoiceData: unknown): Promise<boolean> => {
     // Store in IndexedDB for background sync
     const db = await openDatabase();
     await addPendingItem(db, 'pendingInvoices', invoiceData);
@@ -321,7 +313,7 @@ function openDatabase(): Promise<IDBDatabase> {
 }
 
 // Utility: Add pending item to IndexedDB
-function addPendingItem(db: IDBDatabase, storeName: string, data: any): Promise<number> {
+function addPendingItem(db: IDBDatabase, storeName: string, data: unknown): Promise<number> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(storeName, 'readwrite');
     const store = transaction.objectStore(storeName);

@@ -56,6 +56,12 @@ import {
 import { useApi } from '@/hooks/use-api';
 import { toast } from 'sonner';
 
+let aiMessageSeq = 0;
+function nextAiMessageId() {
+  aiMessageSeq += 1;
+  return String(aiMessageSeq);
+}
+
 // Types
 interface AIMessage {
   id: string;
@@ -207,7 +213,7 @@ export function EnhancedAICopilot({ context, onInsert }: EnhancedAICopilotProps)
     if (!prompt.trim()) return;
 
     const userMessage: AIMessage = {
-      id: Date.now().toString(),
+      id: nextAiMessageId(),
       role: 'user',
       content: prompt,
       timestamp: new Date(),
@@ -231,7 +237,7 @@ export function EnhancedAICopilot({ context, onInsert }: EnhancedAICopilotProps)
       });
 
       const assistantMessage: AIMessage = {
-        id: (Date.now() + 1).toString(),
+        id: nextAiMessageId(),
         role: 'assistant',
         content: response.data.content,
         timestamp: new Date(),

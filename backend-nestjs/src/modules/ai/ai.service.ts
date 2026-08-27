@@ -21,7 +21,7 @@ interface GenerateContentDto {
 export class AIService {
   private readonly logger = new Logger(AIService.name);
 
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   private readonly OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   private readonly OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
@@ -585,15 +585,9 @@ Help users write compelling proposals, answer questions about proposal best prac
       audience?: string;
     },
   ): Promise<{ rewrittenContent: string; explanation?: string; suggestions?: string[] }> {
-    const styleGuide = data.style
-      ? `Use a ${data.style} writing style.`
-      : '';
-    const industryContext = data.industry
-      ? `This is for the ${data.industry} industry.`
-      : '';
-    const audienceContext = data.audience
-      ? `The target audience is ${data.audience}.`
-      : '';
+    const styleGuide = data.style ? `Use a ${data.style} writing style.` : '';
+    const industryContext = data.industry ? `This is for the ${data.industry} industry.` : '';
+    const audienceContext = data.audience ? `The target audience is ${data.audience}.` : '';
 
     const prompt = `You are an expert proposal writer. Rewrite the following content based on this instruction: "${data.instruction}"
 
@@ -624,7 +618,8 @@ Format your response as JSON:
           messages: [
             {
               role: 'system',
-              content: 'You are an expert proposal writer who specializes in clear, persuasive business communication. Always respond with valid JSON.',
+              content:
+                'You are an expert proposal writer who specializes in clear, persuasive business communication. Always respond with valid JSON.',
             },
             { role: 'user', content: prompt },
           ],
@@ -663,7 +658,10 @@ Format your response as JSON:
       }
     } catch (error) {
       this.logger.error('AI smart rewrite error:', error);
-      return { rewrittenContent: data.content, explanation: 'Failed to rewrite. Returning original.' };
+      return {
+        rewrittenContent: data.content,
+        explanation: 'Failed to rewrite. Returning original.',
+      };
     }
   }
 
@@ -728,7 +726,8 @@ Format response as JSON:
           messages: [
             {
               role: 'system',
-              content: 'You are an expert at analyzing company websites and generating personalized business proposal content. Always respond with valid JSON.',
+              content:
+                'You are an expert at analyzing company websites and generating personalized business proposal content. Always respond with valid JSON.',
             },
             { role: 'user', content: prompt },
           ],
@@ -766,7 +765,9 @@ Format response as JSON:
       }
     } catch (error) {
       this.logger.error('AI draft from URL error:', error);
-      return { content: 'Failed to generate content from URL. Please try again or provide more context.' };
+      return {
+        content: 'Failed to generate content from URL. Please try again or provide more context.',
+      };
     }
   }
 

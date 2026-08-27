@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,15 +27,49 @@ const signupSchema = z.object({
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
-export default function SignUpPage() {
+function SignUpContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get('token');
   const setAuth = useAuthStore((state: AuthState) => state.setAuth);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inviteTeam, setInviteTeam] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors } } = useForm<SignupFormData>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
+
+  useEffect(() => {
+    if (!inviteToken) {
+      return;
+    }
+
+    sessionStorage.setItem('pendingInviteToken', inviteToken);
+
+    let cancelled = false;
+    const loadInvite = async () => {
+      try {
+        const { data } = await api.get<{ email: string; teamName: string }>(`/team-invites/${inviteToken}`);
+        if (!cancelled) {
+          setInviteTeam(data.teamName);
+          setValue('email', data.email);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+            || 'This invitation is invalid or has expired',
+          );
+        }
+      }
+    };
+
+    void loadInvite();
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteToken, setValue]);
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
@@ -46,11 +80,13 @@ export default function SignUpPage() {
         email: data.email,
         password: data.password,
         name: data.name,
+        ...(inviteToken ? { inviteToken } : {}),
       };
 
       const response = await api.post('/auth/signup', signupData);
+      sessionStorage.removeItem('pendingInviteToken');
       setAuth(response.data.user, response.data.accessToken);
-      router.push('/dashboard');
+      router.push(inviteToken ? '/team' : '/dashboard');
     } catch (err: unknown) {
       setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to create account');
     } finally {
@@ -59,6 +95,9 @@ export default function SignUpPage() {
   };
 
   const handleGoogleSignup = () => {
+    if (inviteToken) {
+      sessionStorage.setItem('pendingInviteToken', inviteToken);
+    }
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
     window.location.href = `${apiUrl}/auth/google`;
   };
@@ -67,7 +106,9 @@ export default function SignUpPage() {
     <Card>
       <CardHeader>
         <CardTitle>Create your account</CardTitle>
-        <CardDescription>Start your 14-day free trial</CardDescription>
+        <CardDescription>
+          {inviteTeam ? `Join ${inviteTeam} on SyncQuote` : 'Start your 14-day free trial'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -103,6 +144,7 @@ export default function SignUpPage() {
                 type="email"
                 placeholder="you@example.com"
                 className="pl-10"
+                readOnly={Boolean(inviteToken && inviteTeam)}
                 {...register('email')}
               />
             </div>
@@ -193,11 +235,27 @@ export default function SignUpPage() {
       <CardFooter className="flex justify-center">
         <p className="text-sm text-gray-600 dark:text-gray-400">
           Already have an account?{' '}
-          <Link href="/signin" className="text-blue-600 hover:underline">
+          <Link href={inviteToken ? `/signin?token=${inviteToken}` : '/signin'} className="text-blue-600 hover:underline">
             Sign in
           </Link>
         </p>
       </CardFooter>
     </Card>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <Card>
+          <CardContent className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </CardContent>
+        </Card>
+      }
+    >
+      <SignUpContent />
+    </Suspense>
   );
 }

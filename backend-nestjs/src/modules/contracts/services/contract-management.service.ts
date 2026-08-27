@@ -3,7 +3,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../../email/email.service';
 import { StorageService } from '../../storage/storage.service';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface ContractTemplate {
   id: string;
@@ -64,7 +63,17 @@ export class ContractManagementService {
       description: 'Basic service agreement template',
       category: 'service',
       isDefault: true,
-      variables: ['client_name', 'client_company', 'provider_name', 'provider_company', 'service_description', 'total_amount', 'payment_terms', 'start_date', 'end_date'],
+      variables: [
+        'client_name',
+        'client_company',
+        'provider_name',
+        'provider_company',
+        'service_description',
+        'total_amount',
+        'payment_terms',
+        'start_date',
+        'end_date',
+      ],
       content: `
 # SERVICE AGREEMENT
 
@@ -130,7 +139,14 @@ Date: _________________________
       description: 'Mutual NDA template',
       category: 'nda',
       isDefault: true,
-      variables: ['party_a_name', 'party_a_company', 'party_b_name', 'party_b_company', 'effective_date', 'duration_years'],
+      variables: [
+        'party_a_name',
+        'party_a_company',
+        'party_b_name',
+        'party_b_company',
+        'effective_date',
+        'duration_years',
+      ],
       content: `
 # MUTUAL NON-DISCLOSURE AGREEMENT
 
@@ -189,7 +205,18 @@ Date: _________________________
       description: 'Project scope and deliverables',
       category: 'sow',
       isDefault: true,
-      variables: ['project_name', 'client_name', 'client_company', 'provider_name', 'provider_company', 'scope', 'deliverables', 'timeline', 'total_amount', 'payment_schedule'],
+      variables: [
+        'project_name',
+        'client_name',
+        'client_company',
+        'provider_name',
+        'provider_company',
+        'scope',
+        'deliverables',
+        'timeline',
+        'total_amount',
+        'payment_schedule',
+      ],
       content: `
 # STATEMENT OF WORK
 
@@ -259,10 +286,7 @@ Date: _________________________
     }));
   }
 
-  async createContractFromProposal(
-    userId: string,
-    data: ContractData,
-  ): Promise<Contract> {
+  async createContractFromProposal(userId: string, data: ContractData): Promise<Contract> {
     this.logger.log(`Creating contract for proposal ${data.proposalId}`);
 
     // Get the proposal
@@ -282,7 +306,7 @@ Date: _________________________
     let content = data.customContent || '';
     if (data.templateId) {
       const templates = await this.getContractTemplates(userId);
-      const template = templates.find(t => t.id === data.templateId);
+      const template = templates.find((t) => t.id === data.templateId);
       if (template) {
         content = template.content;
       }
@@ -308,57 +332,33 @@ Date: _________________________
       content = content.replace(new RegExp(`{{${key}}}`, 'g'), value);
     }
 
-    // Create contract record
-    const contractId = uuidv4();
-    
-    // Store in proposal metadata (in production, would have dedicated Contract table)
-    const contractData: Contract = {
-      id: contractId,
-      proposalId: data.proposalId,
-      userId,
-      title: `Contract - ${proposal.title}`,
-      content,
-      status: 'draft',
-      expiresAt: data.expiresAt,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    await this.prisma.proposal.update({
-      where: { id: data.proposalId },
+    const contract = await this.prisma.contract.create({
       data: {
-        metadata: {
-          ...(proposal.metadata as any),
-          contract: contractData,
-        },
+        proposalId: data.proposalId,
+        userId,
+        title: `Contract - ${proposal.title}`,
+        content,
+        status: 'draft',
+        expiresAt: data.expiresAt,
+        recipientEmail: data.signerInfo?.email || proposal.recipientEmail,
       },
     });
 
-    return contractData;
+    return this.serializeContract(contract);
   }
 
-  async sendContract(
-    userId: string,
-    proposalId: string,
-    recipientEmail: string,
-  ): Promise<void> {
-    const proposal = await this.prisma.proposal.findFirst({
-      where: { id: proposalId, userId },
+  async sendContract(userId: string, contractId: string, recipientEmail: string): Promise<void> {
+    const contract = await this.prisma.contract.findFirst({
+      where: { id: contractId, userId },
     });
 
-    if (!proposal) {
-      throw new BadRequestException('Proposal not found');
-    }
-
-    const contract = (proposal.metadata as any)?.contract as Contract;
     if (!contract) {
-      throw new BadRequestException('Contract not found for this proposal');
+      throw new BadRequestException('Contract not found');
     }
 
     const frontendUrl = this.configService.get('FRONTEND_URL') || 'https://app.syncquote.com';
     const contractUrl = `${frontendUrl}/contracts/${contract.id}`;
 
-    // Send email
     await this.emailService.sendEmail({
       to: recipientEmail,
       subject: `Contract Ready for Signature: ${contract.title}`,
@@ -371,18 +371,12 @@ Date: _________________________
       `,
     });
 
-    // Update contract status
-    contract.status = 'sent';
-    contract.sentAt = new Date();
-    contract.updatedAt = new Date();
-
-    await this.prisma.proposal.update({
-      where: { id: proposalId },
+    await this.prisma.contract.update({
+      where: { id: contract.id },
       data: {
-        metadata: {
-          ...(proposal.metadata as any),
-          contract,
-        },
+        status: 'sent',
+        sentAt: new Date(),
+        recipientEmail,
       },
     });
 
@@ -390,7 +384,7 @@ Date: _________________________
   }
 
   async signContract(
-    proposalId: string,
+    contractId: string,
     signatureData: {
       signatureUrl: string;
       signerName: string;
@@ -398,133 +392,158 @@ Date: _________________________
       signerIp?: string;
     },
   ): Promise<Contract> {
-    const proposal = await this.prisma.proposal.findUnique({
-      where: { id: proposalId },
+    const contract = await this.prisma.contract.findUnique({
+      where: { id: contractId },
     });
 
-    if (!proposal) {
-      throw new BadRequestException('Proposal not found');
-    }
-
-    const contract = (proposal.metadata as any)?.contract as Contract;
     if (!contract) {
       throw new BadRequestException('Contract not found');
     }
 
-    contract.status = 'signed';
-    contract.signedAt = new Date();
-    contract.signatureData = {
-      signedAt: new Date(),
-      ...signatureData,
-    };
-    contract.updatedAt = new Date();
+    if (contract.status === 'cancelled') {
+      throw new BadRequestException('Contract is cancelled');
+    }
 
-    await this.prisma.proposal.update({
-      where: { id: proposalId },
+    const updated = await this.prisma.contract.update({
+      where: { id: contractId },
       data: {
-        metadata: {
-          ...(proposal.metadata as any),
-          contract,
+        status: 'signed',
+        signedAt: new Date(),
+        signatureData: {
+          signedAt: new Date().toISOString(),
+          ...signatureData,
         },
       },
     });
 
-    // Generate signed PDF
-    await this.generateSignedContractPdf(proposalId, contract);
-
-    this.logger.log(`Contract signed for proposal ${proposalId}`);
-
-    return contract;
-  }
-
-  async getContract(proposalId: string): Promise<Contract | null> {
-    const proposal = await this.prisma.proposal.findUnique({
-      where: { id: proposalId },
+    const pdfUrl = await this.generateSignedContractPdf(updated);
+    const signed = await this.prisma.contract.update({
+      where: { id: contractId },
+      data: { pdfUrl },
     });
 
-    if (!proposal) return null;
+    this.logger.log(`Contract signed ${contractId}`);
+    return this.serializeContract(signed);
+  }
 
-    return (proposal.metadata as any)?.contract || null;
+  async getContract(contractId: string): Promise<Contract | null> {
+    const contract = await this.prisma.contract.findUnique({
+      where: { id: contractId },
+    });
+
+    if (contract) {
+      if (contract.status === 'sent') {
+        await this.prisma.contract.update({
+          where: { id: contractId },
+          data: { status: 'viewed', viewedAt: new Date() },
+        });
+      }
+      return this.serializeContract(contract);
+    }
+
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: contractId },
+    });
+    const legacy = (proposal?.metadata as any)?.contract as Contract | undefined;
+    return legacy || null;
   }
 
   async getContractsByUser(userId: string): Promise<Contract[]> {
-    const proposals = await this.prisma.proposal.findMany({
-      where: {
-        userId,
-        metadata: { path: ['contract'], not: null as any },
-      },
-      select: { metadata: true },
+    const contracts = await this.prisma.contract.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
     });
-
-    return proposals
-      .map(p => (p.metadata as any)?.contract)
-      .filter(Boolean);
+    return contracts.map((contract) => this.serializeContract(contract));
   }
 
-  private async generateSignedContractPdf(
-    proposalId: string,
-    contract: Contract,
-  ): Promise<string> {
-    // In production, use a PDF generation library like puppeteer or pdfkit
-    // For now, simulate PDF generation
-    const pdfContent = `
-      PDF Content for Contract: ${contract.title}
-      Signed by: ${contract.signatureData?.signerName}
-      Date: ${contract.signatureData?.signedAt}
-    `;
-
-    // Upload to storage
-    const fileName = `contracts/${proposalId}/${contract.id}-signed.pdf`;
-    
-    // Mock upload - in production use actual storage service
-    const pdfUrl = `https://storage.syncquote.com/${fileName}`;
-
-    // Update contract with PDF URL
-    const proposal = await this.prisma.proposal.findUnique({
-      where: { id: proposalId },
-    });
-
-    if (proposal) {
-      contract.pdfUrl = pdfUrl;
-      await this.prisma.proposal.update({
-        where: { id: proposalId },
-        data: {
-          metadata: {
-            ...(proposal.metadata as any),
-            contract,
-          },
-        },
-      });
-    }
-
-    return pdfUrl;
+  private serializeContract(contract: {
+    id: string;
+    proposalId: string;
+    userId: string;
+    title: string;
+    content: string;
+    status: string;
+    pdfUrl: string | null;
+    signatureData: unknown;
+    expiresAt: Date | null;
+    sentAt: Date | null;
+    viewedAt: Date | null;
+    signedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): Contract {
+    return {
+      id: contract.id,
+      proposalId: contract.proposalId,
+      userId: contract.userId,
+      title: contract.title,
+      content: contract.content,
+      status: contract.status as Contract['status'],
+      pdfUrl: contract.pdfUrl || undefined,
+      signatureData: contract.signatureData as Contract['signatureData'],
+      expiresAt: contract.expiresAt || undefined,
+      sentAt: contract.sentAt || undefined,
+      viewedAt: contract.viewedAt || undefined,
+      signedAt: contract.signedAt || undefined,
+      createdAt: contract.createdAt,
+      updatedAt: contract.updatedAt,
+    };
   }
 
-  async cancelContract(userId: string, proposalId: string): Promise<void> {
-    const proposal = await this.prisma.proposal.findFirst({
-      where: { id: proposalId, userId },
+  private async generateSignedContractPdf(contract: {
+    id: string;
+    proposalId: string;
+    title: string;
+    content: string;
+    signatureData: unknown;
+  }): Promise<string> {
+    const { PDFDocument, StandardFonts } = await import('pdf-lib');
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage([612, 792]);
+    const font = await pdf.embedFont(StandardFonts.Helvetica);
+    const signature = contract.signatureData as { signerName?: string; signedAt?: string } | null;
+    const lines = [
+      contract.title,
+      '',
+      contract.content.replace(/<[^>]+>/g, ' ').slice(0, 2500),
+      '',
+      `Signed by: ${signature?.signerName || ''}`,
+      `Date: ${signature?.signedAt || new Date().toISOString()}`,
+    ];
+    let y = 750;
+    for (const line of lines) {
+      const wrapped = line.split('\n');
+      for (const wrap of wrapped) {
+        page.drawText(wrap.slice(0, 90), { x: 50, y, size: 10, font });
+        y -= 14;
+        if (y < 40) {
+          break;
+        }
+      }
+    }
+    const bytes = await pdf.save();
+    const key = `contracts/${contract.proposalId}/${contract.id}-signed.pdf`;
+    try {
+      await this.storageService.uploadFile(Buffer.from(bytes), key, 'application/pdf');
+      return await this.storageService.getSignedUrl(key, 60 * 60 * 24 * 30);
+    } catch (error) {
+      this.logger.warn(`Contract PDF stored as download route: ${(error as Error).message}`);
+      return `/api/v1/contracts/${contract.id}/pdf`;
+    }
+  }
+
+  async cancelContract(userId: string, contractId: string): Promise<void> {
+    const contract = await this.prisma.contract.findFirst({
+      where: { id: contractId, userId },
     });
 
-    if (!proposal) {
-      throw new BadRequestException('Proposal not found');
-    }
-
-    const contract = (proposal.metadata as any)?.contract as Contract;
     if (!contract) {
       throw new BadRequestException('Contract not found');
     }
 
-    contract.status = 'cancelled';
-    contract.updatedAt = new Date();
-
-    await this.prisma.proposal.update({
-      where: { id: proposalId },
-      data: {
-        metadata: {
-          ...(proposal.metadata as any),
-          contract,
-        },
-      },
+    await this.prisma.contract.update({
+      where: { id: contractId },
+      data: { status: 'cancelled' },
     });
   }
 }

@@ -16,6 +16,7 @@ import {
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { api } from '@/lib/api';
 
 interface SsoConfig {
   id: string;
@@ -23,8 +24,17 @@ interface SsoConfig {
   provider: string;
   domain: string;
   isActive: boolean;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: string;
+}
+
+interface ActiveSession {
+  id: string;
+  userEmail?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string;
+  lastActiveAt?: string;
 }
 
 interface SecurityPolicy {
@@ -49,43 +59,39 @@ export function SsoSecuritySettings() {
   const { data: ssoConfigs } = useQuery({
     queryKey: ['sso-configs'],
     queryFn: async () => {
-      const res = await fetch('/api/sso/configs');
-      return res.json();
+      const { data } = await api.get('/sso/configs');
+      return Array.isArray(data) ? data : [];
     },
   });
 
   const { data: securityPolicy } = useQuery({
     queryKey: ['security-policy'],
     queryFn: async () => {
-      const res = await fetch('/api/sso/security/policy');
-      return res.json();
+      const { data } = await api.get('/sso/security/policy');
+      return data;
     },
   });
 
   const { data: directorySyncConfig } = useQuery({
     queryKey: ['directory-sync'],
     queryFn: async () => {
-      const res = await fetch('/api/sso/directory-sync/config');
-      return res.json();
+      const { data } = await api.get('/sso/directory-sync');
+      return Array.isArray(data) ? data[0] : data;
     },
   });
 
   const { data: activeSessions } = useQuery({
     queryKey: ['active-sessions'],
     queryFn: async () => {
-      const res = await fetch('/api/sso/security/sessions');
-      return res.json();
+      const { data } = await api.get('/sso/security/sessions');
+      return Array.isArray(data) ? data : [];
     },
   });
 
   const _createSsoConfigMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch('/api/sso/configs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const { data } = await api.post('/sso/configs', payload);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sso-configs'] });
@@ -95,13 +101,9 @@ export function SsoSecuritySettings() {
   });
 
   const updateSecurityPolicyMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch('/api/sso/security/policy', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const { data } = await api.put('/sso/security/policy', payload);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['security-policy'] });
@@ -111,8 +113,14 @@ export function SsoSecuritySettings() {
 
   const triggerDirectorySyncMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/sso/directory-sync/trigger', { method: 'POST' });
-      return res.json();
+      const { data: configs } = await api.get('/sso/directory-sync');
+      const list = Array.isArray(configs) ? configs : [];
+      const id = list[0]?.id;
+      if (!id) {
+        throw new Error('No directory sync configuration');
+      }
+      const { data } = await api.post(`/sso/directory-sync/${id}/sync`);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['directory-sync'] });
@@ -122,7 +130,7 @@ export function SsoSecuritySettings() {
 
   const revokeSessionMutation = useMutation({
     mutationFn: async (sessionId: string) => {
-      await fetch(`/api/sso/security/sessions/${sessionId}/revoke`, { method: 'POST' });
+      await api.delete(`/sso/security/sessions/${sessionId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
@@ -306,7 +314,7 @@ export function SsoSecuritySettings() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {activeSessions?.map((session: any) => (
+                {activeSessions?.map((session: ActiveSession) => (
                   <div 
                     key={session.id} 
                     className="flex items-center justify-between p-4 border rounded-lg"
@@ -364,7 +372,7 @@ export function SsoSecuritySettings() {
   );
 }
 
-function SecurityPolicyForm({ policy, onUpdate }: { policy: SecurityPolicy; onUpdate: (data: any) => void }) {
+function SecurityPolicyForm({ policy, onUpdate }: { policy: SecurityPolicy; onUpdate: (data: Partial<SecurityPolicy>) => void }) {
   const [formData, setFormData] = useState(policy);
 
   return (

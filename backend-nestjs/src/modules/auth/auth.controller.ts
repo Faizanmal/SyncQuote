@@ -20,6 +20,8 @@ import {
   ResetPasswordDto,
   ChangePasswordDto,
   RequestPasswordResetDto,
+  VerifyEmailDto,
+  ResendVerificationDto,
 } from './dto';
 import { GetUser } from './decorators/get-user.decorator';
 
@@ -28,11 +30,20 @@ import { GetUser } from './decorators/get-user.decorator';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  private sessionContext(req: any) {
+    const forwarded = req.headers?.['x-forwarded-for'];
+    const ip =
+      (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : undefined) ||
+      req.ip ||
+      req.socket?.remoteAddress;
+    return { ip, userAgent: req.headers?.['user-agent'] };
+  }
+
   @Post('signup')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Sign up with email and password' })
-  async signUp(@Body() dto: SignUpDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.signUp(dto);
+  async signUp(@Body() dto: SignUpDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.signUp(dto, this.sessionContext(req));
 
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', result.refreshToken, {
@@ -52,8 +63,8 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Sign in with email and password' })
-  async signIn(@Body() dto: SignInDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.authService.signIn(dto);
+  async signIn(@Body() dto: SignInDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.signIn(dto, this.sessionContext(req));
 
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', result.refreshToken, {
@@ -80,7 +91,7 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Google OAuth callback' })
   async googleAuthCallback(@Req() req: any, @Res() res: Response) {
-    const result = await this.authService.googleAuth(req.user);
+    const result = await this.authService.googleAuth(req.user, this.sessionContext(req));
 
     // Set refresh token as httpOnly cookie
     res.cookie('refreshToken', result.refreshToken, {
@@ -156,6 +167,22 @@ export class AuthController {
   @ApiOperation({ summary: 'Change password (authenticated)' })
   async changePassword(@GetUser('sub') userId: string, @Body() dto: ChangePasswordDto) {
     return this.authService.changePassword(userId, dto);
+  }
+
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: 'Verify email with token from signup email' })
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.token);
+  }
+
+  @Post('verify-email/resend')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  @ApiOperation({ summary: 'Resend email verification link' })
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerificationEmail(dto.email);
   }
 
   @Get('me')

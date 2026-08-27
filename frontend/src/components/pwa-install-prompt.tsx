@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePWA } from '@/hooks/use-pwa';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,21 +39,14 @@ interface PWAInstallPromptProps {
 
 export function PWAInstallPrompt({ variant = 'banner' }: PWAInstallPromptProps) {
   const { isInstallable, isInstalled, install } = usePWA();
-  const [dismissed, setDismissed] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  useEffect(() => {
-    // Check if user has dismissed the prompt before
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') return false;
     const dismissedAt = localStorage.getItem('pwa-prompt-dismissed');
-    if (dismissedAt) {
-      const dismissedDate = new Date(dismissedAt);
-      const daysSinceDismissed = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
-      // Show again after 7 days
-      if (daysSinceDismissed < 7) {
-        setDismissed(true);
-      }
-    }
-  }, []);
+    if (!dismissedAt) return false;
+    const daysSinceDismissed = (Date.now() - new Date(dismissedAt).getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceDismissed < 7;
+  });
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleInstall = async () => {
     const installed = await install();
@@ -231,20 +224,22 @@ export function PWAUpdatePrompt() {
 export function OfflineIndicator() {
   const { isOnline } = usePWA();
   const [showReconnected, setShowReconnected] = useState(false);
-  const [wasOffline, setWasOffline] = useState(false);
+  const wasOfflineRef = useRef(false);
 
   useEffect(() => {
     if (!isOnline) {
-      setWasOffline(true);
-    } else if (wasOffline) {
-      setShowReconnected(true);
-      const timer = setTimeout(() => {
-        setShowReconnected(false);
-        setWasOffline(false);
-      }, 3000);
-      return () => clearTimeout(timer);
+      wasOfflineRef.current = true;
+      return;
     }
-  }, [isOnline, wasOffline]);
+    if (!wasOfflineRef.current) return;
+    wasOfflineRef.current = false;
+    const showTimer = window.setTimeout(() => setShowReconnected(true), 0);
+    const hideTimer = window.setTimeout(() => setShowReconnected(false), 3000);
+    return () => {
+      window.clearTimeout(showTimer);
+      window.clearTimeout(hideTimer);
+    };
+  }, [isOnline]);
 
   if (isOnline && !showReconnected) {
     return null;

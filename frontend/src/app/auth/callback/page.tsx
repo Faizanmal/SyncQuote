@@ -12,11 +12,10 @@ function AuthCallback() {
   const setAuth = useAuthStore((state: AuthState) => state.setAuth);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const token = searchParams.get('token');
+  const token = searchParams.get('token');
 
+  useEffect(() => {
     if (!token) {
-      setError('Missing authentication token.');
       return;
     }
 
@@ -26,19 +25,34 @@ function AuthCallback() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setAuth(response.data, token);
+
+        const inviteToken = sessionStorage.getItem('pendingInviteToken');
+        if (inviteToken) {
+          try {
+            await api.post(`/team-invites/${inviteToken}/accept`, {}, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          } catch {
+            // Email-matched pending invites are also applied during Google auth.
+          }
+          sessionStorage.removeItem('pendingInviteToken');
+          router.replace('/team');
+          return;
+        }
+
         router.replace('/dashboard');
       } catch {
         setError('Failed to complete sign in. Please try again.');
       }
     };
 
-    completeSignin();
-  }, [searchParams, setAuth, router]);
+    void completeSignin();
+  }, [token, setAuth, router]);
 
-  if (error) {
+  if (!token || error) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
-        <p className="text-red-500">{error}</p>
+        <p className="text-red-500">{error || 'Missing authentication token.'}</p>
         <button
           onClick={() => router.replace('/signin')}
           className="text-blue-600 hover:underline"

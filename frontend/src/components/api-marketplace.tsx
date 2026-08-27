@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import {
   Plus,
   Search,
@@ -94,7 +95,42 @@ interface InstalledApp {
   status: 'active' | 'disabled' | 'expired';
   installedAt: string;
   lastUsedAt?: string;
-  configuration?: Record<string, any>;
+  configuration?: Record<string, unknown>;
+}
+
+interface MarketplaceApiApp {
+  id: string;
+  name: string;
+  description?: string;
+  shortDescription?: string;
+  category: string;
+  icon: string;
+  developer?: { name: string; verified: boolean };
+  rating?: number;
+  reviewCount?: number;
+  installCount?: number;
+  permissions?: string[];
+  featured?: boolean;
+  installed?: boolean;
+  version?: string;
+  lastUpdated?: string;
+  updatedAt?: string;
+  screenshots?: string[];
+  pricing?: MarketplaceApp['pricing'] | { type?: MarketplaceApp['pricing']; price?: number };
+  priceMonthly?: number;
+}
+
+interface MarketplaceInstallationApi {
+  id: string;
+  appId: string;
+  appName?: string;
+  appIcon?: string;
+  app?: { name?: string; icon?: string };
+  status: InstalledApp['status'] | string;
+  installedAt: string;
+  lastUsedAt?: string;
+  config?: Record<string, unknown>;
+  configuration?: Record<string, unknown>;
 }
 
 const categoryIcons: Record<string, React.ReactNode> = {
@@ -292,31 +328,55 @@ export function ApiMarketplace() {
   const [selectedInstalledApp, setSelectedInstalledApp] = useState<InstalledApp | null>(null);
 
   // Fetch marketplace apps
-  const { data: apps = mockApps, isLoading } = useQuery({
+  const { data: apps = [], isLoading } = useQuery<MarketplaceApp[]>({
     queryKey: ['marketplace-apps'],
     queryFn: async () => {
-      return mockApps;
+      const { data } = await api.get('/api-marketplace/apps');
+      const list: MarketplaceApiApp[] = Array.isArray(data) ? data : data?.apps || [];
+      return list.map((app): MarketplaceApp => ({
+        id: app.id,
+        name: app.name,
+        description: app.shortDescription || app.description || '',
+        category: app.category,
+        icon: app.icon,
+        developer: app.developer || { name: 'Unknown', verified: false },
+        rating: app.rating || 0,
+        reviewCount: app.reviewCount || 0,
+        installCount: app.installCount || 0,
+        permissions: app.permissions || [],
+        featured: !!app.featured,
+        installed: !!app.installed,
+        version: app.version || '1.0',
+        lastUpdated: app.updatedAt || app.lastUpdated || new Date().toISOString(),
+        screenshots: app.screenshots || [],
+        pricing: typeof app.pricing === 'string' ? app.pricing : app.pricing?.type || 'free',
+        priceMonthly: app.priceMonthly || (typeof app.pricing === 'object' ? app.pricing?.price : undefined),
+      }));
     },
   });
 
-  // Fetch installed apps
-  const { data: installedApps = mockInstalledApps } = useQuery({
+  const { data: installedApps = [] } = useQuery<InstalledApp[]>({
     queryKey: ['installed-apps'],
     queryFn: async () => {
-      return mockInstalledApps;
+      const { data } = await api.get('/api-marketplace/installations');
+      const list: MarketplaceInstallationApi[] = Array.isArray(data) ? data : data?.installations || [];
+      return list.map((installation): InstalledApp => ({
+        id: installation.id,
+        appId: installation.appId,
+        appName: installation.appName || installation.app?.name || 'App',
+        appIcon: installation.appIcon || installation.app?.icon || '',
+        status: installation.status === 'active' ? 'active' : installation.status === 'disabled' ? 'disabled' : installation.status === 'expired' ? 'expired' : 'disabled',
+        installedAt: installation.installedAt,
+        lastUsedAt: installation.lastUsedAt,
+        configuration: installation.config || installation.configuration,
+      }));
     },
   });
 
-  // Install app mutation
   const installAppMutation = useMutation({
     mutationFn: async (appId: string) => {
-      const response = await fetch('/api/marketplace/install', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appId }),
-      });
-      if (!response.ok) throw new Error('Failed to install app');
-      return response.json();
+      const response = await api.post(`/api-marketplace/apps/${appId}/install`, {});
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketplace-apps'] });
@@ -332,11 +392,7 @@ export function ApiMarketplace() {
   // Uninstall app mutation
   const uninstallAppMutation = useMutation({
     mutationFn: async (installationId: string) => {
-      const response = await fetch(`/api/marketplace/uninstall/${installationId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to uninstall app');
-      return response.json();
+      await api.delete(`/api-marketplace/apps/${installationId}/uninstall`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketplace-apps'] });
@@ -703,7 +759,7 @@ export function ApiMarketplace() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => uninstallAppMutation.mutate(installation.id)}
+                          onClick={() => uninstallAppMutation.mutate(installation.appId)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -878,7 +934,7 @@ export function ApiMarketplace() {
                     // Find installation and uninstall
                     const installation = installedApps.find(i => i.appId === selectedApp.id);
                     if (installation) {
-                      uninstallAppMutation.mutate(installation.id);
+                      uninstallAppMutation.mutate(installation.appId);
                     }
                     setInstallDialogOpen(false);
                   }}>
@@ -932,19 +988,19 @@ export function ApiMarketplace() {
                     <div className="space-y-2">
                       <Label>Notification Channel</Label>
                       <Input
-                        defaultValue={selectedInstalledApp.configuration.channel}
+                        defaultValue={String(selectedInstalledApp.configuration.channel ?? '')}
                         placeholder="#channel-name"
                       />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <Label>Notify on proposal views</Label>
-                      <Switch defaultChecked={selectedInstalledApp.configuration.notifyOnView} />
+                      <Switch defaultChecked={Boolean(selectedInstalledApp.configuration.notifyOnView)} />
                     </div>
 
                     <div className="flex items-center justify-between">
                       <Label>Notify on proposal signatures</Label>
-                      <Switch defaultChecked={selectedInstalledApp.configuration.notifyOnSign} />
+                      <Switch defaultChecked={Boolean(selectedInstalledApp.configuration.notifyOnSign)} />
                     </div>
                   </>
                 )}

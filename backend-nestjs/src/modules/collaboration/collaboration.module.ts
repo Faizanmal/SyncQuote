@@ -12,5 +12,4 @@ import { EmailModule } from '../email/email.module';
   providers: [CollaborationService, CollaborationGateway],
   exports: [CollaborationService],
 })
-export class CollaborationModule { }
-
+export class CollaborationModule {}

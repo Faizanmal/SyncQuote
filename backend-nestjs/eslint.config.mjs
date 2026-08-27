@@ -9,11 +9,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default [
   {
-    files: ['{src,apps,libs,test}/**/*.ts'],
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '.eslintrc.js'],
+  },
+  {
+    files: ['src/**/*.ts', 'apps/**/*.ts', 'libs/**/*.ts', 'test/**/*.ts'],
     languageOptions: {
       parser: eslintParserTypescript,
       parserOptions: {
-        project: 'tsconfig.json',
         tsconfigRootDir: __dirname,
         sourceType: 'module',
       },
@@ -29,7 +31,6 @@ export default [
       '@typescript-eslint/no-explicit-any': 'off',
       'prettier/prettier': 'error',
     },
-    ignores: ['.eslintrc.js'],
   },
   eslintConfigPrettier,
 ];

@@ -11,6 +11,7 @@ import {
   Headers,
 } from '@nestjs/common';
 import { PaymentsService, CreatePaymentIntentDto } from './payments.service';
+import { PaymentsHubService } from './payments-hub.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Request } from 'express';
 import Stripe from 'stripe';
@@ -19,7 +20,10 @@ import Stripe from 'stripe';
 export class PaymentsController {
   private stripe: Stripe;
 
-  constructor(private readonly paymentsService: PaymentsService) {
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly paymentsHubService: PaymentsHubService,
+  ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
       apiVersion: '2024-06-20',
     });
@@ -29,6 +33,14 @@ export class PaymentsController {
   @Post('create-intent')
   async createPaymentIntent(@Body() data: CreatePaymentIntentDto) {
     return this.paymentsService.createPaymentIntent(data);
+  }
+
+  @Post('create-checkout-session')
+  async createProposalCheckout(
+    @Body()
+    data: CreatePaymentIntentDto & { successUrl: string; cancelUrl: string },
+  ) {
+    return this.paymentsService.createCheckoutSession(data);
   }
 
   // Public endpoint - get payment summary for a proposal
@@ -78,6 +90,87 @@ export class PaymentsController {
     }
 
     return { received: true };
+  }
+
+  @Get('overview')
+  @UseGuards(JwtAuthGuard)
+  getOverview(
+    @Req() req: any,
+    @Query('range') _range?: string,
+    @Query('currency') _currency?: string,
+  ) {
+    return this.paymentsHubService.getOverview(req.user.sub || req.user.id);
+  }
+
+  @Get('invoices')
+  @UseGuards(JwtAuthGuard)
+  listInvoices(
+    @Req() req: any,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.paymentsHubService.listInvoices(req.user.sub || req.user.id, search, status);
+  }
+
+  @Post('invoices')
+  @UseGuards(JwtAuthGuard)
+  createInvoice(@Req() req: any, @Body() body: any) {
+    return this.paymentsHubService.createInvoice(req.user.sub || req.user.id, body);
+  }
+
+  @Post('invoices/:invoiceId/send')
+  @UseGuards(JwtAuthGuard)
+  async sendHubInvoice(@Req() req: any, @Param('invoiceId') invoiceId: string) {
+    await this.paymentsHubService.sendInvoice(req.user.sub || req.user.id, invoiceId);
+    return { success: true };
+  }
+
+  @Get('transactions')
+  @UseGuards(JwtAuthGuard)
+  listTransactions(@Req() req: any) {
+    return this.paymentsHubService.listTransactions(req.user.sub || req.user.id);
+  }
+
+  @Get('customers')
+  @UseGuards(JwtAuthGuard)
+  listCustomers(@Req() req: any, @Query('search') search?: string) {
+    return this.paymentsHubService.listCustomers(req.user.sub || req.user.id, search);
+  }
+
+  @Get('plans')
+  @UseGuards(JwtAuthGuard)
+  listPlans(@Req() req: any) {
+    return this.paymentsHubService.listPlans(req.user.sub || req.user.id);
+  }
+
+  @Post('plans')
+  @UseGuards(JwtAuthGuard)
+  createPlan(@Req() req: any, @Body() body: any) {
+    return this.paymentsHubService.createPlan(req.user.sub || req.user.id, body);
+  }
+
+  @Get('subscriptions')
+  @UseGuards(JwtAuthGuard)
+  listSubscriptions(@Req() req: any, @Query('status') status?: string) {
+    return this.paymentsHubService.listSubscriptions(req.user.sub || req.user.id, status);
+  }
+
+  @Post('subscriptions')
+  @UseGuards(JwtAuthGuard)
+  createSubscription(@Req() req: any, @Body() body: any) {
+    return this.paymentsHubService.createSubscription(req.user.sub || req.user.id, body);
+  }
+
+  @Post('subscriptions/:id/pause')
+  @UseGuards(JwtAuthGuard)
+  pauseSubscription(@Req() req: any, @Param('id') id: string) {
+    return this.paymentsHubService.pauseSubscription(req.user.sub || req.user.id, id);
+  }
+
+  @Post('subscriptions/:id/cancel')
+  @UseGuards(JwtAuthGuard)
+  cancelSubscription(@Req() req: any, @Param('id') id: string) {
+    return this.paymentsHubService.cancelSubscription(req.user.sub || req.user.id, id);
   }
 
   // Protected endpoints for proposal owners

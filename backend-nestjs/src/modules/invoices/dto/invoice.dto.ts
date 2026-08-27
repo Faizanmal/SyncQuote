@@ -1,4 +1,14 @@
-import { IsString, IsUUID, IsOptional, IsArray, IsEnum, IsNumber, IsBoolean, IsDateString, IsObject } from 'class-validator';
+import {
+  IsString,
+  IsUUID,
+  IsOptional,
+  IsArray,
+  IsEnum,
+  IsNumber,
+  IsBoolean,
+  IsDateString,
+  IsObject,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -203,7 +213,10 @@ export class RecordPaymentDto {
   @IsNumber()
   amount: number;
 
-  @ApiProperty({ description: 'Payment method', examples: ['credit_card', 'bank_transfer', 'check', 'cash', 'other'] })
+  @ApiProperty({
+    description: 'Payment method',
+    examples: ['credit_card', 'bank_transfer', 'check', 'cash', 'other'],
+  })
   @IsString()
   paymentMethod: string;
 

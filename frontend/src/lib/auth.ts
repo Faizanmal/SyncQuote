@@ -51,6 +51,7 @@ export interface SignUpData {
   email: string;
   password: string;
   name: string;
+  inviteToken?: string;
 }
 
 export interface SignInData {

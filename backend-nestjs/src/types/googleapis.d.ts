@@ -28,9 +28,23 @@ declare module 'googleapis' {
 
     export interface Calendar {
       events: {
-        insert(params: { calendarId: string; requestBody: Schema$Event; conferenceDataVersion?: number }): Promise<any>;
-        list(params: { calendarId: string; timeMin?: string; timeMax?: string; singleEvents?: boolean; orderBy?: string }): Promise<any>;
-        patch(params: { calendarId: string; eventId: string; requestBody: Schema$Event }): Promise<any>;
+        insert(params: {
+          calendarId: string;
+          requestBody: Schema$Event;
+          conferenceDataVersion?: number;
+        }): Promise<any>;
+        list(params: {
+          calendarId: string;
+          timeMin?: string;
+          timeMax?: string;
+          singleEvents?: boolean;
+          orderBy?: string;
+        }): Promise<any>;
+        patch(params: {
+          calendarId: string;
+          eventId: string;
+          requestBody: Schema$Event;
+        }): Promise<any>;
         delete(params: { calendarId: string; eventId: string }): Promise<any>;
       };
     }
@@ -52,7 +66,12 @@ declare module 'googleapis' {
     export interface Drive {
       files: {
         create(params: { requestBody: Schema$File; media?: any; fields?: string }): Promise<any>;
-        list(params?: { q?: string; pageSize?: number; fields?: string; orderBy?: string }): Promise<any>;
+        list(params?: {
+          q?: string;
+          pageSize?: number;
+          fields?: string;
+          orderBy?: string;
+        }): Promise<any>;
         get(params: { fileId: string; fields?: string; alt?: string }, options?: any): Promise<any>;
       };
     }

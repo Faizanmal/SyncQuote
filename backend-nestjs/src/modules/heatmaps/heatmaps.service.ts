@@ -56,20 +56,23 @@ export class HeatmapsService {
         break;
     }
 
-    // Get session statistics
-    const interactions = await this.prisma.proposalInteraction.findMany({
-      where: { proposalId: dto.proposalId },
-      select: { sessionId: true },
-    });
-
-    const uniqueSessions = new Set(interactions.map((i) => i.sessionId)).size;
+    // Get session statistics without loading every interaction row
+    const [interactionTotals] = await this.prisma.$queryRaw<
+      Array<{ totalInteractions: unknown; uniqueSessions: unknown }>
+    >`
+      SELECT
+        COUNT(*)::int AS "totalInteractions",
+        COUNT(DISTINCT "sessionId")::int AS "uniqueSessions"
+      FROM "ProposalInteraction"
+      WHERE "proposalId" = ${dto.proposalId}
+    `;
 
     return {
       proposalId: dto.proposalId,
       type: dto.type,
       dataPoints,
-      totalInteractions: interactions.length,
-      uniqueSessions,
+      totalInteractions: Number(interactionTotals?.totalInteractions) || 0,
+      uniqueSessions: Number(interactionTotals?.uniqueSessions) || 0,
       width: dto.width || 1920,
       height: dto.height || 1080,
       generatedAt: new Date(),

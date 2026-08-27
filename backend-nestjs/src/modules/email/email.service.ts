@@ -180,7 +180,9 @@ export class EmailService {
       await sgMail.send(msg);
       this.logger.log(`Proposal approved notification sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send proposal approved notification: ${(error as Error).message}`);
+      this.logger.error(
+        `Failed to send proposal approved notification: ${(error as Error).message}`,
+      );
     }
   }
 
@@ -215,5 +217,68 @@ export class EmailService {
     } catch (error) {
       this.logger.error(`Failed to send notification email: ${(error as Error).message}`);
     }
+  }
+
+  async sendTeamInvitationEmail(
+    email: string,
+    teamName: string,
+    inviterName: string,
+    token: string,
+    message?: string,
+  ) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+    const inviteUrl = `${frontendUrl}/invite?token=${token}`;
+    const note = message
+      ? `<p style="background:#f3f4f6;padding:12px;border-radius:6px;">${message}</p>`
+      : '';
+
+    const msg = {
+      to: email,
+      from: {
+        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
+        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
+      },
+      subject: `${inviterName} invited you to join ${teamName} on SyncQuote`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>You are invited to ${teamName}</h2>
+          <p>${inviterName} invited you to collaborate on SyncQuote.</p>
+          ${note}
+          <a href="${inviteUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+            Accept invitation
+          </a>
+          <p>Or copy this link: ${inviteUrl}</p>
+          <p>This invitation expires in 7 days.</p>
+        </div>
+      `,
+    };
+
+    await sgMail.send(msg);
+    this.logger.log(`Team invitation email sent to ${email}`);
+  }
+
+  async sendTeamAddedEmail(email: string, teamName: string, inviterName: string) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+
+    const msg = {
+      to: email,
+      from: {
+        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
+        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
+      },
+      subject: `You were added to ${teamName} on SyncQuote`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>You joined ${teamName}</h2>
+          <p>${inviterName} added you to their team on SyncQuote.</p>
+          <a href="${frontendUrl}/team" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+            Open team
+          </a>
+        </div>
+      `,
+    };
+
+    await sgMail.send(msg);
+    this.logger.log(`Team added email sent to ${email}`);
   }
 }

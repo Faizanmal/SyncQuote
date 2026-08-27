@@ -13,7 +13,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import { formatDistanceToNow } from 'date-fns';
+
+interface NotificationSocket {
+  on: (event: string, handler: (data: { data: Notification }) => void) => void;
+  off: (event: string) => void;
+}
 
 interface Notification {
   id: string;
@@ -73,22 +79,24 @@ export function NotificationBell() {
   };
 
   useEffect(() => {
-    fetchNotifications();
-    fetchUnreadCount();
+    const cancelFetch = deferEffect(() => {
+      void fetchNotifications();
+      void fetchUnreadCount();
+    });
 
-    // Set up WebSocket listener
-    if (typeof window !== 'undefined' && (window as Window & { socket?: unknown }).socket) {
-      const socket = (window as Window & { socket?: unknown }).socket;
-      
-      (socket as any).on('notification', (data: { data: Notification }) => {
-        setNotifications((prev) => [data.data, ...prev]);
-        setUnreadCount((prev) => prev + 1);
-      });
+    const socket = typeof window !== 'undefined'
+      ? (window as Window & { socket?: NotificationSocket }).socket
+      : undefined;
 
-      return () => {
-        (socket as any).off('notification');
-      };
-    }
+    socket?.on('notification', (data: { data: Notification }) => {
+      setNotifications((prev) => [data.data, ...prev]);
+      setUnreadCount((prev) => prev + 1);
+    });
+
+    return () => {
+      cancelFetch();
+      socket?.off('notification');
+    };
   }, [fetchNotifications, fetchUnreadCount]);
 
   const handleNotificationClick = (notification: Notification) => {

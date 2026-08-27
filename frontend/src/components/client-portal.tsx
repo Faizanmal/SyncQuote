@@ -17,7 +17,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Star, Send, FileText, Eye, CheckCircle, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { deferEffect } from '@/lib/defer-effect';
 import Link from 'next/link';
+
+interface ClientProposal {
+  id: string;
+  title: string;
+  status: string;
+  slug?: string;
+  viewCount?: number;
+  expiresAt?: string;
+  updatedAt?: string;
+  createdAt: string;
+  user?: {
+    name?: string;
+    companyName?: string;
+  };
+}
 
 interface ClientPortalProps {
   email?: string;
@@ -25,7 +41,7 @@ interface ClientPortalProps {
 
 export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
   const [email, setEmail] = useState(initialEmail || '');
-  const [proposals, setProposals] = useState<any[]>([]);
+  const [proposals, setProposals] = useState<ClientProposal[]>([]);
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(!!initialEmail);
   const api = useApi();
@@ -44,7 +60,9 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
 
   useEffect(() => {
     if (email && isAuthenticated) {
-      loadProposals();
+      return deferEffect(() => {
+        void loadProposals();
+      });
     }
   }, [email, isAuthenticated]);
 
@@ -70,7 +88,7 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
     }
   };
 
-  const getStatusVariant = (status: string): any => {
+  const getStatusVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (status) {
       case 'DRAFT':
         return 'secondary';
@@ -79,9 +97,9 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
       case 'VIEWED':
         return 'default';
       case 'SIGNED':
-        return 'success';
+        return 'default';
       case 'APPROVED':
-        return 'success';
+        return 'default';
       default:
         return 'secondary';
     }
@@ -156,16 +174,16 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
                       {getStatusIcon(proposal.status)}
                       {proposal.status}
                     </Badge>
-                    {proposal.viewCount > 0 && (
+                    {proposal.viewCount ? (
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Eye className="h-3 w-3" />
                         {proposal.viewCount} views
                       </span>
-                    )}
+                    ) : null}
                   </div>
                   <CardTitle className="text-lg">{proposal.title}</CardTitle>
                   <CardDescription>
-                    From {proposal.user.companyName || proposal.user.name}
+                    From {proposal.user?.companyName || proposal.user?.name || 'Unknown'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -184,7 +202,7 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
                         })}
                       </div>
                     )}
-                    <Link href={`/p/${proposal.slug}`}>
+                    <Link href={`/p/${proposal.slug || proposal.id}`}>
                       <Button className="w-full">View Proposal</Button>
                     </Link>
                   </div>

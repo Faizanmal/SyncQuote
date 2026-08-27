@@ -25,12 +25,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private prisma: PrismaService,
     private emailService: EmailService,
-  ) { }
+  ) {}
 
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
   }
-
 
   /**
    * Join a proposal room for real-time updates
@@ -182,14 +181,20 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ==================== CO-BROWSING PRESENCE ====================
 
   // Track active viewers per proposal in memory
-  private activeViewers: Map<string, Map<string, {
-    socketId: string;
-    viewerName?: string;
-    viewerEmail?: string;
-    scrollDepth: number;
-    activeSection?: string;
-    lastActivity: Date;
-  }>> = new Map();
+  private activeViewers: Map<
+    string,
+    Map<
+      string,
+      {
+        socketId: string;
+        viewerName?: string;
+        viewerEmail?: string;
+        scrollDepth: number;
+        activeSection?: string;
+        lastActivity: Date;
+      }
+    >
+  > = new Map();
 
   // Lingering threshold in milliseconds (e.g., 10 seconds on a section)
   private readonly LINGER_THRESHOLD_MS = 10000;
@@ -211,7 +216,8 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       viewerEmail?: string;
     },
   ) {
-    const { proposalId, scrollDepth, activeSection, activeSectionId, viewerName, viewerEmail } = data;
+    const { proposalId, scrollDepth, activeSection, activeSectionId, viewerName, viewerEmail } =
+      data;
 
     // Get proposal to find owner
     const proposal = await this.prisma.proposal.findUnique({
@@ -252,20 +258,25 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Check for section lingering
     if (activeSectionId) {
-      this.trackSectionLingering(client.id, proposalId, proposal.userId, activeSectionId, activeSection || 'Unknown Section');
+      this.trackSectionLingering(
+        client.id,
+        proposalId,
+        proposal.userId,
+        activeSectionId,
+        activeSection || 'Unknown Section',
+      );
     }
 
-    this.logger.debug(`Presence update for proposal ${proposalId}: ${scrollDepth}% scroll, section: ${activeSection}`);
+    this.logger.debug(
+      `Presence update for proposal ${proposalId}: ${scrollDepth}% scroll, section: ${activeSection}`,
+    );
   }
 
   /**
    * Handle cursor movement for co-browsing
    */
   @SubscribeMessage('cursor_move')
-  async handleCursorMove(
-    client: Socket,
-    data: { proposalId: string; x: number; y: number },
-  ) {
+  async handleCursorMove(client: Socket, data: { proposalId: string; x: number; y: number }) {
     const { proposalId, x, y } = data;
 
     // Get proposal to find owner
@@ -317,16 +328,18 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       // Create notification in database
-      this.prisma.notification.create({
-        data: {
-          userId: ownerId,
-          type: 'section_linger',
-          title: 'Client Interest Detected',
-          message: `A viewer is spending extra time on the "${sectionName}" section`,
-          proposalId,
-          metadata: { sectionId, sectionName },
-        },
-      }).catch(err => this.logger.error('Failed to create linger notification', err));
+      this.prisma.notification
+        .create({
+          data: {
+            userId: ownerId,
+            type: 'section_linger',
+            title: 'Client Interest Detected',
+            message: `A viewer is spending extra time on the "${sectionName}" section`,
+            proposalId,
+            metadata: { sectionId, sectionName },
+          },
+        })
+        .catch((err) => this.logger.error('Failed to create linger notification', err));
 
       this.sectionTimers.delete(timerKey);
     }, this.LINGER_THRESHOLD_MS);
@@ -346,18 +359,20 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
         viewers.delete(client.id);
 
         // Notify owner of viewer departure
-        this.prisma.proposal.findUnique({
-          where: { id: proposalId },
-          select: { userId: true },
-        }).then(proposal => {
-          if (proposal) {
-            this.server.to(`user:${proposal.userId}`).emit('viewer_left', {
-              proposalId,
-              socketId: client.id,
-              timestamp: new Date(),
-            });
-          }
-        });
+        this.prisma.proposal
+          .findUnique({
+            where: { id: proposalId },
+            select: { userId: true },
+          })
+          .then((proposal) => {
+            if (proposal) {
+              this.server.to(`user:${proposal.userId}`).emit('viewer_left', {
+                proposalId,
+                socketId: client.id,
+                timestamp: new Date(),
+              });
+            }
+          });
       }
     }
 

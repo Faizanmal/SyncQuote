@@ -124,6 +124,87 @@ export class PaymentsService {
     };
   }
 
+  async createCheckoutSession(
+    data: CreatePaymentIntentDto & { successUrl: string; cancelUrl: string },
+  ) {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: data.proposalId },
+      include: { user: true, blocks: { include: { pricingItems: true } } },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
+    }
+
+    let amount = data.amount;
+    if (!amount) {
+      amount =
+        data.type === 'deposit' ? this.calculateDeposit(proposal) : this.calculateTotal(proposal);
+    }
+    if (amount <= 0) {
+      throw new BadRequestException('Invalid payment amount');
+    }
+
+    const paymentIntentData: Stripe.Checkout.SessionCreateParams.PaymentIntentData = {
+      metadata: {
+        proposalId: proposal.id,
+        paymentType: data.type,
+        userId: proposal.userId,
+      },
+      receipt_email: data.payerEmail,
+    };
+
+    const connectAccountId = proposal.user.stripeConnectId;
+    if (connectAccountId && proposal.user.stripeConnectEnabled) {
+      paymentIntentData.application_fee_amount = Math.round(amount * 0.029 * 100) + 30;
+      paymentIntentData.transfer_data = { destination: connectAccountId };
+    }
+
+    const session = await this.stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: data.payerEmail,
+      line_items: [
+        {
+          price_data: {
+            currency: proposal.currency.toLowerCase(),
+            product_data: { name: `${data.type} for ${proposal.title}` },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: data.successUrl,
+      cancel_url: data.cancelUrl,
+      metadata: {
+        proposalId: proposal.id,
+        paymentType: data.type,
+        userId: proposal.userId,
+      },
+      payment_intent_data: paymentIntentData,
+    });
+
+    const paymentIntentId =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id;
+
+    await this.prisma.proposalPayment.create({
+      data: {
+        proposalId: proposal.id,
+        type: data.type,
+        amount,
+        currency: proposal.currency,
+        stripePaymentIntentId: paymentIntentId || `session_${session.id}`,
+        status: 'pending',
+        payerEmail: data.payerEmail,
+        payerName: data.payerName,
+        metadata: { checkoutSessionId: session.id },
+      },
+    });
+
+    return { sessionId: session.id, url: session.url, amount, currency: proposal.currency };
+  }
+
   async handlePaymentSuccess(paymentIntentId: string) {
     const payment = await this.prisma.proposalPayment.findUnique({
       where: { stripePaymentIntentId: paymentIntentId },

@@ -84,7 +84,12 @@ apiClient.interceptors.response.use(
         // Refresh failed, clear auth and redirect to login
         if (typeof window !== 'undefined') {
           localStorage.removeItem('auth-storage');
-          window.location.href = '/signin';
+          const next = `${window.location.pathname}${window.location.search}`;
+          const signin =
+            next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/signin')
+              ? `/signin?next=${encodeURIComponent(next)}`
+              : '/signin';
+          window.location.href = signin;
         }
         return Promise.reject(refreshError);
       }

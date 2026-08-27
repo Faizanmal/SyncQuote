@@ -15,6 +15,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { unwrapList } from '@/lib/pagination';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   Send,
   Trash2,
@@ -76,9 +79,14 @@ export function BulkOperationsPanel() {
   const fetchProposals = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/proposals?status=${statusFilter}`);
-      const data = await response.json();
-      setProposals(data.proposals || []);
+      const { data } = await api.get('/proposals', {
+        params: {
+          page: 1,
+          limit: 100,
+          ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+        },
+      });
+      setProposals(unwrapList<Proposal>(data));
     } catch (error) {
       console.error('Failed to fetch proposals:', error);
     } finally {
@@ -88,9 +96,8 @@ export function BulkOperationsPanel() {
 
   const fetchBatchJobs = async () => {
     try {
-      const response = await fetch('/api/bulk-operations/jobs');
-      const data = await response.json();
-      setBatchJobs(data.jobs || []);
+      const { data } = await api.get('/bulk/jobs');
+      setBatchJobs(Array.isArray(data) ? data : data.jobs || []);
     } catch (error) {
       console.error('Failed to fetch batch jobs:', error);
     }
@@ -98,10 +105,10 @@ export function BulkOperationsPanel() {
 
   const fetchJobStatus = async (jobId: string) => {
     try {
-      const response = await fetch(`/api/bulk-operations/jobs/${jobId}`);
-      const data = await response.json();
-      setCurrentJob(data.job);
-      if (['completed', 'failed', 'cancelled'].includes(data.job.status)) {
+      const { data } = await api.get(`/bulk/jobs/${jobId}`);
+      const job = data.job || data;
+      setCurrentJob(job);
+      if (['completed', 'failed', 'cancelled'].includes(job.status)) {
         fetchBatchJobs();
         fetchProposals();
       }
@@ -110,10 +117,10 @@ export function BulkOperationsPanel() {
     }
   };
 
-  useEffect(() => {
-    fetchProposals();
-    fetchBatchJobs();
-  }, [statusFilter]);
+  useEffect(() => deferEffect(() => {
+    void fetchProposals();
+    void fetchBatchJobs();
+  }), [statusFilter]);
 
   useEffect(() => {
     // Poll for job updates if there's an active job
@@ -145,13 +152,8 @@ export function BulkOperationsPanel() {
 
   const bulkSend = async () => {
     try {
-      const response = await fetch('/api/bulk-operations/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposalIds: Array.from(selectedIds) }),
-      });
-      const data = await response.json();
-      setCurrentJob(data.job);
+      const { data } = await api.post('/bulk/send', { proposalIds: Array.from(selectedIds) });
+      setCurrentJob(data.job || data);
       setShowBulkSendDialog(false);
       toast({
         title: 'Bulk send started',
@@ -169,13 +171,8 @@ export function BulkOperationsPanel() {
 
   const bulkUpdateStatus = async (newStatus: string) => {
     try {
-      const response = await fetch('/api/bulk-operations/update-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposalIds: Array.from(selectedIds), status: newStatus }),
-      });
-      const data = await response.json();
-      setCurrentJob(data.job);
+      const { data } = await api.post('/bulk/status', { proposalIds: Array.from(selectedIds), status: newStatus });
+      setCurrentJob(data.job || data);
       toast({
         title: 'Status update started',
         description: `Updating ${selectedIds.size} proposals`,
@@ -192,16 +189,11 @@ export function BulkOperationsPanel() {
 
   const bulkExport = async () => {
     try {
-      const response = await fetch('/api/bulk-operations/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const { data } = await api.post('/bulk/export', {
           proposalIds: Array.from(selectedIds),
           format: exportFormat,
-        }),
-      });
-      const data = await response.json();
-      setCurrentJob(data.job);
+        });
+      setCurrentJob(data.job || data);
       setShowExportDialog(false);
       toast({
         title: 'Export started',
@@ -222,13 +214,8 @@ export function BulkOperationsPanel() {
       return;
     }
     try {
-      const response = await fetch('/api/bulk-operations/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposalIds: Array.from(selectedIds) }),
-      });
-      const data = await response.json();
-      setCurrentJob(data.job);
+      const { data } = await api.post('/bulk/delete', { proposalIds: Array.from(selectedIds) });
+      setCurrentJob(data.job || data);
       setSelectedIds(new Set());
       toast({
         title: 'Delete started',
@@ -246,7 +233,7 @@ export function BulkOperationsPanel() {
 
   const cancelJob = async (jobId: string) => {
     try {
-      await fetch(`/api/bulk-operations/jobs/${jobId}/cancel`, { method: 'POST' });
+      await api.post(`/bulk/jobs/${jobId}/cancel`);
       toast({
         title: 'Job cancelled',
         description: 'The batch operation has been cancelled',

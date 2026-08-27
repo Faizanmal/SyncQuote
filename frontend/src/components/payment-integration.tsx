@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
 import { toast } from 'sonner';
+import { deferEffect } from '@/lib/defer-effect';
 
 // Types
 interface PaymentScheduleItem {
@@ -106,6 +107,7 @@ export function PaymentForm({
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
+  const [payerEmail, setPayerEmail] = useState('');
   const api = useApi();
 
   // Calculate pending amount
@@ -131,31 +133,29 @@ export function PaymentForm({
   };
 
   const handlePayment = async (amount: number, type: string) => {
+    if (!payerEmail) {
+      toast.error('Enter your email so we can send a receipt');
+      return;
+    }
+
     try {
       setLoading(true);
-      
-      // Create payment intent
-      const response = await api.post('/payments/create-intent', {
+      const paymentType = type.includes('deposit') ? 'deposit' : type.includes('final') ? 'final' : 'milestone';
+      const response = await api.post('/payments/create-checkout-session', {
         proposalId,
         amount,
-        currency,
-        type,
-        paymentMethod,
+        type: paymentType,
+        payerEmail,
+        successUrl: `${window.location.origin}${window.location.pathname}?payment=success`,
+        cancelUrl: `${window.location.origin}${window.location.pathname}?payment=canceled`,
       });
 
-      // In production, this would redirect to Stripe Checkout or use Stripe Elements
-      // For now, simulate payment flow
-      const { paymentIntentId } = response.data;
-      
-      // Here you would integrate with Stripe.js
-      // const stripe = await loadStripe(STRIPE_PUBLIC_KEY);
-      // const { error } = await stripe.confirmCardPayment(clientSecret, {...});
-      
-      // Simulate successful payment for demo
-      const paymentResponse = await api.post(`/payments/${paymentIntentId}/confirm`);
-      
-      toast.success('Payment processed successfully!');
-      onPaymentComplete?.(paymentResponse.data);
+      if (response.data?.url) {
+        window.location.assign(response.data.url);
+        return;
+      }
+
+      toast.error('Checkout did not return a payment URL');
     } catch (error) {
       toast.error('Payment failed. Please try again.');
       console.error('Payment error:', error);
@@ -255,6 +255,16 @@ export function PaymentForm({
           <CardDescription>Choose a payment amount and method</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="payerEmail">Receipt email</Label>
+            <Input
+              id="payerEmail"
+              type="email"
+              placeholder="you@company.com"
+              value={payerEmail}
+              onChange={(e) => setPayerEmail(e.target.value)}
+            />
+          </div>
           {/* Payment Method Selection */}
           <div className="space-y-2">
             <Label>Payment Method</Label>
@@ -423,9 +433,9 @@ export function ProposalPaymentDashboard({ proposalId }: ProposalPaymentDashboar
     }
   };
 
-  useEffect(() => {
-    fetchPayments();
-  }, [proposalId]);
+  useEffect(() => deferEffect(() => {
+    void fetchPayments();
+  }), [proposalId]);
 
   const handleRefund = async () => {
     if (!refundDialog) return;

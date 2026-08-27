@@ -16,6 +16,7 @@ import {
   CheckCircle, XCircle, GitBranch
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 interface ApprovalStep {
   id: string;
@@ -31,7 +32,7 @@ interface ApprovalStep {
 interface ApprovalCondition {
   field: string;
   operator: string;
-  value: any;
+  value: unknown;
 }
 
 interface ApprovalWorkflow {
@@ -51,7 +52,7 @@ interface ApprovalRequest {
   status: string;
   submittedBy: string;
   createdAt: string;
-  approvals: any[];
+  approvals: Array<{ id?: string; status?: string; comment?: string }>;
 }
 
 export function ApprovalWorkflowBuilder() {
@@ -63,27 +64,23 @@ export function ApprovalWorkflowBuilder() {
   const { data: workflows } = useQuery({
     queryKey: ['approval-workflows'],
     queryFn: async () => {
-      const res = await fetch('/api/approval-workflows');
-      return res.json();
+      const { data } = await api.get('/approval-workflows');
+      return data;
     },
   });
 
   const { data: pendingApprovals } = useQuery({
     queryKey: ['pending-approvals'],
     queryFn: async () => {
-      const res = await fetch('/api/approval-workflows/requests/pending');
-      return res.json();
+      const { data } = await api.get('/approval-workflows/approvals/pending');
+      return data;
     },
   });
 
   const createWorkflowMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch('/api/approval-workflows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (data: Record<string, unknown>) => {
+      const { data: created } = await api.post('/approval-workflows', data);
+      return created;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-workflows'] });
@@ -93,13 +90,9 @@ export function ApprovalWorkflowBuilder() {
   });
 
   const updateWorkflowMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await fetch(`/api/approval-workflows/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      const { data: updated } = await api.put(`/approval-workflows/${id}`, data);
+      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-workflows'] });
@@ -109,13 +102,12 @@ export function ApprovalWorkflowBuilder() {
   });
 
   const approveRequestMutation = useMutation({
-    mutationFn: async ({ requestId, data }: { requestId: string; data: any }) => {
-      const res = await fetch(`/api/approval-workflows/requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+    mutationFn: async ({ requestId, data }: { requestId: string; data: Record<string, unknown> }) => {
+      const { data: result } = await api.post(`/approval-workflows/approvals/${requestId}/action`, {
+        action: 'approve',
+        ...data,
       });
-      return res.json();
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
@@ -263,7 +255,7 @@ function ApprovalRequestCard({
   onApprove 
 }: { 
   request: ApprovalRequest;
-  onApprove: (data: any) => void;
+  onApprove: (data: Record<string, unknown>) => void;
 }) {
   const [comment, setComment] = useState('');
   const [ , setShowRejectDialog] = useState(false);
@@ -326,7 +318,7 @@ function WorkflowBuilderDialog({
   workflow: ApprovalWorkflow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: any) => void;
+  onSave: (data: Record<string, unknown>) => void;
 }) {
   const [name, setName] = useState(workflow?.name || '');
   const [description, setDescription] = useState(workflow?.description || '');

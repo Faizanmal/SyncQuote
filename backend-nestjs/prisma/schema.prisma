@@ -104,7 +104,11 @@ model User {
   // Security
   passwordResetToken String?
   passwordResetExpires DateTime?
+  emailVerificationToken String?
+  emailVerificationExpires DateTime?
   refreshToken      String?             // Store hashed
+  twoFactorEnabled  Boolean             @default(false)
+  totpSecret        String?
   
   // Branding (White-labeling)
   brandColor        String?             // Primary brand color hex
@@ -126,6 +130,12 @@ model User {
   snippets          Snippet[]
   automationWorkflows AutomationWorkflow[]
   teamMemberships   TeamMember[]        // Added for team relation
+  teamInvitationsSent TeamInvitation[]  @relation("TeamInviter")
+  invoices          Invoice[]
+  recurringInvoices RecurringInvoice[]
+  contracts         Contract[]
+  clientBillingPlans ClientBillingPlan[]
+  clientSubscriptions ClientSubscription[]
   securityPolicy    SecurityPolicy?     // Added
   marketplaceSeller TemplateMarketplace[] @relation("MarketplaceSeller") // Added
   templateReviews   TemplateReview[]    @relation("TemplateReviews") // Added
@@ -150,6 +160,7 @@ model User {
   @@index([email])
   @@index([stripeCustomerId])
   @@index([stripeConnectId])
+  @@index([emailVerificationToken])
 }
 
 model Proposal {
@@ -236,6 +247,8 @@ model Proposal {
   clientFeedback    ClientFeedback[]
   viewSessions      ProposalViewSession[]
   payments          ProposalPayment[]
+  invoices          Invoice[]
+  contracts         Contract[]
   dealLinks         CrmDealLink[]         // Added
   suggestions       ProposalSuggestion[]  // Added
   changes           ProposalChange[]      // Added
@@ -249,6 +262,9 @@ model Proposal {
   @@index([templateId])
   @@index([parentVersionId])
   @@index([pipelineStageId])
+  @@index([userId, createdAt])
+  @@index([userId, status])
+  @@index([userId, recipientEmail])
 }
 
 model ProposalBlock {
@@ -576,6 +592,7 @@ model ProposalViewSession {
   @@index([sessionId])
   @@index([visitorId])
   @@index([startedAt])
+  @@index([proposalId, startedAt])
 }
 
 // Track time spent on each section
@@ -708,6 +725,7 @@ model Team {
   updatedAt         DateTime            @updatedAt
   
   members           TeamMember[]
+  invitations       TeamInvitation[]
   
   @@index([ownerId])
   @@index([slug])
@@ -736,6 +754,168 @@ model TeamMember {
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])
+}
+
+model TeamInvitation {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  email       String
+  role        TeamRole @default(MEMBER)
+  message     String?
+  token       String   @unique
+  invitedById String
+  invitedBy   User     @relation("TeamInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  status      String   @default("pending")
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([teamId, email])
+  @@index([token])
+  @@index([email])
+  @@index([teamId])
+}
+
+model Invoice {
+  id                    String    @id @default(uuid())
+  invoiceNumber         String
+  proposalId            String?
+  proposal              Proposal? @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                String    @default("draft")
+
+  clientName            String
+  clientEmail           String
+  clientCompany         String?
+  clientAddress         String?
+
+  providerName          String
+  providerCompany       String?
+  providerEmail         String
+  providerAddress       String?
+
+  lineItems             Json
+  subtotal              Float
+  taxAmount             Float     @default(0)
+  discountAmount        Float     @default(0)
+  totalAmount           Float
+  amountPaid            Float     @default(0)
+  amountDue             Float
+
+  invoiceDate           DateTime  @default(now())
+  dueDate               DateTime
+  paidDate              DateTime?
+
+  currency              String    @default("USD")
+  paymentTerms          String?
+  notes                 String?
+  stripePaymentIntentId String?
+  stripeInvoiceId       String?
+  stripeCheckoutSessionId String?
+  pdfUrl                String?
+
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([userId, invoiceNumber])
+  @@index([userId])
+  @@index([status])
+  @@index([clientEmail])
+  @@index([proposalId])
+  @@index([userId, createdAt])
+  @@index([userId, status])
+}
+
+model RecurringInvoice {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template        Json
+  frequency       String
+  startDate       DateTime
+  endDate         DateTime?
+  nextInvoiceDate DateTime
+  isActive        Boolean   @default(true)
+  invoiceCount    Int       @default(0)
+  lastGeneratedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([isActive, nextInvoiceDate])
+}
+
+model Contract {
+  id              String    @id @default(uuid())
+  proposalId      String
+  proposal        Proposal  @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  content         String    @db.Text
+  status          String    @default("draft")
+  pdfUrl          String?
+  signatureData   Json?
+  recipientEmail  String?
+  expiresAt       DateTime?
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  signedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([proposalId])
+  @@index([userId])
+  @@index([status])
+}
+
+model ClientBillingPlan {
+  id             String              @id @default(uuid())
+  userId         String
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  amount         Float
+  currency       String              @default("USD")
+  interval       String              @default("month")
+  intervalCount  Int                 @default(1)
+  trialDays      Int?
+  features       Json?
+  isPopular      Boolean             @default(false)
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  subscriptions  ClientSubscription[]
+
+  @@index([userId])
+}
+
+model ClientSubscription {
+  id                 String            @id @default(uuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId             String
+  plan               ClientBillingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  customerName       String
+  customerEmail      String
+  status             String            @default("active")
+  amount             Float
+  currency           String            @default("USD")
+  interval           String            @default("month")
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  nextPayment        DateTime
+  pausedAt           DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
 }
 
 // Proposal Tags for organization
@@ -1207,6 +1387,7 @@ model ProposalInteraction {
   @@index([proposalId])
   @@index([sessionId])
   @@index([type])
+  @@index([proposalId, type])
 }
 
 model ProposalScrollTracking {
@@ -1921,6 +2102,8 @@ model TemplatePurchase {
   price             Float
   currency          String              @default("USD") // Added for currency tracking
   purchasedAt       DateTime            @default(now())
+  status            String              @default("completed")
+  stripeCheckoutSessionId String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   
@@ -2120,6 +2303,86 @@ model Client {
   metadata          Json?               // Added for industry, companySize, etc
   createdAt         DateTime            @default(now())
   
+  @@index([userId])
+}
+
+model MonitoringAlert {
+  id          String    @id @default(uuid())
+  userId      String
+  severity    String
+  title       String
+  message     String
+  source      String    @default("api")
+  status      String    @default("open")
+  assignedTo  String?
+  resolvedAt  DateTime?
+  tags        String[]  @default([])
+  count       Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+model MonitoringAlertRule {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  metric    String
+  condition String
+  threshold Float
+  severity  String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model MonitoringErrorLog {
+  id        String   @id @default(uuid())
+  userId    String
+  message   String
+  stack     String   @default("")
+  level     String   @default("error")
+  source    String   @default("api")
+  count     Int      @default(1)
+  resolved  Boolean  @default(false)
+  tags      String[] @default([])
+  context   Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model MonitoringDeployment {
+  id                 String   @id @default(uuid())
+  userId             String
+  version            String
+  environment        String
+  status             String
+  deployedBy         String
+  duration           Int      @default(0)
+  changes            String[] @default([])
+  rollbackAvailable  Boolean  @default(true)
+  healthScore        Int      @default(100)
+  deployedAt         DateTime @default(now())
+
+  @@index([userId])
+}
+
+model DocumentTheme {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  colors    Json
+  fonts     Json
+  logo      String   @default("")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
 }
 

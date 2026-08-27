@@ -13,6 +13,8 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
+import { api } from '@/lib/api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   Globe,
   Languages,
@@ -103,7 +105,7 @@ const TRANSLATION_PROVIDERS = [
   { id: 'deepl', name: 'DeepL', description: 'High quality translations', icon: '🟢' },
   { id: 'azure', name: 'Azure Translator', description: 'Enterprise grade', icon: '🔷' },
   { id: 'openai', name: 'OpenAI GPT', description: 'Context-aware', icon: '🟣' },
-];
+] as const;
 
 export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
   const [translations, setTranslations] = useState<Translation[]>([]);
@@ -128,8 +130,8 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('/api/i18n/settings');
-      const data = await response.json();
+      const response = await api.get('/i18n/settings');
+      const data = response.data;
       if (data.settings) {
         setSettings(data.settings);
       }
@@ -141,8 +143,8 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
   const fetchTranslations = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/i18n/translations${proposalId ? `?proposalId=${proposalId}` : ''}`);
-      const data = await response.json();
+      const response = await api.get('/i18n/settings');
+      const data = response.data;
       setTranslations(data.translations || []);
     } catch (error) {
       console.error('Failed to fetch translations:', error);
@@ -151,19 +153,15 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
     }
   };
 
-  useEffect(() => {
-    fetchSettings();
-    fetchTranslations();
-  }, [proposalId]);
+  useEffect(() => deferEffect(() => {
+    void fetchSettings();
+    void fetchTranslations();
+  }), [proposalId]);
 
   const updateSettings = async (newSettings: Partial<I18nSettings>) => {
     try {
       const updated = { ...settings, ...newSettings };
-      await fetch('/api/i18n/settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
-      });
+      await api.put('/i18n/settings', updated);
       setSettings(updated);
       toast({
         title: 'Settings updated',
@@ -181,16 +179,12 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
 
   const translateProposal = async () => {
     try {
-      const response = await fetch('/api/i18n/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await api.post('/i18n/translate/proposal', {
           proposalId,
           targetLanguage,
           provider: settings.translationProvider,
-        }),
-      });
-      const data = await response.json();
+        });
+      const data = response.data;
       setTranslations(prev => [...prev, data.translation]);
       setShowTranslateDialog(false);
       setTargetLanguage('');
@@ -213,8 +207,8 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
   const pollTranslationStatus = (translationId: string) => {
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/i18n/translations/${translationId}`);
-        const data = await response.json();
+        const response = await api.get(`/i18n/translations/${translationId}`);
+        const data = response.data;
         setTranslations(prev => prev.map(t => (t.id === translationId ? data.translation : t)));
         if (['completed', 'failed'].includes(data.translation.status)) {
           clearInterval(interval);
@@ -228,7 +222,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
 
   const deleteTranslation = async (translationId: string) => {
     try {
-      await fetch(`/api/i18n/translations/${translationId}`, { method: 'DELETE' });
+      await api.delete(`/i18n/translations/${translationId}`);
       setTranslations(prev => prev.filter(t => t.id !== translationId));
       toast({
         title: 'Translation deleted',
@@ -246,16 +240,12 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
 
   const convertCurrency = async () => {
     try {
-      const response = await fetch('/api/i18n/convert-currency', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const response = await api.post('/i18n/currency/convert', {
           amount: parseFloat(conversionAmount),
           from: fromCurrency,
           to: toCurrency,
-        }),
-      });
-      const data = await response.json();
+        });
+      const data = response.data;
       setConvertedAmount(data.convertedAmount);
     } catch (error) {
       console.error("Failed to convert currency:", error);
@@ -418,7 +408,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
                           key={provider.id}
                           variant={settings.translationProvider === provider.id ? 'default' : 'outline'}
                           className="justify-start"
-                          onClick={() => updateSettings({ translationProvider: provider.id as any })}
+                          onClick={() => updateSettings({ translationProvider: provider.id })}
                         >
                           <span className="mr-2">{provider.icon}</span>
                           <div className="text-left">
@@ -714,7 +704,7 @@ export function MultiLanguageSettings({ proposalId }: { proposalId?: string }) {
                           ? 'border-primary bg-primary/5'
                           : 'hover:border-muted-foreground'
                       }`}
-                      onClick={() => updateSettings({ translationProvider: provider.id as any })}
+                      onClick={() => updateSettings({ translationProvider: provider.id })}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-xl">{provider.icon}</span>

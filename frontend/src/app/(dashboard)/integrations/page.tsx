@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
+import { ApiMarketplace } from '@/components/api-marketplace'
 import { 
   Plug, 
   Globe, 
@@ -497,6 +498,7 @@ export default function IntegrationsPage() {
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="api">API Management</TabsTrigger>
           <TabsTrigger value="marketplace">Marketplace</TabsTrigger>
+          <TabsTrigger value="apps">Apps</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
@@ -1296,6 +1298,10 @@ export default function IntegrationsPage() {
               </Card>
             ))}
           </div>
+        </TabsContent>
+
+        <TabsContent value="apps" className="space-y-4">
+          <ApiMarketplace />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">

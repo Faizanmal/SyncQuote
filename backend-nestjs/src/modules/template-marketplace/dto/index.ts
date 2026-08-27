@@ -8,6 +8,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export enum TemplateCategory {
   BUSINESS = 'BUSINESS',
@@ -42,22 +43,30 @@ export class PublishTemplateDto {
   @IsString()
   templateId: string;
 
+  @IsOptional()
   @IsString()
-  title: string;
+  title?: string;
 
+  @IsOptional()
   @IsString()
-  description: string;
+  name?: string;
 
-  @IsEnum(TemplateCategory)
-  category: TemplateCategory;
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   tags?: string[];
 
-  @IsEnum(TemplatePriceType)
-  priceType: TemplatePriceType;
+  @IsOptional()
+  @IsString()
+  priceType?: string;
 
   @IsOptional()
   @IsNumber()
@@ -152,15 +161,19 @@ export class UpdateReviewDto {
 export class SearchMarketplaceDto {
   @IsOptional()
   @IsString()
+  search?: string;
+
+  @IsOptional()
+  @IsString()
   query?: string;
 
   @IsOptional()
-  @IsEnum(TemplateCategory)
-  category?: TemplateCategory;
+  @IsString()
+  category?: string;
 
   @IsOptional()
-  @IsEnum(TemplatePriceType)
-  priceType?: TemplatePriceType;
+  @IsString()
+  priceType?: string;
 
   @IsOptional()
   @IsNumber()
@@ -177,11 +190,13 @@ export class SearchMarketplaceDto {
   sortBy?: 'popular' | 'newest' | 'rating' | 'price_low' | 'price_high';
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   @Max(50)
@@ -189,12 +204,25 @@ export class SearchMarketplaceDto {
 }
 
 export class PurchaseTemplateDto {
+  @IsOptional()
   @IsString()
-  marketplaceTemplateId: string;
+  marketplaceTemplateId?: string;
+
+  @IsOptional()
+  @IsString()
+  templateId?: string;
 
   @IsOptional()
   @IsString()
   paymentMethodId?: string;
+
+  @IsOptional()
+  @IsString()
+  successUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  cancelUrl?: string;
 }
 
 export class ReportTemplateDto {

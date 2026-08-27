@@ -17,6 +17,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import {
   Calendar,
   Cloud,
@@ -188,22 +189,16 @@ export function IntegrationsDashboard() {
   const { data: connectedIntegrations, isLoading } = useQuery({
     queryKey: ['integrations'],
     queryFn: async () => {
-      const response = await fetch('/api/integrations');
-      if (!response.ok) throw new Error('Failed to fetch integrations');
-      return response.json();
+      const response = await api.get('/integrations');
+      return response.data;
     },
   });
 
   // Connect integration mutation
   const connectMutation = useMutation({
     mutationFn: async ({ provider, category }: { provider: string; category: string }) => {
-      const response = await fetch(`/api/integrations/${category}/connect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider }),
-      });
-      if (!response.ok) throw new Error('Failed to connect integration');
-      return response.json();
+      const response = await api.post(`/integrations/${category}/connect`, { provider });
+      return response.data;
     },
     onSuccess: (data) => {
       // Redirect to OAuth flow if URL provided
@@ -222,13 +217,8 @@ export function IntegrationsDashboard() {
   // Disconnect integration mutation
   const disconnectMutation = useMutation({
     mutationFn: async ({ provider, category }: { provider: string; category: string }) => {
-      const response = await fetch(`/api/integrations/${category}/disconnect`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider }),
-      });
-      if (!response.ok) throw new Error('Failed to disconnect integration');
-      return response.json();
+      const response = await api.post(`/integrations/${category}/disconnect`, { provider });
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
@@ -242,13 +232,8 @@ export function IntegrationsDashboard() {
   // Sync integration mutation
   const syncMutation = useMutation({
     mutationFn: async ({ provider, category }: { provider: string; category: string }) => {
-      const response = await fetch(`/api/integrations/${category}/sync`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider }),
-      });
-      if (!response.ok) throw new Error('Failed to sync integration');
-      return response.json();
+      const response = await api.post(`/integrations/${category}/sync`, { provider });
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations'] });
@@ -262,7 +247,7 @@ export function IntegrationsDashboard() {
   // Merge connected status into integrations list
   const integrations = integrationsList.map((integration) => {
     const connected = connectedIntegrations?.find(
-      (c: any) => c.provider === integration.provider && c.category === integration.category
+      (c: Integration) => c.provider === integration.provider && c.category === integration.category
     );
     return {
       ...integration,

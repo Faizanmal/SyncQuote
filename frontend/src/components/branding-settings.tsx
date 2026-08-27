@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import { useToast } from '@/hooks/use-toast';
 
 interface BrandingSettings {
@@ -43,9 +44,9 @@ export function BrandingSettings() {
     }
   };
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
+  useEffect(() => deferEffect(() => {
+    void fetchSettings();
+  }), []);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

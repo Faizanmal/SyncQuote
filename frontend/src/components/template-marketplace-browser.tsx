@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,6 +34,7 @@ interface MarketplaceTemplate {
   sellerName: string;
   isFeatured: boolean;
   tags: string[];
+  status?: string;
   createdAt: string;
 }
 
@@ -44,6 +46,18 @@ interface TemplateReview {
   rating: number;
   comment: string;
   createdAt: string;
+}
+
+interface TemplatePurchase {
+  id: string;
+  purchasedAt: string;
+  template?: MarketplaceTemplate;
+}
+
+interface UserTemplateOption {
+  id: string;
+  name: string;
+  description?: string;
 }
 
 interface PublishTemplateData {
@@ -85,24 +99,27 @@ export function TemplateMarketplace() {
       if (searchQuery) params.append('search', searchQuery);
       if (selectedCategory && selectedCategory !== 'all') params.append('category', selectedCategory);
       
-      const res = await fetch(`/api/template-marketplace/search?${params}`);
-      return res.json();
+      const res = await api.get(`/marketplace/templates?${params}`);
+      const payload = res.data;
+      return Array.isArray(payload) ? payload : payload?.data || [];
     },
   });
 
   const { data: featuredTemplates } = useQuery({
     queryKey: ['featured-templates'],
     queryFn: async () => {
-      const res = await fetch('/api/template-marketplace/featured');
-      return res.json();
+      const res = await api.get('/marketplace/featured');
+      const payload = res.data;
+      return Array.isArray(payload) ? payload : payload?.data || [];
     },
   });
 
   const { data: myPurchases } = useQuery({
     queryKey: ['my-template-purchases'],
     queryFn: async () => {
-      const res = await fetch('/api/template-marketplace/purchases');
-      return res.json();
+      const res = await api.get('/marketplace/purchases');
+      const payload = res.data;
+      return Array.isArray(payload) ? payload : payload?.data || [];
     },
     enabled: activeTab === 'my-purchases',
   });
@@ -110,39 +127,55 @@ export function TemplateMarketplace() {
   const { data: sellerStats } = useQuery({
     queryKey: ['seller-stats'],
     queryFn: async () => {
-      const res = await fetch('/api/template-marketplace/seller/stats');
-      return res.json();
+      const res = await api.get('/marketplace/seller/stats');
+      return res.data;
     },
     enabled: activeTab === 'seller-dashboard',
   });
 
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('purchase') === 'success') {
+      toast.success('Template purchased successfully!');
+      queryClient.invalidateQueries({ queryKey: ['my-template-purchases'] });
+    }
+  }, [queryClient]);
+
   const purchaseTemplateMutation = useMutation({
     mutationFn: async (templateId: string) => {
-      const res = await fetch(`/api/template-marketplace/purchase`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId }),
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      const res = await api.post(`/marketplace/purchase`, {
+        templateId,
+        successUrl: `${origin}/documents?tab=marketplace&purchase=success`,
+        cancelUrl: `${origin}/documents?tab=marketplace&purchase=cancelled`,
       });
-      return res.json();
+      return res.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const checkoutUrl = data?.url || data?.checkoutUrl;
+      if (checkoutUrl) {
+        window.location.assign(checkoutUrl);
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['my-template-purchases'] });
-      toast.success('Template purchased successfully!');
+      toast.success(data?.alreadyPurchased ? 'You already own this template' : 'Template added to your library');
       setShowPurchaseDialog(false);
+    },
+    onError: (error: unknown) => {
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      toast.error(message || 'Unable to purchase template');
     },
   });
 
   const publishTemplateMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch('/api/template-marketplace/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (data: PublishTemplateData) => {
+      const res = await api.post('/marketplace/publish', data);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seller-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-templates'] });
       toast.success('Template published to marketplace!');
       setShowPublishDialog(false);
     },
@@ -163,7 +196,7 @@ export function TemplateMarketplace() {
         )}
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v: any) => setActiveTab(v)}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'browse' | 'my-purchases' | 'seller-dashboard')}>
         <TabsList>
           <TabsTrigger value="browse">Browse</TabsTrigger>
           <TabsTrigger value="my-purchases">My Purchases</TabsTrigger>
@@ -236,14 +269,14 @@ export function TemplateMarketplace() {
         <TabsContent value="my-purchases" className="space-y-4">
           {myPurchases && myPurchases.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {myPurchases.map((purchase: any) => (
+              {myPurchases.map((purchase: TemplatePurchase) => (
                 <Card key={purchase.id} className="hover:shadow-lg transition-shadow cursor-pointer">
                   <CardHeader>
                     <CardTitle className="text-lg line-clamp-1">
-                      {purchase.template.name}
+                      {purchase.template?.name || 'Template'}
                     </CardTitle>
                     <CardDescription className="line-clamp-2">
-                      {purchase.template.description}
+                      {purchase.template?.description}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -307,7 +340,7 @@ export function TemplateMarketplace() {
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-2xl font-bold">{sellerStats.avgRating.toFixed(1)}</p>
+                        <p className="text-2xl font-bold">{(sellerStats.avgRating || 0).toFixed(1)}</p>
                         <p className="text-sm text-muted-foreground">Avg Rating</p>
                       </div>
                       <Star className="h-8 w-8 text-yellow-500" />
@@ -336,7 +369,7 @@ export function TemplateMarketplace() {
                 <CardContent>
                   {sellerStats.templates && sellerStats.templates.length > 0 ? (
                     <div className="space-y-4">
-                      {sellerStats.templates.map((template: any) => (
+                      {sellerStats.templates.map((template: MarketplaceTemplate) => (
                         <div key={template.id} className="flex items-center justify-between p-4 border rounded-lg">
                           <div className="flex-1">
                             <h4 className="font-semibold">{template.name}</h4>
@@ -435,7 +468,7 @@ function TemplateCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-            <span className="font-semibold">{template.rating.toFixed(1)}</span>
+            <span className="font-semibold">{(template.rating || 0).toFixed(1)}</span>
             <span className="text-sm text-muted-foreground">
               ({template.reviewCount})
             </span>
@@ -463,12 +496,22 @@ function TemplateCard({
   );
 }
 
-function TemplatePurchaseDialog({ template, open, onOpenChange, onPurchase }: any) {
+function TemplatePurchaseDialog({
+  template,
+  open,
+  onOpenChange,
+  onPurchase,
+}: {
+  template: MarketplaceTemplate;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onPurchase: () => void;
+}) {
   const { data: reviews } = useQuery({
     queryKey: ['template-reviews', template.id],
     queryFn: async () => {
-      const res = await fetch(`/api/template-marketplace/${template.id}/reviews`);
-      return res.json();
+      const res = await api.get(`/marketplace/templates/${template.id}`);
+      return res.data?.reviews || [];
     },
     enabled: open,
   });
@@ -502,7 +545,7 @@ function TemplatePurchaseDialog({ template, open, onOpenChange, onPurchase }: an
               <h4 className="text-sm font-medium mb-1">Rating</h4>
               <div className="flex items-center gap-1">
                 <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                <span className="text-lg font-bold">{template.rating.toFixed(1)}</span>
+                <span className="text-lg font-bold">{(template.rating || 0).toFixed(1)}</span>
                 <span className="text-sm text-muted-foreground">
                   ({template.reviewCount} reviews)
                 </span>
@@ -580,6 +623,16 @@ function PublishTemplateDialog({ open, onOpenChange, onPublish }: { open: boolea
     tags: '',
   });
 
+  const { data: userTemplates } = useQuery({
+    queryKey: ['user-templates-for-marketplace'],
+    queryFn: async () => {
+      const res = await api.get('/templates?includePublic=false');
+      const payload = res.data;
+      return Array.isArray(payload) ? payload : payload?.data || [];
+    },
+    enabled: open,
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -591,6 +644,33 @@ function PublishTemplateDialog({ open, onOpenChange, onPublish }: { open: boolea
         </DialogHeader>
 
         <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Your template</label>
+            <Select
+              value={formData.templateId}
+              onValueChange={(value) => {
+                const selected = (userTemplates || []).find((template: UserTemplateOption) => template.id === value);
+                setFormData({
+                  ...formData,
+                  templateId: value,
+                  name: formData.name || selected?.name || '',
+                  description: formData.description || selected?.description || '',
+                });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a template to publish" />
+              </SelectTrigger>
+              <SelectContent>
+                {(userTemplates || []).map((template: UserTemplateOption) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {template.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <label className="text-sm font-medium">Template Name</label>
             <Input
@@ -675,7 +755,7 @@ function PublishTemplateDialog({ open, onOpenChange, onPublish }: { open: boolea
                   tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
                 });
               }}
-              disabled={!formData.name || !formData.description || !formData.category}
+              disabled={!formData.templateId || !formData.name || !formData.description || !formData.category}
             >
               Publish
             </Button>
@@ -686,6 +766,6 @@ function PublishTemplateDialog({ open, onOpenChange, onPublish }: { open: boolea
   );
 }
 
-function cn(...classes: any[]) {
+function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }

@@ -393,7 +393,7 @@ export default function SecurityPage() {
                           <div className="space-y-4">
                             {qrCode && (
                               <div className="flex justify-center">
-                                <Image src={qrCode.qrCodeUrl} alt="2FA QR Code" className="w-48 h-48" />
+                                <Image src={qrCode.qrCodeUrl} alt="2FA QR Code" width={192} height={192} unoptimized className="w-48 h-48" />
                               </div>
                             )}
                             <form onSubmit={handleSubmit2FA(onEnable2FA)} className="space-y-4">

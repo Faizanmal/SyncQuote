@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import { MessageSquare, Reply, Check, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -21,6 +22,12 @@ interface Comment {
   resolvedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SocketLike {
+  emit: (event: string, payload?: unknown) => void;
+  on: (event: string, handler: (payload: Comment) => void) => void;
+  off: (event: string) => void;
 }
 
 interface CommentThreadProps {
@@ -46,22 +53,24 @@ export function CommentThread({ proposalId, currentUserEmail, currentUserName }:
   };
 
   useEffect(() => {
-    fetchComments();
+    const cancelFetch = deferEffect(() => {
+      void fetchComments();
+    });
 
-    // Set up WebSocket listener
-    if (typeof window !== 'undefined' && (window as any).socket) {
-      const socket = (window as any).socket;
-      
-      socket.emit('join_proposal', { proposalId });
-      socket.on('comment_added', (comment: Comment) => {
-        setComments((prev) => [...prev, comment]);
-      });
+    const socket = typeof window !== 'undefined'
+      ? (window as Window & { socket?: SocketLike }).socket
+      : undefined;
 
-      return () => {
-        socket.emit('leave_proposal', { proposalId });
-        socket.off('comment_added');
-      };
-    }
+    socket?.emit('join_proposal', { proposalId });
+    socket?.on('comment_added', (comment: Comment) => {
+      setComments((prev) => [...prev, comment]);
+    });
+
+    return () => {
+      cancelFetch();
+      socket?.emit('leave_proposal', { proposalId });
+      socket?.off('comment_added');
+    };
   }, [proposalId]);
 
   const handleSubmit = async (e: React.FormEvent) => {

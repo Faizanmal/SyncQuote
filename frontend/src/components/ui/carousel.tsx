@@ -109,6 +109,8 @@ const Carousel = React.forwardRef<
         return
       }
 
+      // Embla requires an immediate select sync when the API mounts.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- shadcn carousel
       onSelect(api)
       api.on("reInit", onSelect)
       api.on("select", onSelect)

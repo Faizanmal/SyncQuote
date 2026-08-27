@@ -140,11 +140,7 @@ export class OutboundWebhookService {
     });
   }
 
-  async getWebhookDeliveries(
-    userId: string,
-    webhookId: string,
-    limit = 50,
-  ): Promise<any[]> {
+  async getWebhookDeliveries(userId: string, webhookId: string, limit = 50): Promise<any[]> {
     const webhook = await this.prisma.webhook.findFirst({
       where: { id: webhookId, userId },
     });
@@ -203,9 +199,7 @@ export class OutboundWebhookService {
     }
 
     // Trigger each webhook asynchronously
-    await Promise.all(
-      webhooks.map(webhook => this.deliverWebhook(webhook, event, data)),
-    );
+    await Promise.all(webhooks.map((webhook) => this.deliverWebhook(webhook, event, data)));
   }
 
   private async deliverWebhook(
@@ -242,9 +236,10 @@ export class OutboundWebhookService {
       result = {
         success: response.status >= 200 && response.status < 300,
         statusCode: response.status,
-        response: typeof response.data === 'string' 
-          ? response.data.substring(0, 1000) 
-          : JSON.stringify(response.data).substring(0, 1000),
+        response:
+          typeof response.data === 'string'
+            ? response.data.substring(0, 1000)
+            : JSON.stringify(response.data).substring(0, 1000),
         duration: Date.now() - startTime,
       };
     } catch (error: any) {
@@ -332,9 +327,10 @@ export class OutboundWebhookService {
         result = {
           success: response.status >= 200 && response.status < 300,
           statusCode: response.status,
-          response: typeof response.data === 'string' 
-            ? response.data.substring(0, 1000) 
-            : JSON.stringify(response.data).substring(0, 1000),
+          response:
+            typeof response.data === 'string'
+              ? response.data.substring(0, 1000)
+              : JSON.stringify(response.data).substring(0, 1000),
           duration: Date.now() - startTime,
         };
       } catch (error: any) {
@@ -412,9 +408,10 @@ export class OutboundWebhookService {
       return {
         success: response.status >= 200 && response.status < 300,
         statusCode: response.status,
-        response: typeof response.data === 'string' 
-          ? response.data.substring(0, 1000) 
-          : JSON.stringify(response.data).substring(0, 1000),
+        response:
+          typeof response.data === 'string'
+            ? response.data.substring(0, 1000)
+            : JSON.stringify(response.data).substring(0, 1000),
         duration: Date.now() - startTime,
       };
     } catch (error: any) {

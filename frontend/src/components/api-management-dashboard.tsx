@@ -14,6 +14,7 @@ import {
   Plus, Clock, CheckCircle, XCircle, Settings 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -84,43 +85,39 @@ export function ApiManagementDashboard() {
   const { data: apiKeys } = useQuery({
     queryKey: ['api-keys'],
     queryFn: async () => {
-      const res = await fetch('/api/api-keys');
-      return res.json();
+      const res = await api.get('/api-keys');
+      return res.data;
     },
   });
 
   const { data: webhooks } = useQuery({
     queryKey: ['webhooks'],
     queryFn: async () => {
-      const res = await fetch('/api/webhooks');
-      return res.json();
+      const res = await api.get('/webhooks');
+      return res.data;
     },
   });
 
   const { data: oauthApps } = useQuery({
     queryKey: ['oauth-apps'],
     queryFn: async () => {
-      const res = await fetch('/api/oauth/apps');
-      return res.json();
+      const res = await api.get('/oauth/apps');
+      return res.data;
     },
   });
 
   const { data: apiAnalytics } = useQuery({
     queryKey: ['api-analytics'],
     queryFn: async () => {
-      const res = await fetch('/api/api-keys/analytics');
-      return res.json();
+      const res = await api.get('/api-keys');
+      return res.data;
     },
   });
 
   const createApiKeyMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch('/api/api-keys', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (data: CreateApiKeyData) => {
+      const res = await api.post('/api-keys', data);
+      return res.data;
     },
     onSuccess: (_data) => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
@@ -132,7 +129,7 @@ export function ApiManagementDashboard() {
 
   const deleteApiKeyMutation = useMutation({
     mutationFn: async (id: string) => {
-      await fetch(`/api/api-keys/${id}`, { method: 'DELETE' });
+      await api.delete(`/api-keys/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
@@ -141,13 +138,9 @@ export function ApiManagementDashboard() {
   });
 
   const createWebhookMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch('/api/webhooks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      return res.json();
+    mutationFn: async (data: CreateWebhookData) => {
+      const res = await api.post('/webhooks', data);
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webhooks'] });
@@ -158,8 +151,8 @@ export function ApiManagementDashboard() {
 
   const testWebhookMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/webhooks/${id}/test`, { method: 'POST' });
-      return res.json();
+      const res = await api.post(`/webhooks/${id}/test`);
+      return res.data;
     },
     onSuccess: () => {
       toast.success('Test event sent to webhook');

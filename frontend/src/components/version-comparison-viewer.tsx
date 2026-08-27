@@ -11,6 +11,7 @@ import {
   ArrowRight, ChevronDown, ChevronRight 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { api } from '@/lib/api';
 
 interface Version {
   id: string;
@@ -43,8 +44,8 @@ export function VersionComparisonViewer({ proposalId }: { proposalId: string }) 
   const { data: versions } = useQuery({
     queryKey: ['proposal-versions', proposalId],
     queryFn: async () => {
-      const res = await fetch(`/api/proposals/${proposalId}/versions`);
-      return res.json();
+      const { data } = await api.get(`/versions/proposal/${proposalId}`);
+      return data;
     },
   });
 
@@ -52,10 +53,10 @@ export function VersionComparisonViewer({ proposalId }: { proposalId: string }) 
     queryKey: ['version-comparison', selectedVersions[0], selectedVersions[1]],
     queryFn: async () => {
       if (!selectedVersions[0] || !selectedVersions[1]) return null;
-      const res = await fetch(
-        `/api/version-comparison/compare?oldVersionId=${selectedVersions[0]}&newVersionId=${selectedVersions[1]}`
+      const res = await api.get(
+        `/versions/compare/${selectedVersions[0]}/${selectedVersions[1]}`
       );
-      return res.json();
+      return res.data;
     },
     enabled: !!(selectedVersions[0] && selectedVersions[1]),
   });
@@ -131,7 +132,7 @@ export function VersionComparisonViewer({ proposalId }: { proposalId: string }) 
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Change Summary</CardTitle>
-                <Tabs value={viewMode} onValueChange={(v: any) => setViewMode(v)}>
+                <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'unified' | 'split')}>
                   <TabsList>
                     <TabsTrigger value="split">Side by Side</TabsTrigger>
                     <TabsTrigger value="unified">Unified</TabsTrigger>

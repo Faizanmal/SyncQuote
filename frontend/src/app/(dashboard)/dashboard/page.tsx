@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
+import { unwrapList } from '@/lib/pagination';
 import { useAuthStore, type AuthState } from '@/lib/auth';
 import { 
   FileText, 
@@ -22,13 +23,13 @@ interface Proposal {
   id: string;
   title: string;
   slug: string;
-  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'APPROVED' | 'DECLINED';
+  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'APPROVED' | 'DECLINED' | 'SIGNED';
   viewCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
-interface DashboardStats {
+interface OverviewMetrics {
   totalProposals: number;
   sentProposals: number;
   approvedProposals: number;
@@ -41,24 +42,33 @@ const statusConfig = {
   VIEWED: { label: 'Viewed', variant: 'default' as const, icon: Eye },
   APPROVED: { label: 'Approved', variant: 'default' as const, icon: CheckCircle2 },
   DECLINED: { label: 'Declined', variant: 'destructive' as const, icon: XCircle },
+  SIGNED: { label: 'Signed', variant: 'default' as const, icon: CheckCircle2 },
 };
 
 export default function DashboardPage() {
   const user = useAuthStore((state: AuthState) => state.user);
 
-  const { data: proposals, isLoading: proposalsLoading } = useQuery<Proposal[]>({
-    queryKey: ['proposals'],
+  const { data: metrics } = useQuery<OverviewMetrics>({
+    queryKey: ['analytics', 'overview'],
     queryFn: async () => {
-      const response = await api.get('/proposals');
+      const response = await api.get('/analytics/overview');
       return response.data;
     },
   });
 
-  const stats: DashboardStats = {
-    totalProposals: proposals?.length || 0,
-    sentProposals: proposals?.filter(p => p.status !== 'DRAFT').length || 0,
-    approvedProposals: proposals?.filter(p => p.status === 'APPROVED').length || 0,
-    totalViews: proposals?.reduce((sum, p) => sum + p.viewCount, 0) || 0,
+  const { data: proposals, isLoading: proposalsLoading } = useQuery<Proposal[]>({
+    queryKey: ['proposals', 'recent'],
+    queryFn: async () => {
+      const response = await api.get('/proposals', { params: { page: 1, limit: 5 } });
+      return unwrapList<Proposal>(response.data);
+    },
+  });
+
+  const stats: OverviewMetrics = {
+    totalProposals: metrics?.totalProposals || 0,
+    sentProposals: metrics?.sentProposals || 0,
+    approvedProposals: metrics?.approvedProposals || 0,
+    totalViews: metrics?.totalViews || 0,
   };
 
   return (
@@ -153,7 +163,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-4">
               {proposals.slice(0, 5).map((proposal) => {
-                const StatusIcon = statusConfig[proposal.status].icon;
+                const StatusIcon = statusConfig[proposal.status]?.icon || Clock;
                 return (
                   <div
                     key={proposal.id}
@@ -181,9 +191,9 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     </div>
-                    <Badge variant={statusConfig[proposal.status].variant}>
+                    <Badge variant={statusConfig[proposal.status]?.variant || 'secondary'}>
                       <StatusIcon className="mr-1 h-3 w-3" />
-                      {statusConfig[proposal.status].label}
+                      {statusConfig[proposal.status]?.label || proposal.status}
                     </Badge>
                   </div>
                 );

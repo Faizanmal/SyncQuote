@@ -11,6 +11,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useApi } from '@/hooks/use-api';
+import { deferEffect } from '@/lib/defer-effect';
 import {
   AreaChart,
   Area,
@@ -126,9 +127,9 @@ export function RevenueForecastDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => deferEffect(() => {
+    void fetchData();
+  }), []);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
