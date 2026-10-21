@@ -1,301 +1,88 @@
-# SyncQuote - Production-Ready SaaS Platform
+# SyncQuote: Interactive Proposals & Quotes
 
-Transform static proposals into interactive, collaborative, and trackable web links to help service businesses close deals faster.
+**Static PDF quotes become trackable web proposals that clients can view, comment on, sign and pay a deposit on, with templates and view analytics for your team.**
 
-[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue)](https://www.typescriptlang.org/)
+<!-- TODO: add live demo link -->
 
-## ✨ Key Features
+<!-- SCREENSHOT/GIF PLACEHOLDER 1: building a proposal from a template in the editor -->
+<!-- SCREENSHOT PLACEHOLDER 2: client view at /p/<slug> with comments + "Approve & sign" -->
+<!-- SCREENSHOT PLACEHOLDER 3: analytics dashboard (views, engagement) -->
 
-🎉 **Major Update**: 6 powerful new features have been added!
+---
 
-- 📄 **Proposal Templates** - Create proposals 70% faster with reusable templates
-- 🔔 **Real-Time Notifications** - Instant alerts via WebSocket and email
-- 💬 **Advanced Collaboration** - Threaded comments, @mentions, and resolution tracking
-- 📊 **Analytics Dashboard** - Track engagement, conversion rates, and performance
-- 📝 **Audit Trail System** - Complete activity logging for compliance
-- 🎨 **White-labeling** - Custom branding with logos and colors
+## What it does
 
-## 🚀 Tech Stack
+SyncQuote replaces emailed PDF quotes with a shareable link. Your team builds the proposal from templates in a block editor. The client opens it at a public link, leaves comments, approves and signs it, and can pay a deposit through Stripe. Every view and action is tracked.
 
-### Backend
-- **Primary**: NestJS (Node.js + TypeScript) - Main API backend
-- **Legacy**: Django (Python) - Alternative backend implementation
-- **Database**: PostgreSQL 16 with Prisma ORM (NestJS) / Django ORM (Django)
-- **Caching**: Redis
-- **Authentication**: JWT + Google OAuth
-- **Payments**: Stripe (Billing + Connect)
-- **Real-time**: Socket.io
-- **Email**: SendGrid
-- **Storage**: AWS S3 / Cloudflare R2
-- **Monitoring**: Sentry + Pino logging
-- **API Docs**: Swagger/OpenAPI
+## Features
 
-### Frontend
-- **Framework**: Next.js 14 (React 19)
-- **Styling**: Tailwind CSS + shadcn/ui
-- **State**: TanStack Query
-- **Forms**: React Hook Form + Zod
-- **Editor**: Tiptap (Block-based proposal editor)
+- **Proposal builder:** a block-based editor (Tiptap) with reusable templates and snippets.
+- **Public client link** (`/p/<slug>`): clients view the proposal and approve and sign it there. Their name, email and timestamp are stored with the signature, and an audit certificate is generated.
+- **Interactive pricing,** plus Stripe payment intents for deposits, milestones and final payments.
+- **Collaboration:** threaded comments and real-time notifications (Socket.io) and email (SendGrid).
+- **View analytics:** who opened the proposal, when, and how they engaged with it.
+- **AI drafting helpers** (OpenAI): generate, improve, summarise or translate proposal content, or draft from a website URL.
+- **Audit trail** of proposal activity, plus a branded client portal.
+- **API:** NestJS with URI versioning (`/api/v1`) and Swagger docs at `/api/docs`.
 
-### Infrastructure
-- **Backend**: AWS ECS Fargate (Docker)
-- **Frontend**: Vercel
-- **Database**: AWS RDS PostgreSQL
-- **Cache**: AWS ElastiCache Redis
-- **Storage**: AWS S3
-- **IaC**: Terraform
-- **CI/CD**: GitHub Actions
+## Tech stack
 
-## 📋 Prerequisites
+| Layer | Tech |
+|---|---|
+| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS + shadcn/ui, TanStack Query, React Hook Form + Zod, Tiptap |
+| Backend | NestJS 11, Prisma, PostgreSQL 16, Redis, Socket.io, JWT + Google OAuth, Swagger |
+| Integrations | Stripe, SendGrid, AWS S3 / Cloudflare R2, OpenAI |
+| Infra | Docker Compose (local), Terraform (AWS), GitHub Actions CI |
 
-- Node.js 20+
-- PostgreSQL 16+
-- Redis 7+
-- Docker (for containerization)
-- AWS Account (for production deployment)
-- Terraform (for infrastructure)
+## Quick start (local)
 
-## 🏗️ Project Structure
+**You'll need:** Node.js 20+ and Docker.
 
-```
-SyncQuote/
-├── backend/                # Django backend (legacy/alternative)
-│   ├── manage.py
-│   ├── backend/
-│   │   ├── __init__.py
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── wsgi.py
-│   └── requirements.txt
-├── backend-nestjs/         # Primary NestJS backend API
-│   ├── src/
-│   │   ├── modules/        # Feature modules
-│   │   │   ├── auth/       # Authentication & authorization
-│   │   │   ├── users/      # User management
-│   │   │   ├── proposals/  # Proposal CRUD
-│   │   │   ├── comments/   # Comments system
-│   │   │   ├── webhooks/   # Stripe webhooks
-│   │   │   ├── storage/    # S3/R2 file storage
-│   │   │   ├── email/      # Email notifications
-│   │   │   ├── events/     # WebSocket events
-│   │   │   ├── prisma/     # Database service
-│   │   │   └── health/     # Health checks
-│   │   ├── app.module.ts
-│   │   └── main.ts
-│   ├── prisma/
-│   │   └── schema.prisma   # Database schema
-│   ├── Dockerfile
-│   └── package.json
-├── frontend/               # Next.js frontend
-│   ├── src/
-│   │   ├── app/            # App router pages
-│   │   ├── components/     # React components
-│   │   │   └── ui/         # shadcn/ui components
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── lib/            # Utilities
-│   │   └── constants/      # Constants & configs
-│   ├── public/
-│   ├── Dockerfile.dev
-│   └── package.json
-├── mobile/                 # React Native mobile app
-│   ├── src/
-│   │   ├── App.tsx
-│   │   ├── constants/
-│   │   ├── navigation/
-│   │   ├── screens/
-│   │   ├── services/
-│   │   ├── store/
-│   │   ├── types/
-│   │   └── utils/
-│   └── package.json
-├── terraform/              # Infrastructure as Code
-│   └── main.tf             # AWS resources
-├── docker-compose.yml      # Local development setup
-└── README.md               # This file
-```
-
-## 🛠️ Development Setup
-
-### Quick Start (Docker)
 ```bash
-# Clone and start all services
-git clone https://github.com/yourusername/syncquote.git
-cd syncquote
-docker-compose up -d
+git clone https://github.com/Faizanmal/SyncQuote.git
+cd SyncQuote
 
-# Access:
-# - Frontend: http://localhost:3000
-# - Backend: http://localhost:3001
-# - API Docs: http://localhost:3001/api/docs
-```
+# Option A: everything in Docker (Postgres, Redis, backend, frontend)
+docker compose up -d
+# Frontend: http://localhost:3000 · API: http://localhost:3001/api/v1 · Docs: http://localhost:3001/api/docs
 
-### Manual Setup
+# Option B: run the apps yourself
+docker compose up -d postgres redis
 
-#### 1. Install Dependencies
-```bash
-# Backend
 cd backend-nestjs
+cp .env.example .env          # set DATABASE_URL, JWT secrets, and optional Stripe/SendGrid/S3 keys
 npm install
-
-# Frontend (in new terminal)
-cd ../frontend
-npm install
-```
-
-#### 2. Configure Environment Variables
-
-**Backend** (`.env`):
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/syncquote"
-JWT_ACCESS_SECRET=your-secret-key
-JWT_REFRESH_SECRET=your-refresh-secret
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-STRIPE_SECRET_KEY=sk_test_...
-SENDGRID_API_KEY=SG...
-AWS_ACCESS_KEY_ID=your-aws-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret
-S3_BUCKET=syncquote-assets
-```
-
-**Frontend** (`.env.local`):
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-NEXT_PUBLIC_WS_URL=ws://localhost:3001
-```
-
-#### 3. Database Setup
-```bash
-cd backend-nestjs
-
-# Generate Prisma Client
 npx prisma generate
-
-# Run migrations
 npx prisma migrate dev
+npm run start:dev             # http://localhost:3001
 
-# (Optional) Seed database
-npm run seed
-
-# (Optional) Open Prisma Studio
-npx prisma studio
-```
-
-#### 4. Start Development Servers
-
-**Terminal 1 - Backend**:
-```bash
-cd backend-nestjs
-npm run start:dev
-# API: http://localhost:3001/api/v1
-# Docs: http://localhost:3001/api/docs
-```
-
-**Terminal 2 - Frontend**:
-```bash
+# in a second terminal
 cd frontend
-npm run dev
-# App: http://localhost:3000
+echo "NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1" > .env.local
+echo "NEXT_PUBLIC_WS_URL=ws://localhost:3001" >> .env.local
+npm install
+npm run dev                   # http://localhost:3000
 ```
 
-## 🧪 Testing
+Backend tests: run `npm test` in `backend-nestjs/`.
 
-### Backend
-```bash
-cd backend-nestjs
+## Project layout
 
-# Unit tests
-npm run test
-
-# E2E tests
-npm run test:e2e
-
-# Coverage
-npm run test:cov
+```
+frontend/         # Next.js app (dashboard, client proposal view /p/[slug], invoices, contracts)
+backend-nestjs/   # NestJS API (proposals, templates, comments, payments, analytics, ai, ...)
+backend/          # earlier Django prototype, kept for reference (not used by the frontend)
+mobile/           # React Native companion app (early stage)
+terraform/        # AWS infrastructure
 ```
 
-### Frontend
-```bash
-cd frontend
+---
 
-# Run tests (when implemented)
-npm run test
-```
+## 💼 Hire me
 
-## 📖 Documentation
+I build quote and order automation: incoming requests become structured quotes and offers, with a person approving each one before it goes out. I can also build a client-facing proposal flow like this one, tailored to your sales process.
 
-| File | Purpose |
-|------|---------|
-| **[QUICK_START.md](QUICK_START.md)** | Get started quickly with development setup |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | System architecture and data flows |
-| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Production deployment guide |
-| **[README.md](README.md)** | This file - project overview |
+**Faizan Malik**, Freelance AI & Automation Engineer (Python, Next.js, LLM/RAG), based in Delhi (IST, UTC+5:30)
+→ [Contra](https://contra.com/faizan_malik_u76kw1s7) · [LinkedIn](https://www.linkedin.com/in/faizanmalikdelhi) · [GitHub](https://github.com/Faizanmal)
 
-## 🚢 Deployment
-
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete production deployment instructions.
-
-### Quick Deploy
-```bash
-# Infrastructure (Terraform)
-cd terraform
-terraform init
-terraform plan -var-file="production.tfvars"
-terraform apply -var-file="production.tfvars"
-
-# Backend (GitHub Actions auto-deploys on push to main)
-# Frontend (Vercel)
-cd frontend
-vercel --prod
-```
-
-## 📚 API Documentation
-
-Once the backend is running, access the Swagger docs at:
-- **Local**: http://localhost:3001/api/docs
-- **Production**: https://api.syncquote.com/api/docs
-
-## 🔒 Security Features
-
-- ✅ HTTPS enforced everywhere
-- ✅ JWT access tokens (15min) + httpOnly refresh tokens (7 days)
-- ✅ Bcrypt password hashing (12 rounds)
-- ✅ Input validation with class-validator
-- ✅ Rate limiting on all endpoints
-- ✅ CORS configured
-- ✅ Helmet security headers
-- ✅ SQL injection protection (Prisma ORM)
-- ✅ XSS protection
-- ✅ CSRF protection via SameSite cookies
-- ✅ Secrets in AWS Secrets Manager
-- ✅ Database connection over SSL
-
-## 📊 Monitoring & Logging
-
-- **Error Tracking**: Sentry (backend & frontend)
-- **Logging**: Pino → CloudWatch Logs
-- **Uptime**: UptimeRobot pinging `/health`
-- **Metrics**: AWS CloudWatch + ECS Container Insights
-
-## 🤝 Contributing
-
-This is a private SaaS project. For team members:
-
-1. Create a feature branch: `git checkout -b feature/my-feature`
-2. Commit changes: `git commit -m 'Add my feature'`
-3. Push branch: `git push origin feature/my-feature`
-4. Open a Pull Request
-
-## 📄 License
-
-Proprietary - All rights reserved
-
-## 🆘 Support
-
-For issues or questions:
-- Backend: Check logs in CloudWatch
-- Frontend: Check Vercel deployment logs
-- Database: Check RDS metrics in AWS Console
-- Contact: dev@syncquote.com
+<!-- TODO: add a LICENSE file (no license chosen yet) -->
