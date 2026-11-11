@@ -3,6 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCheckoutSessionDto, CreatePortalSessionDto } from './dto/billing.dto';
+import {
+  PLAN_LIMITS,
+  PlanId,
+  resolveEffectivePlan,
+  startOfUtcMonth,
+} from '../../common/plans';
 
 @Injectable()
 export class BillingService {
@@ -14,7 +20,7 @@ export class BillingService {
     private configService: ConfigService,
   ) {
     this.stripe = new Stripe(this.configService.get<string>('STRIPE_SECRET_KEY') || '', {
-      apiVersion: '2024-06-20',
+      apiVersion: '2024-06-20' as any,
     });
   }
 
@@ -24,20 +30,25 @@ export class BillingService {
       throw new BadRequestException('User not found');
     }
 
-    const plan = this.planFromPriceId(user.metadata as Record<string, unknown> | null);
+    const planFromMeta = this.planFromPriceId(user.metadata as Record<string, unknown> | null);
+    const proposalsThisMonth = await this.prisma.proposal.count({
+      where: { userId, createdAt: { gte: startOfUtcMonth() } },
+    });
 
     if (user.stripeSubscriptionId) {
       try {
         const subscription = await this.stripe.subscriptions.retrieve(user.stripeSubscriptionId);
         const priceId = subscription.items.data[0]?.price?.id;
+        const plan = (this.planFromPriceId(null, priceId) || planFromMeta || 'pro') as PlanId;
         return {
-          status: this.mapStripeStatus(subscription.status),
-          currentPeriodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
-          cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          plan: this.planFromPriceId(null, priceId) || plan || 'pro',
-          trialEndsAt: subscription.trial_end
-            ? new Date(subscription.trial_end * 1000).toISOString()
+          status: this.mapStripeStatus(subscription.status as any),
+          currentPeriodEnd: new Date((subscription as any).current_period_end * 1000).toISOString(),
+          cancelAtPeriodEnd: (subscription as any).cancel_at_period_end,
+          plan,
+          trialEndsAt: (subscription as any).trial_end
+            ? new Date((subscription as any).trial_end * 1000).toISOString()
             : user.trialEndsAt?.toISOString(),
+          usage: this.buildUsage(plan, proposalsThisMonth),
         };
       } catch (error) {
         this.logger.warn(`Could not load Stripe subscription: ${(error as Error).message}`);
@@ -47,15 +58,29 @@ export class BillingService {
     const isTrialing =
       user.subscriptionStatus === 'TRIAL' && user.trialEndsAt && user.trialEndsAt > new Date();
 
+    const plan = resolveEffectivePlan({
+      subscriptionStatus: user.subscriptionStatus,
+      trialEndsAt: user.trialEndsAt,
+      planFromStripe: planFromMeta,
+    });
+
     return {
       status: isTrialing ? 'trialing' : this.mapDbStatus(user.subscriptionStatus),
       currentPeriodEnd: (user.subscriptionEndsAt || user.trialEndsAt || new Date()).toISOString(),
       cancelAtPeriodEnd: user.subscriptionStatus === 'CANCELED',
-      plan:
-        user.subscriptionStatus === 'ACTIVE' || user.subscriptionStatus === 'PAST_DUE'
-          ? plan || 'pro'
-          : 'free',
+      // Billing UI "current plan" label: show free when not paying, even if trial uses Pro limits.
+      plan: isTrialing ? 'pro' : plan,
       trialEndsAt: user.trialEndsAt?.toISOString(),
+      usage: this.buildUsage(plan, proposalsThisMonth),
+    };
+  }
+
+  private buildUsage(plan: PlanId, proposalsThisMonth: number) {
+    const limits = PLAN_LIMITS[plan];
+    return {
+      proposalsThisMonth,
+      proposalsLimit: limits.maxProposalsPerMonth,
+      teamMembersLimit: limits.maxTeamMembers,
     };
   }
 

@@ -51,6 +51,7 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
     try {
       const data = await api.get(`/client-portal/proposals?email=${email}`);
       setProposals(data.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to load proposals');
     } finally {
@@ -64,6 +65,7 @@ export function ClientPortal({ email: initialEmail }: ClientPortalProps) {
         void loadProposals();
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [email, isAuthenticated]);
 
   const handleEmailSubmit = (e: React.FormEvent) => {

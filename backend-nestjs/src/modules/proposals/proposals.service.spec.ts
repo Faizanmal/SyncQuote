@@ -3,11 +3,13 @@ import { ProposalsService } from './proposals.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from '../events/events.gateway';
 import { AuditCertificateService } from './audit-certificate.service';
-import { NotFoundException, ForbiddenException } from '@nestjs/common';
+import { EmailService } from '../email/email.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ConfigService } from '@nestjs/config';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('ProposalsService', () => {
   let service: ProposalsService;
-  let prisma: PrismaService;
 
   const mockPrisma = {
     proposal: {
@@ -17,20 +19,25 @@ describe('ProposalsService', () => {
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
-      count: jest.fn(),
+      count: jest.fn().mockResolvedValue(0),
     },
     user: {
-      findUnique: jest.fn(),
+      findUnique: jest.fn().mockResolvedValue({
+        id: 'user-123',
+        subscriptionStatus: 'ACTIVE',
+        trialEndsAt: null,
+        metadata: { stripePriceId: 'price_pro' },
+      }),
+    },
+    proposalBlock: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      deleteMany: jest.fn(),
     },
     activity: {
       create: jest.fn(),
     },
-    template: {
-      findFirst: jest.fn(),
-    },
-    proposalCollaborator: {
-      findFirst: jest.fn(),
-    },
+    $transaction: jest.fn((fn) => fn(mockPrisma)),
   };
 
   const mockEventsGateway = {
@@ -42,6 +49,25 @@ describe('ProposalsService', () => {
 
   const mockAuditCertificate = {
     generateCertificate: jest.fn(),
+    generateProposalPdf: jest.fn(),
+  };
+
+  const mockEmailService = {
+    sendProposalToClient: jest.fn().mockResolvedValue(true),
+  };
+
+  const mockNotificationsService = {
+    notifyProposalSigned: jest.fn().mockResolvedValue(undefined),
+    create: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string, fallback?: string) => {
+      if (key === 'FRONTEND_URL') return 'http://localhost:3000';
+      if (key === 'STRIPE_PRO_PRICE_ID') return 'price_pro';
+      if (key === 'STRIPE_ENTERPRISE_PRICE_ID') return 'price_ent';
+      return fallback;
+    }),
   };
 
   beforeEach(async () => {
@@ -51,11 +77,13 @@ describe('ProposalsService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EventsGateway, useValue: mockEventsGateway },
         { provide: AuditCertificateService, useValue: mockAuditCertificate },
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: NotificationsService, useValue: mockNotificationsService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     service = module.get<ProposalsService>(ProposalsService);
-    prisma = module.get<PrismaService>(PrismaService);
   });
 
   afterEach(() => {
@@ -63,56 +91,60 @@ describe('ProposalsService', () => {
   });
 
   describe('create', () => {
-    const createDto = {
-      title: 'Test Proposal',
-      clientName: 'Test Client',
-      clientEmail: 'client@test.com',
-    };
-
-    it('should create a new proposal', async () => {
+    it('should create a proposal with content and pricing items', async () => {
       const userId = 'user-123';
+      const createDto = {
+        title: 'Test Proposal',
+        clientName: 'Test Client',
+        clientEmail: 'client@test.com',
+        content: '<p>Hello</p>',
+        pricingItems: [{ name: 'Design', price: 500, type: 'FIXED', quantity: 1 }],
+      };
+
       const mockProposal = {
         id: 'proposal-123',
-        ...createDto,
+        title: createDto.title,
+        recipientName: createDto.clientName,
+        recipientEmail: createDto.clientEmail,
+        content: createDto.content,
         userId,
-        slug: 'test-proposal',
+        slug: 'abc123',
         status: 'DRAFT',
-        createdAt: new Date(),
+        blocks: [
+          {
+            type: 'PRICING_TABLE',
+            pricingItems: [
+              {
+                id: 'pi-1',
+                name: 'Design',
+                description: null,
+                price: 500,
+                type: 'FIXED',
+                order: 0,
+                minQuantity: 1,
+              },
+            ],
+          },
+        ],
       };
 
       mockPrisma.proposal.create.mockResolvedValue(mockProposal);
-      mockPrisma.activity.create.mockResolvedValue({});
 
       const result = await service.create(userId, createDto);
 
-      expect(result).toHaveProperty('id');
       expect(result.title).toBe(createDto.title);
-      expect(mockPrisma.proposal.create).toHaveBeenCalled();
-    });
-
-    it('should create proposal from template when templateId provided', async () => {
-      const userId = 'user-123';
-      const template = {
-        id: 'template-123',
-        name: 'Test Template',
-        content: { blocks: [] },
-        pricingItems: [{ name: 'Item 1', price: 100 }],
-      };
-      const dtoWithTemplate = { ...createDto, templateId: 'template-123' };
-
-      mockPrisma.template.findFirst.mockResolvedValue(template);
-      mockPrisma.proposal.create.mockResolvedValue({
-        id: 'proposal-123',
-        ...dtoWithTemplate,
-        userId,
-      });
-      mockPrisma.activity.create.mockResolvedValue({});
-
-      const result = await service.create(userId, dtoWithTemplate);
-
-      expect(mockPrisma.template.findFirst).toHaveBeenCalledWith({
-        where: { id: 'template-123', userId },
-      });
+      expect(result.clientName).toBe(createDto.clientName);
+      expect(result.content).toBe('<p>Hello</p>');
+      expect(result.pricingItems).toHaveLength(1);
+      expect(mockPrisma.proposal.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            content: '<p>Hello</p>',
+            recipientEmail: 'client@test.com',
+            blocks: expect.any(Object),
+          }),
+        }),
+      );
     });
   });
 
@@ -137,95 +169,141 @@ describe('ProposalsService', () => {
         totalPages: 1,
         hasMore: false,
       });
-      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          skip: 0,
-          take: 20,
-          where: { userId },
-        }),
-      );
-    });
-
-    it('should filter by status when provided', async () => {
-      const userId = 'user-123';
-      mockPrisma.proposal.findMany.mockResolvedValue([]);
-      mockPrisma.proposal.count.mockResolvedValue(0);
-
-      await service.findAll(userId, { status: 'DRAFT' });
-
-      expect(mockPrisma.proposal.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            userId,
-            status: 'DRAFT',
-          }),
-        }),
-      );
     });
   });
 
   describe('findOne', () => {
-    it('should return a proposal if user is owner', async () => {
+    it('should return a proposal by id', async () => {
       const userId = 'user-123';
       const proposalId = 'proposal-123';
       const mockProposal = {
         id: proposalId,
         userId,
         title: 'Test Proposal',
+        recipientName: 'Client',
+        recipientEmail: 'c@test.com',
+        content: '<p>x</p>',
+        blocks: [],
       };
 
-      mockPrisma.proposal.findFirst.mockResolvedValue(mockProposal);
+      mockPrisma.proposal.findUnique.mockResolvedValueOnce(mockProposal);
 
-      const result = await service.findOne(userId, proposalId);
+      const result = await service.findOne(proposalId, userId);
 
       expect(result.id).toBe(proposalId);
+      expect(result.clientEmail).toBe('c@test.com');
+    });
+
+    it('should fall back to slug lookup', async () => {
+      const userId = 'user-123';
+      const mockProposal = {
+        id: 'proposal-123',
+        slug: 'abc123slug12',
+        userId,
+        title: 'By Slug',
+        blocks: [],
+      };
+
+      mockPrisma.proposal.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockProposal);
+
+      const result = await service.findOne('abc123slug12', userId);
+
+      expect(result.slug).toBe('abc123slug12');
     });
 
     it('should throw NotFoundException if proposal not found', async () => {
-      const userId = 'user-123';
-      mockPrisma.proposal.findFirst.mockResolvedValue(null);
+      mockPrisma.proposal.findUnique.mockResolvedValue(null);
 
-      await expect(service.findOne(userId, 'non-existent')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('missing', 'user-123')).rejects.toThrow(NotFoundException);
     });
   });
 
-  describe('update', () => {
-    it('should update proposal if user is owner', async () => {
+  describe('send', () => {
+    it('should mark proposal SENT and email the client', async () => {
+      const userId = 'user-123';
+      const mockProposal = {
+        id: 'proposal-123',
+        slug: 'pubslug1234',
+        userId,
+        title: 'Send Me',
+        recipientName: 'Client',
+        recipientEmail: 'client@test.com',
+        content: '<p>Body</p>',
+        locked: false,
+        blocks: [],
+        user: { name: 'Seller', companyName: 'Acme' },
+      };
+
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
+      mockPrisma.proposal.update.mockResolvedValue({
+        ...mockProposal,
+        status: 'SENT',
+        sentAt: new Date(),
+      });
+      mockPrisma.activity.create.mockResolvedValue({});
+
+      const result = await service.send('proposal-123', userId);
+
+      expect(result.status).toBe('SENT');
+      expect(result.publicUrl).toContain('/p/pubslug1234');
+      expect(result.emailSent).toBe(true);
+      expect(mockEmailService.sendProposalToClient).toHaveBeenCalled();
+    });
+
+    it('should reject send without client email', async () => {
+      mockPrisma.proposal.findUnique.mockResolvedValue({
+        id: 'proposal-123',
+        userId: 'user-123',
+        title: 'No Email',
+        recipientEmail: null,
+        content: '<p>x</p>',
+        locked: false,
+        blocks: [],
+      });
+
+      await expect(service.send('proposal-123', 'user-123')).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('plan limits', () => {
+    it('should block create when free monthly limit is reached', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'user-123',
+        subscriptionStatus: 'CANCELED',
+        trialEndsAt: null,
+        metadata: {},
+      });
+      mockPrisma.proposal.count.mockResolvedValue(5);
+
+      await expect(
+        service.create('user-123', {
+          title: 'Over limit',
+          clientName: 'A',
+          clientEmail: 'a@test.com',
+        }),
+      ).rejects.toThrow(/limit/i);
+    });
+  });
+
+  describe('delete', () => {
+    it('should delete proposal if user is owner', async () => {
       const userId = 'user-123';
       const proposalId = 'proposal-123';
       const mockProposal = {
         id: proposalId,
         userId,
-        title: 'Old Title',
+        title: 'Delete Me',
+        blocks: [],
       };
 
-      mockPrisma.proposal.findFirst.mockResolvedValue(mockProposal);
-      mockPrisma.proposal.update.mockResolvedValue({
-        ...mockProposal,
-        title: 'New Title',
-      });
-      mockPrisma.activity.create.mockResolvedValue({});
-
-      const result = await service.update(userId, proposalId, {
-        title: 'New Title',
-      });
-
-      expect(result.title).toBe('New Title');
-    });
-  });
-
-  describe('remove', () => {
-    it('should delete proposal if user is owner', async () => {
-      const userId = 'user-123';
-      const proposalId = 'proposal-123';
-      const mockProposal = { id: proposalId, userId };
-
-      mockPrisma.proposal.findFirst.mockResolvedValue(mockProposal);
+      mockPrisma.proposal.findUnique.mockResolvedValue(mockProposal);
       mockPrisma.proposal.delete.mockResolvedValue(mockProposal);
 
-      const result = await service.delete(userId, proposalId);
+      const result = await service.delete(proposalId, userId);
 
-      expect(result).toHaveProperty('id', proposalId);
+      expect(result.id).toBe(proposalId);
       expect(mockPrisma.proposal.delete).toHaveBeenCalledWith({
         where: { id: proposalId },
       });

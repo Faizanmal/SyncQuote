@@ -192,6 +192,7 @@ export function TeamManagement() {
 
   useEffect(() => deferEffect(() => {
     void fetchTeams();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   useEffect(() => {
@@ -199,6 +200,7 @@ export function TeamManagement() {
     return deferEffect(() => {
       void fetchInvitations();
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTeam]);
 
   const createTeam = async () => {
@@ -230,6 +232,7 @@ export function TeamManagement() {
       setInviteRole('member');
       setShowInviteDialog(false);
       fetchInvitations();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to send invitation');
     }

@@ -35,18 +35,33 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * Join a proposal room for real-time updates
    */
   @SubscribeMessage('join_proposal')
-  async handleJoinProposal(client: Socket, data: { proposalId: string }) {
-    client.join(`proposal:${data.proposalId}`);
-    this.logger.log(`Client ${client.id} joined proposal ${data.proposalId}`);
+  async handleJoinProposal(client: Socket, data: { proposalId: string } | string) {
+    const proposalId = typeof data === 'string' ? data : data?.proposalId;
+    if (!proposalId) return;
+    client.join(`proposal:${proposalId}`);
+    this.logger.log(`Client ${client.id} joined proposal ${proposalId}`);
+  }
+
+  /** CamelCase alias used by the public proposal page */
+  @SubscribeMessage('joinProposal')
+  async handleJoinProposalAlias(client: Socket, data: { proposalId: string } | string) {
+    return this.handleJoinProposal(client, data);
   }
 
   /**
    * Leave a proposal room
    */
   @SubscribeMessage('leave_proposal')
-  async handleLeaveProposal(client: Socket, data: { proposalId: string }) {
-    client.leave(`proposal:${data.proposalId}`);
-    this.logger.log(`Client ${client.id} left proposal ${data.proposalId}`);
+  async handleLeaveProposal(client: Socket, data: { proposalId: string } | string) {
+    const proposalId = typeof data === 'string' ? data : data?.proposalId;
+    if (!proposalId) return;
+    client.leave(`proposal:${proposalId}`);
+    this.logger.log(`Client ${client.id} left proposal ${proposalId}`);
+  }
+
+  @SubscribeMessage('leaveProposal')
+  async handleLeaveProposalAlias(client: Socket, data: { proposalId: string } | string) {
+    return this.handleLeaveProposal(client, data);
   }
 
   /**
@@ -151,7 +166,7 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   /**
    * Notify when proposal is approved
    */
-  async notifyProposalApproved(proposalId: string) {
+  async notifyProposalApproved(proposalId: string, slug?: string) {
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: proposalId },
       include: { user: true },
@@ -159,22 +174,25 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (!proposal) return;
 
-    // Emit to owner
-    this.server.to(`user:${proposal.userId}`).emit('proposal_approved', {
+    const payload = {
       proposalId,
+      slug: slug || proposal.slug,
       timestamp: new Date(),
-    });
+    };
 
-    // Send email notification
-    if (proposal.user.email) {
-      const proposalUrl = `${process.env.FRONTEND_URL}/proposals/${proposalId}`;
-      await this.emailService.sendProposalApprovedNotification(
-        proposal.user.email,
-        proposal.title,
-        proposalUrl,
-      );
+    // Emit to owner (snake + camel for FE compatibility)
+    this.server.to(`user:${proposal.userId}`).emit('proposal_approved', payload);
+    this.server.to(`user:${proposal.userId}`).emit('proposalApproved', payload);
+
+    // Emit to anyone watching the public/seller proposal room
+    this.server.to(`proposal:${proposalId}`).emit('proposal_approved', payload);
+    this.server.to(`proposal:${proposalId}`).emit('proposalApproved', payload);
+    if (proposal.slug) {
+      this.server.to(`proposal:${proposal.slug}`).emit('proposal_approved', payload);
+      this.server.to(`proposal:${proposal.slug}`).emit('proposalApproved', payload);
     }
 
+    // Email is sent via NotificationsService.notifyProposalSigned to avoid duplicates.
     this.logger.log(`Proposal ${proposalId} approved`);
   }
 

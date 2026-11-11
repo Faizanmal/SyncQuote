@@ -8,10 +8,12 @@ interface ExtendedNotificationOptions extends NotificationOptions {
 }
 
 // Declare SyncEvent interface
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface SyncEvent extends ExtendableEvent {
   readonly tag: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const CACHE_NAME = 'syncquote-v1';
 const STATIC_CACHE = 'syncquote-static-v1';
 const DYNAMIC_CACHE = 'syncquote-dynamic-v1';
@@ -27,6 +29,7 @@ const STATIC_ASSETS = [
 ];
 
 // API routes that should be cached
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const CACHEABLE_API_ROUTES = [
   '/api/proposals',
   '/api/templates',
@@ -117,6 +120,7 @@ async function networkFirstStrategy(request: Request, cacheName: string): Promis
     }
     
     return networkResponse;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     const cachedResponse = await caches.match(request);
     
@@ -153,6 +157,7 @@ async function cacheFirstStrategy(request: Request, cacheName: string): Promise<
     }
     
     return networkResponse;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return new Response('Offline', { status: 503 });
   }
@@ -271,6 +276,7 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       data = { ...data, ...event.data.json() };
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       data.body = event.data.text();
     }

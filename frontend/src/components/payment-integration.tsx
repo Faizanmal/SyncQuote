@@ -65,6 +65,9 @@ interface PaymentFormProps {
   totalAmount: number;
   currency?: string;
   schedule?: PaymentScheduleItem[];
+  depositPercentage?: number;
+  depositAmount?: number;
+  depositPaid?: boolean;
   onPaymentComplete?: (payment: Payment) => void;
 }
 
@@ -101,21 +104,36 @@ export function PaymentForm({
   totalAmount,
   currency = 'USD',
   schedule = [],
+  depositPercentage = 50,
+  depositAmount,
+  depositPaid = false,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onPaymentComplete,
 }: PaymentFormProps) {
   const [loading, setLoading] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<string | null>(
+    depositPaid ? 'remaining' : 'deposit',
+  );
   const [customAmount, setCustomAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank'>('card');
   const [payerEmail, setPayerEmail] = useState('');
   const api = useApi();
 
+  const computedDeposit =
+    depositAmount != null && depositAmount > 0
+      ? depositAmount
+      : Math.round(totalAmount * (depositPercentage / 100) * 100) / 100;
+
   // Calculate pending amount
-  const paidAmount = schedule
-    .filter((item) => item.status === 'paid')
-    .reduce((sum, item) => sum + item.amount, 0);
-  const pendingAmount = totalAmount - paidAmount;
-  const progressPercentage = (paidAmount / totalAmount) * 100;
+  const paidAmount = schedule.length
+    ? schedule
+        .filter((item) => item.status === 'paid')
+        .reduce((sum, item) => sum + item.amount, 0)
+    : depositPaid
+      ? computedDeposit
+      : 0;
+  const pendingAmount = Math.max(0, totalAmount - paidAmount);
+  const progressPercentage = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -140,7 +158,11 @@ export function PaymentForm({
 
     try {
       setLoading(true);
-      const paymentType = type.includes('deposit') ? 'deposit' : type.includes('final') ? 'final' : 'milestone';
+      const paymentType = type.includes('deposit')
+        ? 'deposit'
+        : type.includes('final') || type.includes('remaining')
+          ? 'final'
+          : 'milestone';
       const response = await api.post('/payments/create-checkout-session', {
         proposalId,
         amount,
@@ -320,9 +342,10 @@ export function PaymentForm({
                   setSelectedPayment('deposit');
                   setCustomAmount('');
                 }}
+                disabled={depositPaid}
               >
-                50% Deposit
-                <span className="ml-1 text-xs">({formatCurrency(totalAmount * 0.5)})</span>
+                {depositPercentage}% Deposit
+                <span className="ml-1 text-xs">({formatCurrency(computedDeposit)})</span>
               </Button>
               <Button
                 variant={selectedPayment === 'custom' ? 'default' : 'outline'}
@@ -365,9 +388,9 @@ export function PaymentForm({
             onClick={() => {
               let amount = 0;
               if (selectedPayment === 'remaining') amount = pendingAmount;
-              else if (selectedPayment === 'deposit') amount = totalAmount * 0.5;
+              else if (selectedPayment === 'deposit') amount = computedDeposit;
               else if (customAmount) amount = parseFloat(customAmount);
-              
+
               if (amount > 0) {
                 handlePayment(amount, selectedPayment || 'custom');
               }
@@ -435,6 +458,7 @@ export function ProposalPaymentDashboard({ proposalId }: ProposalPaymentDashboar
 
   useEffect(() => deferEffect(() => {
     void fetchPayments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [proposalId]);
 
   const handleRefund = async () => {

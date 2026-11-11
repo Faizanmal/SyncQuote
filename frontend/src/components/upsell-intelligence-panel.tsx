@@ -157,6 +157,7 @@ export function UpsellIntelligencePanel({ proposalId }: { proposalId?: string })
     void fetchBundles();
     void fetchPricingOptimizations();
     void fetchMetrics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [proposalId]);
 
   const generateRecommendations = async () => {

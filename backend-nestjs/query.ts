@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); async function run() { const allProposals = await prisma.proposal.findMany({ select: { id: true, slug: true, title: true } }); console.log('All Proposals:', allProposals); } run().catch(console.error).finally(() => prisma.$disconnect());

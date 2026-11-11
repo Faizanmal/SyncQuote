@@ -4,6 +4,16 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 
+function requireJwtSecret(config: ConfigService, key: string): string {
+  const secret = config.get<string>(key)?.trim();
+  if (!secret || secret === 'default-secret') {
+    throw new Error(
+      `${key} must be set to a strong secret (refusing insecure default)`,
+    );
+  }
+  return secret;
+}
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
@@ -12,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: config.get<string>('JWT_ACCESS_SECRET') || 'default-secret',
+      secretOrKey: requireJwtSecret(config, 'JWT_ACCESS_SECRET'),
     });
   }
 

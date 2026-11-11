@@ -126,6 +126,55 @@ export class EmailService {
     }
   }
 
+  /**
+   * @returns true when SendGrid accepted the message; false when email is skipped (no API key).
+   */
+  async sendProposalToClient(options: {
+    to: string;
+    clientName: string;
+    proposalTitle: string;
+    proposalUrl: string;
+    senderName: string;
+    companyName?: string | null;
+  }): Promise<boolean> {
+    const fromName = options.companyName || options.senderName || 'SyncQuote';
+    const msg = {
+      to: options.to,
+      from: {
+        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
+        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
+      },
+      subject: `${options.senderName} shared a proposal: ${options.proposalTitle}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Hi ${options.clientName},</h2>
+          <p><strong>${options.senderName}</strong>${
+            options.companyName ? ` at ${options.companyName}` : ''
+          } shared a proposal with you.</p>
+          <p style="font-size: 18px; margin: 16px 0;"><strong>${options.proposalTitle}</strong></p>
+          <a href="${options.proposalUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+            View Proposal
+          </a>
+          <p>Or copy this link: ${options.proposalUrl}</p>
+          <hr style="margin: 24px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 14px;">Sent via ${fromName} on SyncQuote</p>
+        </div>
+      `,
+    };
+
+    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
+    if (!apiKey) {
+      this.logger.warn(
+        `SendGrid not configured — proposal email skipped for ${options.to} (${options.proposalUrl})`,
+      );
+      return false;
+    }
+
+    await sgMail.send(msg);
+    this.logger.log(`Proposal email sent to ${options.to}: ${options.proposalTitle}`);
+    return true;
+  }
+
   async sendProposalViewedNotification(email: string, proposalTitle: string, proposalUrl: string) {
     const msg = {
       to: email,
@@ -158,19 +207,28 @@ export class EmailService {
     proposalTitle: string,
     proposalUrl: string,
   ) {
+    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
+    if (!apiKey) {
+      this.logger.warn(
+        `SendGrid not configured — approved notification skipped for ${email}`,
+      );
+      return false;
+    }
+
     const msg = {
       to: email,
       from: {
         email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
         name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
       },
-      subject: `🎊 Your proposal "${proposalTitle}" was approved!`,
+      subject: `Your proposal "${proposalTitle}" was accepted`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>🎊 Congratulations!</h2>
-          <p>Your proposal <strong>"${proposalTitle}"</strong> has been approved and signed!</p>
+          <h2>Proposal accepted</h2>
+          <p>Your proposal <strong>"${proposalTitle}"</strong> has been accepted by the client.</p>
+          <p style="color: #6b7280; font-size: 13px;">This is an acceptance confirmation, not a certified electronic signature.</p>
           <a href="${proposalUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-            View Signed Proposal
+            View Proposal
           </a>
         </div>
       `,
@@ -179,14 +237,72 @@ export class EmailService {
     try {
       await sgMail.send(msg);
       this.logger.log(`Proposal approved notification sent to ${email}`);
+      return true;
     } catch (error) {
       this.logger.error(
         `Failed to send proposal approved notification: ${(error as Error).message}`,
       );
+      return false;
+    }
+  }
+
+  async sendPaymentReceivedNotification(
+    email: string,
+    proposalTitle: string,
+    amount: number,
+    currency: string,
+    proposalUrl: string,
+  ) {
+    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
+    if (!apiKey) {
+      this.logger.warn(
+        `SendGrid not configured — payment notification skipped for ${email}`,
+      );
+      return false;
+    }
+
+    const formatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+    }).format(amount);
+
+    const msg = {
+      to: email,
+      from: {
+        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
+        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
+      },
+      subject: `Payment received for "${proposalTitle}"`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Payment received</h2>
+          <p>You received <strong>${formatted}</strong> for <strong>"${proposalTitle}"</strong>.</p>
+          <a href="${proposalUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
+            View Proposal
+          </a>
+        </div>
+      `,
+    };
+
+    try {
+      await sgMail.send(msg);
+      this.logger.log(`Payment received notification sent to ${email}`);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Failed to send payment notification: ${(error as Error).message}`,
+      );
+      return false;
     }
   }
 
   async sendNotificationEmail(email: string, userName: string, title: string, message: string) {
+    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
+    if (!apiKey) {
+      this.logger.warn(`SendGrid not configured — notification email skipped for ${email}`);
+      return false;
+    }
+
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
 
     const msg = {
@@ -214,8 +330,10 @@ export class EmailService {
     try {
       await sgMail.send(msg);
       this.logger.log(`Notification email sent to ${email}`);
+      return true;
     } catch (error) {
       this.logger.error(`Failed to send notification email: ${(error as Error).message}`);
+      return false;
     }
   }
 

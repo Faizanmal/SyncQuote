@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import { TiptapEditor } from '@/components/tiptap-editor';
 import { PricingTable, PricingItem } from '@/components/pricing-table';
 import { api } from '@/lib/api';
@@ -30,6 +31,8 @@ export default function NewProposalPage() {
   const router = useRouter();
   const [content, setContent] = useState('');
   const [pricingItems, setPricingItems] = useState<PricingItem[]>([]);
+  const [depositRequired, setDepositRequired] = useState(false);
+  const [depositPercentage, setDepositPercentage] = useState(50);
   const [error, setError] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors } } = useForm<ProposalFormData>({
@@ -37,24 +40,81 @@ export default function NewProposalPage() {
   });
 
   const createProposal = useMutation({
-    mutationFn: async (data: { title: string; clientName: string; clientEmail: string; status: string }) => {
+    mutationFn: async (payload: {
+      title: string;
+      clientName: string;
+      clientEmail: string;
+      status: string;
+      content: string;
+      pricingItems: PricingItem[];
+      depositRequired: boolean;
+      depositPercentage: number | null;
+      sendAfterCreate?: boolean;
+    }) => {
+      const { sendAfterCreate, ...data } = payload;
       const response = await api.post('/proposals', data);
-      return response.data;
+      const proposal = response.data;
+
+      if (sendAfterCreate && proposal?.id) {
+        const sendResponse = await api.post(`/proposals/${proposal.id}/send`);
+        return sendResponse.data;
+      }
+
+      return proposal;
     },
-    onSuccess: (data) => {
-      toast.success('Proposal created successfully');
+    onSuccess: (data, variables) => {
+      if (variables.sendAfterCreate) {
+        const emailNote = data.emailSent === false
+          ? ' (email skipped — configure SendGrid or share the link manually)'
+          : '';
+        toast.success(`Proposal sent${emailNote}`);
+        if (data.publicUrl) {
+          void navigator.clipboard?.writeText(data.publicUrl).catch(() => undefined);
+        }
+      } else {
+        toast.success('Proposal saved as draft');
+      }
       router.push(`/proposals/${data.slug}`);
     },
     onError: (err: unknown) => {
-      const error = err as { response?: { data?: { message?: string } } };
-      setError(error.response?.data?.message || 'Failed to create proposal');
-      toast.error('Failed to create proposal');
+      const error = err as {
+        response?: { status?: number; data?: { message?: string | string[] } };
+      };
+      const message = error.response?.data?.message;
+      const text = Array.isArray(message)
+        ? message.join(', ')
+        : message || 'Failed to create proposal';
+      setError(text);
+      toast.error(text);
+      if (error.response?.status === 403 && /limit|upgrade/i.test(text)) {
+        toast.message('Open Billing to upgrade', {
+          action: {
+            label: 'Billing',
+            onClick: () => router.push('/settings/billing'),
+          },
+        });
+      }
     },
   });
 
   const onSubmit = async (data: ProposalFormData, status: 'DRAFT' | 'SENT') => {
     setError(null);
-    createProposal.mutate({ ...data, status });
+
+    if (status === 'SENT' && !content.trim() && pricingItems.length === 0) {
+      setError('Add proposal content or pricing before sending');
+      toast.error('Add proposal content or pricing before sending');
+      return;
+    }
+
+    createProposal.mutate({
+      ...data,
+      status: 'DRAFT',
+      content,
+      pricingItems,
+      depositRequired,
+      depositPercentage: depositRequired ? depositPercentage : null,
+      sendAfterCreate: status === 'SENT',
+    });
   };
 
   return (
@@ -99,7 +159,6 @@ export default function NewProposalPage() {
         )}
 
         <div className="space-y-6">
-          {/* Basic Information */}
           <Card>
             <CardHeader>
               <CardTitle>Proposal Details</CardTitle>
@@ -146,7 +205,6 @@ export default function NewProposalPage() {
             </CardContent>
           </Card>
 
-          {/* Content Editor */}
           <Card>
             <CardHeader>
               <CardTitle>Proposal Content</CardTitle>
@@ -160,12 +218,45 @@ export default function NewProposalPage() {
             </CardContent>
           </Card>
 
-          {/* Pricing Table */}
           <PricingTable
             items={pricingItems}
             onChange={setPricingItems}
             editable={true}
           />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Deposit</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <Label htmlFor="depositRequired">Require deposit after acceptance</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Client can pay via Stripe Checkout on the public proposal page.
+                  </p>
+                </div>
+                <Switch
+                  id="depositRequired"
+                  checked={depositRequired}
+                  onCheckedChange={setDepositRequired}
+                />
+              </div>
+              {depositRequired && (
+                <div className="space-y-2 max-w-xs">
+                  <Label htmlFor="depositPercentage">Deposit percentage</Label>
+                  <Input
+                    id="depositPercentage"
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={depositPercentage}
+                    onChange={(e) => setDepositPercentage(Number(e.target.value) || 50)}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

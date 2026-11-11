@@ -55,6 +55,7 @@ export function TemplateGallery({ onSelectTemplate }: TemplateGalleryProps) {
 
   useEffect(() => deferEffect(() => {
     void fetchTemplates();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   const handlePreview = (template: Template) => {

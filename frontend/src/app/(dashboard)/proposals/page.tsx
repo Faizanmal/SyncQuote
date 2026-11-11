@@ -126,22 +126,29 @@ export default function ProposalsPage() {
         {isLoading ? (
           <div className="text-center py-12 text-gray-500">Loading...</div>
         ) : proposals.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 px-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              {searchTerm ? 'No proposals found' : 'No proposals yet'}
+              {searchTerm ? 'No proposals found' : 'Create your first proposal'}
             </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
               {searchTerm
                 ? 'Try adjusting your search'
-                : 'Get started by creating your first proposal'}
+                : 'Add a title, client, and pricing → send a public link → track views and acceptance.'}
             </p>
             {!searchTerm && (
-              <Button asChild>
-                <Link href="/proposals/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Proposal
-                </Link>
-              </Button>
+              <div className="space-y-4">
+                <ol className="text-left text-sm text-muted-foreground max-w-sm mx-auto space-y-2 list-decimal list-inside">
+                  <li>Write the offer and pricing</li>
+                  <li>Send (or copy the public link)</li>
+                  <li>Client accepts — optional deposit via Stripe</li>
+                </ol>
+                <Button asChild size="lg">
+                  <Link href="/proposals/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Start first proposal
+                  </Link>
+                </Button>
+              </div>
             )}
           </div>
         ) : (
@@ -198,7 +205,7 @@ export default function ProposalsPage() {
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem asChild>
-                            <Link href={`/proposals/${proposal.slug}/edit`}>
+                            <Link href={`/proposals/${proposal.slug}`}>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit
                             </Link>

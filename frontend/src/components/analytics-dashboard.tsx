@@ -74,6 +74,7 @@ export function AnalyticsDashboard() {
 
   useEffect(() => deferEffect(() => {
     void fetchAnalytics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   if (loading) {

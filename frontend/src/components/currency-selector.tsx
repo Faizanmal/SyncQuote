@@ -62,6 +62,7 @@ export function CurrencySelector({
         void fetchConversionRate();
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, baseCurrency, showConversionRate]);
 
   const selectedCurrency = CURRENCIES.find((c) => c.code === value);
@@ -132,6 +133,7 @@ export function CurrencyConverter({
         `/currency/convert?amount=${amount}&from=${fromCurrency}&to=${toCurrency}`
       );
       setConverted(data.data.converted);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to convert currency');
     } finally {
@@ -146,6 +148,7 @@ export function CurrencyConverter({
     return deferEffect(() => {
       void convertAmount();
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount, fromCurrency, toCurrency]);
 
   if (fromCurrency === toCurrency) {

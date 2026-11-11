@@ -39,7 +39,7 @@ export class PaymentsService {
     private automationService: AutomationService,
   ) {
     this.stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-      apiVersion: '2024-06-20',
+      apiVersion: '2024-06-20' as any,
     });
   }
 
@@ -194,7 +194,8 @@ export class PaymentsService {
         type: data.type,
         amount,
         currency: proposal.currency,
-        stripePaymentIntentId: paymentIntentId || `session_${session.id}`,
+        // Checkout often has no PI yet at create-time; link via metadata.checkoutSessionId.
+        stripePaymentIntentId: paymentIntentId || null,
         status: 'pending',
         payerEmail: data.payerEmail,
         payerName: data.payerName,
@@ -205,50 +206,69 @@ export class PaymentsService {
     return { sessionId: session.id, url: session.url, amount, currency: proposal.currency };
   }
 
-  async handlePaymentSuccess(paymentIntentId: string) {
-    const payment = await this.prisma.proposalPayment.findUnique({
-      where: { stripePaymentIntentId: paymentIntentId },
-    });
+  async handlePaymentSuccess(paymentIntentId: string, checkoutSessionId?: string) {
+    let payment = paymentIntentId
+      ? await this.prisma.proposalPayment.findUnique({
+          where: { stripePaymentIntentId: paymentIntentId },
+        })
+      : null;
+
+    if (!payment && checkoutSessionId) {
+      const pending = await this.prisma.proposalPayment.findMany({
+        where: { status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
+      payment =
+        pending.find((p) => {
+          const meta = (p.metadata as { checkoutSessionId?: string } | null) || {};
+          return meta.checkoutSessionId === checkoutSessionId;
+        }) || null;
+    }
 
     if (!payment) {
-      this.logger.warn(`Payment record not found for: ${paymentIntentId}`);
+      this.logger.warn(
+        `Payment record not found for PI=${paymentIntentId || 'n/a'} session=${checkoutSessionId || 'n/a'}`,
+      );
       return;
     }
 
-    // Update payment status
+    if (payment.status === 'succeeded') {
+      return;
+    }
+
     await this.prisma.proposalPayment.update({
       where: { id: payment.id },
       data: {
         status: 'succeeded',
         paidAt: new Date(),
+        ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
       },
     });
 
-    // Update proposal if it's a deposit
     if (payment.type === 'deposit') {
       await this.prisma.proposal.update({
         where: { id: payment.proposalId },
         data: {
           depositPaid: true,
           depositPaidAt: new Date(),
-          stripePaymentIntentId: paymentIntentId,
+          ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
         },
       });
     }
 
-    // Get proposal for notifications
     const proposal = await this.prisma.proposal.findUnique({
       where: { id: payment.proposalId },
     });
 
     if (proposal) {
-      // Send notification to proposal owner
       await this.notificationsService.create({
         userId: proposal.userId,
         type: 'payment_received',
-        title: 'Payment Received!',
-        message: `${payment.payerName || payment.payerEmail} paid $${payment.amount} for "${proposal.title}"`,
+        title: 'Payment Received',
+        message: `${payment.payerName || payment.payerEmail || 'A client'} paid ${payment.currency} ${payment.amount} for "${proposal.title}"`,
         proposalId: proposal.id,
+        sendEmail: true,
         metadata: {
           amount: payment.amount,
           currency: payment.currency,
@@ -256,7 +276,6 @@ export class PaymentsService {
         },
       });
 
-      // Trigger automation workflows
       await this.automationService.triggerWorkflows(
         AutomationTrigger.PAYMENT_RECEIVED,
         proposal.id,

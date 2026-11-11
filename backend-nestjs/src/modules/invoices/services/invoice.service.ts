@@ -352,7 +352,7 @@ export class InvoiceService {
 
     const stripe = new (await import('stripe')).default(
       this.configService.get<string>('STRIPE_SECRET_KEY') || '',
-      { apiVersion: '2024-06-20' },
+      { apiVersion: '2024-06-20' as any },
     );
 
     const session = await stripe.checkout.sessions.create({
@@ -399,7 +399,7 @@ export class InvoiceService {
     const search = filters?.search?.trim();
     const where = {
       userId,
-      ...(filters?.status && filters.status !== 'all' ? { status: filters.status } : {}),
+      ...(filters?.status && (filters.status as any) !== 'all' ? { status: filters.status } : {}),
       ...(search
         ? {
             OR: [

@@ -4,6 +4,16 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 
+function requireJwtSecret(config: ConfigService, key: string): string {
+  const secret = config.get<string>(key)?.trim();
+  if (!secret || secret === 'default-secret') {
+    throw new Error(
+      `${key} must be set to a strong secret (refusing insecure default)`,
+    );
+  }
+  return secret;
+}
+
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
   constructor(config: ConfigService) {
@@ -13,7 +23,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
           return request?.cookies?.refreshToken;
         },
       ]),
-      secretOrKey: config.get<string>('JWT_REFRESH_SECRET') || 'default-secret',
+      secretOrKey: requireJwtSecret(config, 'JWT_REFRESH_SECRET'),
       passReqToCallback: true,
     });
   }

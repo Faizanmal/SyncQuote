@@ -88,6 +88,7 @@ export function SsoSecuritySettings() {
     },
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _createSsoConfigMutation = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
       const { data } = await api.post('/sso/configs', payload);

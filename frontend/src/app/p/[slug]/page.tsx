@@ -26,7 +26,6 @@ import {
   Download,
   CreditCard,
 } from 'lucide-react';
-import Image from 'next/image';
 import { toast } from 'sonner';
 import io from 'socket.io-client';
 
@@ -35,7 +34,7 @@ interface ProposalData {
   title: string;
   slug: string;
   content: string;
-  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'APPROVED' | 'DECLINED';
+  status: 'DRAFT' | 'SENT' | 'VIEWED' | 'APPROVED' | 'DECLINED' | 'SIGNED';
   clientName: string;
   clientEmail: string;
   companyLogo?: string;
@@ -47,7 +46,13 @@ interface ProposalData {
   comments: Comment[];
   depositRequired?: boolean;
   depositPercentage?: number;
+  depositAmount?: number;
+  depositPaid?: boolean;
   currency?: string;
+  locked?: boolean;
+  signerName?: string;
+  signatureData?: string | { signatureData?: string; signedAt?: string; ipAddress?: string };
+  signedAt?: string;
   signature?: {
     signatureData: string;
     signedAt: string;
@@ -76,7 +81,16 @@ export default function PublicProposalPage() {
   const { data: proposal, isLoading, refetch } = useQuery<ProposalData>({
     queryKey: ['proposal', slug],
     queryFn: async () => {
-      const response = await api.get(`/proposals/public/${slug}`);
+      // First load tracks the view; later refetches pass track=false to avoid double-counting.
+      const trackedKey = `sq-tracked-${slug}`;
+      const alreadyTracked =
+        typeof window !== 'undefined' && sessionStorage.getItem(trackedKey) === '1';
+      const response = await api.get(`/proposals/public/${slug}`, {
+        params: alreadyTracked ? { track: 'false' } : undefined,
+      });
+      if (!alreadyTracked && typeof window !== 'undefined') {
+        sessionStorage.setItem(trackedKey, '1');
+      }
       setPricingItems(response.data.pricingItems || []);
       return response.data;
     },
@@ -171,7 +185,7 @@ export default function PublicProposalPage() {
 
   const addCommentMutation = useMutation({
     mutationFn: async (content: string) => {
-      const response = await api.post(`/proposals/${slug}/comments`, {
+      const response = await api.post(`/proposals/public/${slug}/comments`, {
         content,
         author: proposal?.clientName || 'Client',
       });
@@ -186,24 +200,31 @@ export default function PublicProposalPage() {
 
   const approveMutation = useMutation({
     mutationFn: async (signatureData: string) => {
-      const response = await api.post(`/proposals/${slug}/approve`, {
+      const response = await api.post(`/proposals/public/${slug}/approve`, {
         signatureData,
+        name: proposal?.clientName,
         clientName: proposal?.clientName,
+        email: proposal?.clientEmail,
+        clientEmail: proposal?.clientEmail,
       });
       return response.data;
     },
     onSuccess: () => {
       refetch();
-      toast.success('Proposal approved!');
+      toast.success('Proposal accepted');
       setShowSignature(false);
     },
   });
 
   const downloadPDFMutation = useMutation({
     mutationFn: async () => {
-      const response = await api.get(`/proposals/${slug}/pdf`, {
+      const response = await api.get(`/proposals/public/${slug}/pdf`, {
         responseType: 'blob',
       });
+      if (response.data?.type === 'application/json') {
+        const text = await (response.data as Blob).text();
+        throw new Error(text || 'PDF generation failed');
+      }
       return response.data;
     },
     onSuccess: (blob) => {
@@ -217,35 +238,39 @@ export default function PublicProposalPage() {
       document.body.removeChild(a);
       toast.success('PDF downloaded');
     },
+    onError: () => {
+      toast.error('PDF could not be generated. Try again in a moment.');
+    },
   });
 
   // WebSocket connection for real-time updates
   useEffect(() => {
     if (!slug) return;
 
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001';
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001';
     socketRef.current = io(wsUrl);
 
-    socketRef.current.emit('joinProposal', slug);
+    const joinPayload = { proposalId: proposal?.id || slug };
+    socketRef.current.emit('join_proposal', joinPayload);
+    socketRef.current.emit('joinProposal', joinPayload);
 
-    socketRef.current.on('proposalViewed', () => {
-      refetch();
-    });
+    const refresh = () => {
+      void refetch();
+    };
 
-    socketRef.current.on('commentAdded', () => {
-      refetch();
-    });
-
-    socketRef.current.on('proposalApproved', () => {
-      refetch();
-    });
+    socketRef.current.on('proposalViewed', refresh);
+    socketRef.current.on('proposal_viewed', refresh);
+    socketRef.current.on('commentAdded', refresh);
+    socketRef.current.on('comment_added', refresh);
+    socketRef.current.on('proposalApproved', refresh);
+    socketRef.current.on('proposal_approved', refresh);
 
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
     };
-  }, [slug, refetch]);
+  }, [slug, proposal?.id, refetch]);
 
   const handleAddComment = () => {
     if (!newComment.trim()) return;
@@ -286,8 +311,22 @@ export default function PublicProposalPage() {
     );
   }
 
-  const isApproved = proposal.status === 'APPROVED';
+  const isApproved =
+    proposal.status === 'APPROVED' ||
+    proposal.status === 'SIGNED' ||
+    !!proposal.locked;
   const isDeclined = proposal.status === 'DECLINED';
+  const signatureSrc =
+    proposal.signature?.signatureData ||
+    (typeof proposal.signatureData === 'string'
+      ? proposal.signatureData
+      : proposal.signatureData?.signatureData);
+  const signedAt =
+    proposal.signature?.signedAt ||
+    proposal.signedAt ||
+    (typeof proposal.signatureData === 'object'
+      ? proposal.signatureData?.signedAt
+      : undefined);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -297,7 +336,8 @@ export default function PublicProposalPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {proposal.companyLogo && (
-                <Image
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
                   src={proposal.companyLogo}
                   alt={proposal.companyName || 'Company'}
                   className="h-10 w-auto"
@@ -357,7 +397,11 @@ export default function PublicProposalPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <TiptapEditor content={proposal.content} onChange={() => {}} editable={false} />
+                {proposal.content?.trim() ? (
+                  <TiptapEditor content={proposal.content} onChange={() => {}} editable={false} />
+                ) : (
+                  <p className="text-sm text-gray-500">No proposal content yet.</p>
+                )}
               </CardContent>
             </Card>
 
@@ -373,13 +417,17 @@ export default function PublicProposalPage() {
             {!isApproved && !isDeclined && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Approve This Proposal</CardTitle>
+                  <CardTitle>Accept This Proposal</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Acceptance confirms you agree to move forward. This is not a certified
+                    e-signature product (v1).
+                  </p>
                   {!showSignature ? (
                     <Button onClick={() => setShowSignature(true)} className="w-full">
                       <CheckCircle2 className="mr-2 h-4 w-4" />
-                      Sign and Approve
+                      Accept Proposal
                     </Button>
                   ) : (
                     <SignatureCanvas
@@ -392,33 +440,39 @@ export default function PublicProposalPage() {
             )}
 
             {/* Approved Signature Display */}
-            {isApproved && proposal.signature && (
+            {isApproved && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-green-600">
                     <CheckCircle2 className="h-5 w-5" />
-                    Approved
+                    Accepted
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="border rounded-lg p-4 bg-gray-50">
-                      <Image
-                        src={proposal.signature.signatureData}
-                        alt="Signature"
-                        className="max-h-24"
-                      />
-                    </div>
+                    {signatureSrc && (
+                      <div className="border rounded-lg p-4 bg-gray-50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={signatureSrc} alt="Signature" className="max-h-24" />
+                      </div>
+                    )}
                     <div className="text-sm text-gray-600 space-y-1">
                       <p>
-                        Signed by <strong>{proposal.clientName}</strong>
+                        Accepted by{' '}
+                        <strong>
+                          {proposal.signerName || proposal.clientName || 'Client'}
+                        </strong>
                       </p>
-                      <p>
-                        {formatDistanceToNow(new Date(proposal.signature.signedAt), {
-                          addSuffix: true,
-                        })}
+                      {signedAt && (
+                        <p>
+                          {formatDistanceToNow(new Date(signedAt), {
+                            addSuffix: true,
+                          })}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Acceptance record — not a certified electronic signature.
                       </p>
-                      <p className="text-xs">IP: {proposal.signature.ipAddress}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -431,18 +485,22 @@ export default function PublicProposalPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CreditCard className="h-5 w-5" />
-                    Payment Required
+                    {proposal.depositPaid ? 'Remaining Balance' : 'Payment Required'}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   {!showPayment ? (
                     <div className="text-center py-4">
                       <p className="text-muted-foreground mb-4">
-                        A deposit of {proposal.depositPercentage || 50}% is required to proceed.
+                        {proposal.depositPaid
+                          ? 'Deposit received. Pay the remaining balance when ready.'
+                          : proposal.depositAmount
+                            ? `A deposit of ${proposal.currency || 'USD'} ${Number(proposal.depositAmount).toFixed(2)} is required to proceed.`
+                            : `A deposit of ${proposal.depositPercentage || 50}% is required to proceed.`}
                       </p>
                       <Button onClick={() => setShowPayment(true)} className="w-full">
                         <CreditCard className="mr-2 h-4 w-4" />
-                        Make Payment
+                        {proposal.depositPaid ? 'Pay Remaining' : 'Make Payment'}
                       </Button>
                     </div>
                   ) : (
@@ -451,6 +509,9 @@ export default function PublicProposalPage() {
                       proposalTitle={proposal.title}
                       totalAmount={calculateTotal()}
                       currency={proposal.currency || 'USD'}
+                      depositPercentage={proposal.depositPercentage || 50}
+                      depositAmount={proposal.depositAmount}
+                      depositPaid={!!proposal.depositPaid}
                       onPaymentComplete={() => {
                         toast.success('Payment successful!');
                         refetch();

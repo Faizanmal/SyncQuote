@@ -1,0 +1,30 @@
+# SyncQuote on faizanmalik.me
+# DNS: A/AAAA record for syncquote.faizanmalik.me → your VPS IP
+# Caddy auto-provisions Let's Encrypt certificates.
+
+{$DOMAIN:syncquote.faizanmalik.me} {
+	encode gzip zstd
+
+	# Nest API + Socket.IO (same origin → refresh cookies work)
+	@api path /api/* /socket.io/*
+	handle @api {
+		reverse_proxy backend:3001
+	}
+
+	# Next.js frontend
+	handle {
+		reverse_proxy frontend:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

@@ -269,6 +269,7 @@ export function EnhancedAICopilot({ context, onInsert }: EnhancedAICopilotProps)
     toast.success('Content inserted');
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _regenerateResponse = async (originalPrompt: string) => {
     await generateContent(originalPrompt);
   };

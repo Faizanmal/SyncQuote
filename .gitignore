@@ -15,6 +15,7 @@ out/
 
 # Environment files
 .env
+.env.production
 .env*.local
 .env.development.local
 .env.test.local
@@ -44,3 +45,6 @@ terraform/.terraform.lock.hcl
 *.key
 .vercel
 Thumbs.db
+
+# Internal planning (local only)
+cache-internal.md

@@ -108,6 +108,7 @@ export function VideoProposals({ proposalId }: { proposalId?: string }) {
   useEffect(() => deferEffect(() => {
     void fetchVideos();
     void fetchIntegrations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [proposalId]);
 
   useEffect(() => {

@@ -110,6 +110,7 @@ interface ContractTemplate {
   createdAt: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockContracts: Contract[] = [
   {
     id: '1',

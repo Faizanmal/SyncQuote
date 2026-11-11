@@ -626,6 +626,7 @@ function FieldEditorDialog({ field, open, onOpenChange, onSave }: { field?: Fiel
 }
 
 function DynamicFormPreview({ fields }: { fields: FieldDefinition[] }) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
 
   const renderField = (field: FieldDefinition) => {

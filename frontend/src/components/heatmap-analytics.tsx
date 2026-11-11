@@ -188,6 +188,7 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
   useEffect(() => deferEffect(() => {
     void fetchHeatmapData();
     void fetchViews();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [proposalId, dateRange]);
 
   useEffect(() => {

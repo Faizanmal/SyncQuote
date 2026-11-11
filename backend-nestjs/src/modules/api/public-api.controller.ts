@@ -77,7 +77,9 @@ export class PublicApiController {
   ) {
     const auth = await this.authenticate(authHeader, ApiKeyPermission.PROPOSALS_READ);
     const { page, limit, skip, take } = normalizePagination(query);
-    const sortBy = PROPOSAL_SORT_FIELDS.includes(query.sortBy as (typeof PROPOSAL_SORT_FIELDS)[number])
+    const sortBy = PROPOSAL_SORT_FIELDS.includes(
+      query.sortBy as (typeof PROPOSAL_SORT_FIELDS)[number],
+    )
       ? query.sortBy!
       : 'createdAt';
     const sortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc';

@@ -2,25 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  Home, 
-  FileText, 
-  Settings, 
-  LogOut, 
+import {
+  Home,
+  FileText,
+  Settings,
+  LogOut,
   User,
   CreditCard,
   Plus,
   BarChart3,
-  Users,
-  Brain,
-  FolderOpen,
   Bell,
-  Plug,
-  Monitor,
   DollarSign,
-  Workflow,
-  TrendingUp,
-  FileCode,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -46,6 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/lib/auth';
 
+/** Core MVP nav — unfinished enterprise surfaces stay out of the primary menu. */
 const menuItems = [
   {
     title: 'Dashboard',
@@ -58,54 +51,15 @@ const menuItems = [
     href: '/proposals',
   },
   {
-    title: 'Documents',
-    icon: FolderOpen,
-    href: '/documents',
-  },
-  {
-    title: 'AI Assistant',
-    icon: Brain,
-    href: '/ai-assistant',
-  },
-  {
-    title: 'Snippets',
-    icon: FileCode,
-    href: '/snippets',
-  },
-  {
-    title: 'Automation',
-    icon: Workflow,
-    href: '/automation',
-  },
-  {
     title: 'Analytics',
     icon: BarChart3,
     href: '/analytics',
   },
-  {
-    title: 'Forecasting',
-    icon: TrendingUp,
-    href: '/forecasting',
-  },
-  {
-    title: 'Team',
-    icon: Users,
-    href: '/team',
-  },
-  {
-    title: 'Integrations',
-    icon: Plug,
-    href: '/integrations',
-  },
+  // Team invite UI exists, but proposals remain user-scoped for Path C v1.
   {
     title: 'Payments',
     icon: DollarSign,
     href: '/payments',
-  },
-  {
-    title: 'Monitoring',
-    icon: Monitor,
-    href: '/monitoring',
   },
   {
     title: 'Notifications',

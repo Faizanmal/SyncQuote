@@ -119,6 +119,7 @@ export function ApiManagementDashboard() {
       const res = await api.post('/api-keys', data);
       return res.data;
     },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     onSuccess: (_data) => {
       queryClient.invalidateQueries({ queryKey: ['api-keys'] });
       toast.success('API key created successfully');

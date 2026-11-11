@@ -30,6 +30,11 @@ interface Subscription {
   cancelAtPeriodEnd: boolean;
   plan: 'free' | 'pro' | 'enterprise';
   trialEndsAt?: string;
+  usage?: {
+    proposalsThisMonth: number;
+    proposalsLimit: number | null;
+    teamMembersLimit: number | null;
+  };
 }
 
 interface PaymentMethod {
@@ -87,6 +92,7 @@ const plans = [
 ];
 
 export default function BillingPage() {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _user = useAuthStore((state: AuthState) => state.user);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -185,6 +191,44 @@ export default function BillingPage() {
             You have {trialDaysLeft} days left in your free trial. Subscribe to continue using Pro features.
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Usage */}
+      {subscription?.usage && (
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Usage this month</CardTitle>
+            <CardDescription>
+              Limits are enforced on the server when you create proposals
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Proposals created</p>
+                <p className="text-2xl font-semibold">
+                  {subscription.usage.proposalsThisMonth}
+                  <span className="text-base font-normal text-gray-500">
+                    {' '}
+                    /{' '}
+                    {subscription.usage.proposalsLimit == null
+                      ? 'Unlimited'
+                      : subscription.usage.proposalsLimit}
+                  </span>
+                </p>
+              </div>
+              {subscription.usage.proposalsLimit != null &&
+                subscription.usage.proposalsThisMonth >= subscription.usage.proposalsLimit && (
+                  <Alert className="max-w-md border-amber-200 bg-amber-50">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-900">
+                      Free limit reached. Upgrade to Pro for unlimited proposals.
+                    </AlertDescription>
+                  </Alert>
+                )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Current Subscription */}

@@ -129,6 +129,7 @@ export function RevenueForecastDashboard() {
 
   useEffect(() => deferEffect(() => {
     void fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   const formatCurrency = (value: number) => {
@@ -232,7 +233,7 @@ export function RevenueForecastDashboard() {
                   {pipeline?.stages
                     .filter(s => s.proposalCount > 0 || s.probability > 0)
                     .sort((a, b) => a.order - b.order)
-                    .map((stage, _index) => {
+                    .map((stage) => {
                       const maxValue = Math.max(...(pipeline?.stages.map(s => s.totalValue) || [1]));
                       const widthPercentage = maxValue > 0 ? (stage.totalValue / maxValue) * 100 : 0;
                       
@@ -532,7 +533,7 @@ export function RevenueForecastDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {teamPerformance?.members.map((member, _index) => (
+                {teamPerformance?.members.map((member) => (
                   <div
                     key={member.userId}
                     className="flex items-center justify-between p-4 border rounded-lg"

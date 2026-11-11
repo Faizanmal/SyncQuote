@@ -110,6 +110,7 @@ export function ABTestingDashboard({ proposalId }: { proposalId?: string }) {
 
   useEffect(() => deferEffect(() => {
     void fetchTests();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [proposalId]);
 
   const fetchTestResults = async (testId: string) => {

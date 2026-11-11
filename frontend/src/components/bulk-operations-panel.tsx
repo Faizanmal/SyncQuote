@@ -120,6 +120,7 @@ export function BulkOperationsPanel() {
   useEffect(() => deferEffect(() => {
     void fetchProposals();
     void fetchBatchJobs();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [statusFilter]);
 
   useEffect(() => {
@@ -130,6 +131,7 @@ export function BulkOperationsPanel() {
       }, 2000);
       return () => clearInterval(interval);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentJob]);
 
   const toggleSelect = (id: string) => {

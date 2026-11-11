@@ -171,8 +171,8 @@ export function SignatureCanvas({ onSave, onCancel }: SignatureCanvasProps) {
           </div>
 
           <p className="text-xs text-gray-500">
-            By signing this document, you agree to the terms and conditions outlined in this proposal.
-            Your IP address and timestamp will be recorded for verification purposes.
+            Drawing your name confirms acceptance of this proposal. This is an acceptance record
+            (IP and timestamp), not a certified electronic signature product.
           </p>
         </div>
       </Card>

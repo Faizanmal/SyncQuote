@@ -148,6 +148,7 @@ export function AutomationWorkflows() {
   useEffect(() => deferEffect(() => {
     void fetchWorkflows();
     void fetchTemplates();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   const handleCreate = async () => {

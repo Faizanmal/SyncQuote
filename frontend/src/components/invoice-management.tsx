@@ -94,6 +94,7 @@ interface InvoiceStats {
   paidThisMonth: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockInvoices: Invoice[] = [
   {
     id: '1',
@@ -211,11 +212,11 @@ export function InvoiceManagement() {
   });
 
   // Fetch invoices
-  const { data: invoices = [], isLoading } = useQuery({
+  const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
     queryKey: ['invoices'],
     queryFn: async () => {
       const { data } = await api.get('/invoices', { params: { page: 1, limit: 50 } });
-      return unwrapList(data);
+      return unwrapList(data) as Invoice[];
     },
   });
 

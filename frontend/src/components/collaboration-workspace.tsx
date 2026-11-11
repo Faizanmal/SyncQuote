@@ -149,6 +149,7 @@ export function CollaborationWorkspace({ proposalId }: { proposalId: string }) {
     },
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _addCollaboratorMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
       const res = await api.post(`/collaboration/collaborators`, { ...data, proposalId });

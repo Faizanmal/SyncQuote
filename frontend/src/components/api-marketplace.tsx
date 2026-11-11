@@ -146,6 +146,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   other: <Package className="h-5 w-5" />,
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockApps: MarketplaceApp[] = [
   {
     id: '1',
@@ -289,6 +290,7 @@ const mockApps: MarketplaceApp[] = [
   },
 ];
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockInstalledApps: InstalledApp[] = [
   {
     id: 'inst-1',

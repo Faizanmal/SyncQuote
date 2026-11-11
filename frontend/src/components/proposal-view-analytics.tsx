@@ -115,6 +115,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
 
   useEffect(() => deferEffect(() => {
     void fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [proposalId]);
 
   const formatDuration = (seconds: number) => {
@@ -355,7 +356,7 @@ export function ProposalViewAnalytics({ proposalId }: ProposalViewAnalyticsProps
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {analytics.viewsByLocation.slice(0, 5).map((location, _index) => (
+                  {analytics.viewsByLocation.slice(0, 5).map((location) => (
                     <div key={location.country} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />

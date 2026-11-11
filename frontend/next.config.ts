@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
+  // Smaller production image for VPS / Docker
+  output: "standalone",
 };
 
 export default nextConfig;

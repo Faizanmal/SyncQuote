@@ -107,6 +107,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
       setLoading(true);
       const response = await api.get('/snippets');
       setSnippets(response.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to load snippets');
     } finally {
@@ -120,6 +121,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
       const fetchedCategories = response.data as string[];
       const allCategories = [...new Set([...DEFAULT_CATEGORIES, ...fetchedCategories])];
       setCategories(allCategories);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       setCategories(DEFAULT_CATEGORIES);
     }
@@ -128,6 +130,7 @@ export function SnippetLibrary({ onInsert }: SnippetLibraryProps) {
   useEffect(() => deferEffect(() => {
     void fetchSnippets();
     void fetchCategories();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   const handleCreate = async () => {

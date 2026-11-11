@@ -46,6 +46,7 @@ export function BrandingSettings() {
 
   useEffect(() => deferEffect(() => {
     void fetchSettings();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), []);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

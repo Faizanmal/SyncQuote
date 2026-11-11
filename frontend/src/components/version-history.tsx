@@ -49,6 +49,7 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
     try {
       const response = await api.get(`/versions/proposal/${proposalId}`);
       setVersions(response.data);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       toast.error('Failed to load version history');
     } finally {
@@ -58,6 +59,7 @@ export function VersionHistory({ proposalId, onRestore }: VersionHistoryProps) {
 
   useEffect(() => deferEffect(() => {
     void loadVersions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [proposalId]);
 
   const handleRestore = async (versionId: string, versionNumber: number) => {

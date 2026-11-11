@@ -20,15 +20,9 @@ export interface PaginatedResult<T> {
   pagination: PaginationMeta;
 }
 
-export function normalizePagination(
-  input: PaginationInput = {},
-  defaultLimit = DEFAULT_LIMIT,
-) {
+export function normalizePagination(input: PaginationInput = {}, defaultLimit = DEFAULT_LIMIT) {
   const page = Math.max(1, Math.floor(Number(input.page) || DEFAULT_PAGE));
-  const limit = Math.min(
-    MAX_LIMIT,
-    Math.max(1, Math.floor(Number(input.limit) || defaultLimit)),
-  );
+  const limit = Math.min(MAX_LIMIT, Math.max(1, Math.floor(Number(input.limit) || defaultLimit)));
 
   return {
     page,

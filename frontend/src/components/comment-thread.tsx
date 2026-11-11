@@ -71,6 +71,7 @@ export function CommentThread({ proposalId, currentUserEmail, currentUserName }:
       socket?.emit('leave_proposal', { proposalId });
       socket?.off('comment_added');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [proposalId]);
 
   const handleSubmit = async (e: React.FormEvent) => {

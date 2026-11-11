@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Global } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +11,7 @@ import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
 import { TeamsModule } from '../teams/teams.module';
 
+@Global()
 @Module({
   imports: [
     UsersModule,
@@ -55,6 +56,6 @@ import { TeamsModule } from '../teams/teams.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy, GoogleStrategy],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, JwtModule, PassportModule],
 })
 export class AuthModule {}

@@ -62,6 +62,12 @@ async function bootstrap() {
   // Cookie parser
   app.use(cookieParser());
 
+  // Correct client IPs / HTTPS proto behind Caddy / reverse proxies
+  const expressApp = app.getHttpAdapter().getInstance();
+  if (expressApp?.set) {
+    expressApp.set('trust proxy', 1);
+  }
+
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({

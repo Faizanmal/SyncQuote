@@ -1,6 +1,10 @@
-# SyncQuote - Production-Ready SaaS Platform
+# SyncQuote — Interactive Proposal Platform
 
 Transform static proposals into interactive, collaborative, and trackable web links to help service businesses close deals faster.
+
+> **Status:** Active development / design-partner MVP. Core create → send → public view loop is the priority. Not marketed as production self-serve SaaS yet.
+>
+> **VPS deploy:** see [`VPS_DEPLOY.md`](./VPS_DEPLOY.md) — production URL `https://syncquote.faizanmalik.me`.
 
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen)](https://nodejs.org/)
@@ -21,8 +25,7 @@ Transform static proposals into interactive, collaborative, and trackable web li
 
 ### Backend
 - **Primary**: NestJS (Node.js + TypeScript) - Main API backend
-- **Legacy**: Django (Python) - Alternative backend implementation
-- **Database**: PostgreSQL 16 with Prisma ORM (NestJS) / Django ORM (Django)
+- **Database**: PostgreSQL 16 with Prisma ORM
 - **Caching**: Redis
 - **Authentication**: JWT + Google OAuth
 - **Payments**: Stripe (Billing + Connect)
@@ -61,14 +64,7 @@ Transform static proposals into interactive, collaborative, and trackable web li
 
 ```
 SyncQuote/
-├── backend/                # Django backend (legacy/alternative)
-│   ├── manage.py
-│   ├── backend/
-│   │   ├── __init__.py
-│   │   ├── settings.py
-│   │   ├── urls.py
-│   │   └── wsgi.py
-│   └── requirements.txt
+├── backend/                # ARCHIVED — unused Django scaffold (not the product stack)
 ├── backend-nestjs/         # Primary NestJS backend API
 │   ├── src/
 │   │   ├── modules/        # Feature modules

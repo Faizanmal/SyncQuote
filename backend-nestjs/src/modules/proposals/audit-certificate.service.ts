@@ -52,26 +52,153 @@ export class AuditCertificateService {
     // Convert HTML to PDF using puppeteer
     const certificatePdf = await this.htmlToPdf(certificateHtml);
 
-    // Get the original proposal PDF if exists
-    const proposal = await this.prisma.proposal.findUnique({
-      where: { id: proposalId },
-      select: { pdfUrl: true },
-    });
-
+    // Prefer merging with a freshly rendered proposal PDF (content + pricing)
     let finalPdf: Buffer;
-
-    if (proposal?.pdfUrl) {
-      // Merge certificate with existing proposal PDF
-      finalPdf = await this.mergePdfs(proposal.pdfUrl, certificatePdf);
-    } else {
+    try {
+      const proposalPdf = await this.renderProposalContentPdf(proposalId);
+      finalPdf = await this.mergePdfBuffers(proposalPdf, certificatePdf);
+    } catch (error) {
+      this.logger.warn('Falling back to certificate-only PDF', error);
       finalPdf = certificatePdf;
     }
 
     // For now, return the buffer. In production, upload to S3/R2
-    // const certificateUrl = await this.uploadToStorage(finalPdf, proposalId);
     const certificateUrl = `/certificates/${proposalId}-certificate.pdf`;
 
     return { certificateUrl, pdfBuffer: finalPdf };
+  }
+
+  /**
+   * Public download: proposal content + pricing, with acceptance certificate when signed.
+   */
+  async generateProposalPdf(proposalId: string): Promise<Buffer> {
+    const proposalPdf = await this.renderProposalContentPdf(proposalId);
+
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      select: { signedAt: true, locked: true },
+    });
+
+    if (!proposal?.signedAt && !proposal?.locked) {
+      return proposalPdf;
+    }
+
+    try {
+      const { pdfBuffer: certificatePdf } = await this.generateCertificateOnly(proposalId);
+      return await this.mergePdfBuffers(proposalPdf, certificatePdf);
+    } catch (error) {
+      this.logger.warn('Certificate append failed; returning proposal PDF only', error);
+      return proposalPdf;
+    }
+  }
+
+  private async generateCertificateOnly(proposalId: string): Promise<{ pdfBuffer: Buffer }> {
+    const certificateData = await this.collectAuditData(proposalId);
+    const certificateHtml = this.createCertificateHtml(certificateData);
+    const pdfBuffer = await this.htmlToPdf(certificateHtml);
+    return { pdfBuffer };
+  }
+
+  private async renderProposalContentPdf(proposalId: string): Promise<Buffer> {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: {
+        user: { select: { name: true, companyName: true, email: true } },
+        blocks: {
+          include: { pricingItems: { orderBy: { order: 'asc' } } },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!proposal) {
+      throw new NotFoundException('Proposal not found');
+    }
+
+    const pricingRows = proposal.blocks
+      .filter((b) => b.type === 'PRICING_TABLE')
+      .flatMap((b) => b.pricingItems || []);
+
+    const total = pricingRows.reduce((sum, item) => sum + Number(item.price || 0), 0);
+    const pricingHtml = pricingRows.length
+      ? `
+        <h2>Pricing</h2>
+        <table>
+          <thead>
+            <tr><th>Item</th><th>Type</th><th style="text-align:right">Amount</th></tr>
+          </thead>
+          <tbody>
+            ${pricingRows
+              .map(
+                (item) => `
+              <tr>
+                <td>${this.escapeHtml(item.name)}${item.description ? `<div style="color:#6b7280;font-size:12px">${this.escapeHtml(item.description)}</div>` : ''}</td>
+                <td>${this.escapeHtml(item.type)}</td>
+                <td style="text-align:right">${Number(item.price).toFixed(2)} ${proposal.currency}</td>
+              </tr>`,
+              )
+              .join('')}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2"><strong>Total</strong></td>
+              <td style="text-align:right"><strong>${total.toFixed(2)} ${proposal.currency}</strong></td>
+            </tr>
+          </tfoot>
+        </table>`
+      : '';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>${this.escapeHtml(proposal.title)}</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #111827; margin: 0; padding: 40px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    h2 { font-size: 16px; margin: 28px 0 12px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
+    .meta { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+    .content { line-height: 1.6; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { padding: 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px; text-align: left; vertical-align: top; }
+    th { background: #f9fafb; }
+    .footer { margin-top: 40px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>${this.escapeHtml(proposal.title)}</h1>
+  <div class="meta">
+    <div>From: ${this.escapeHtml(proposal.user.companyName || proposal.user.name || proposal.user.email)}</div>
+    <div>Client: ${this.escapeHtml(proposal.recipientName || '—')} (${this.escapeHtml(proposal.recipientEmail || '—')})</div>
+    <div>Status: ${this.escapeHtml(proposal.status)}</div>
+  </div>
+  <h2>Proposal</h2>
+  <div class="content">${proposal.content?.trim() || '<p>No proposal content.</p>'}</div>
+  ${pricingHtml}
+  <div class="footer">Generated by SyncQuote · ${new Date().toISOString()}</div>
+</body>
+</html>`;
+
+    return this.htmlToPdf(html);
+  }
+
+  private async mergePdfBuffers(first: Buffer, second: Buffer): Promise<Buffer> {
+    const firstDoc = await PDFDocument.load(first);
+    const secondDoc = await PDFDocument.load(second);
+    const pages = await firstDoc.copyPages(secondDoc, secondDoc.getPageIndices());
+    for (const page of pages) {
+      firstDoc.addPage(page);
+    }
+    return Buffer.from(await firstDoc.save());
+  }
+
+  private escapeHtml(value: string | null | undefined): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   /**
@@ -407,7 +534,8 @@ export class AuditCertificateService {
   private async htmlToPdf(html: string): Promise<Buffer> {
     const browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     });
 
     try {

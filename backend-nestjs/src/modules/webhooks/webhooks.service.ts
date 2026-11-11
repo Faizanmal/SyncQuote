@@ -25,7 +25,7 @@ export class WebhooksService {
       // Create a placeholder instance - will fail if actually used
       this.stripe = null as any;
     } else {
-      this.stripe = new Stripe(apiKey, { apiVersion: '2024-06-20' });
+      this.stripe = new Stripe(apiKey, { apiVersion: '2026-08-26.dahlia' });
     }
   }
 
@@ -251,19 +251,9 @@ export class WebhooksService {
         ? session.payment_intent
         : session.payment_intent?.id;
 
-    await this.prisma.proposalPayment.updateMany({
-      where: {
-        metadata: { path: ['checkoutSessionId'], equals: session.id },
-      },
-      data: {
-        status: 'succeeded',
-        paidAt: new Date(),
-        ...(paymentIntentId ? { stripePaymentIntentId: paymentIntentId } : {}),
-      },
-    });
-
-    if (paymentIntentId) {
-      await this.paymentsService.handlePaymentSuccess(paymentIntentId);
-    }
+    await this.paymentsService.handlePaymentSuccess(
+      paymentIntentId || '',
+      session.id,
+    );
   }
 }
