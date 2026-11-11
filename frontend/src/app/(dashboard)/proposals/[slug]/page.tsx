@@ -118,7 +118,7 @@ export default function ProposalDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ['proposals', 'recent'] });
       const emailNote =
         data.emailSent === false
-          ? ' Email was skipped (no SendGrid). Public link copied if available.'
+          ? ' Email was skipped (no email provider). Public link copied if available.'
           : '';
       toast.success(`Proposal sent to client.${emailNote}`);
       if (data.publicUrl) {

@@ -65,7 +65,7 @@ export default function NewProposalPage() {
     onSuccess: (data, variables) => {
       if (variables.sendAfterCreate) {
         const emailNote = data.emailSent === false
-          ? ' (email skipped — configure SendGrid or share the link manually)'
+          ? ' (email skipped — configure Resend or share the link manually)'
           : '';
         toast.success(`Proposal sent${emailNote}`);
         if (data.publicUrl) {

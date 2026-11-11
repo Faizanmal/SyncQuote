@@ -142,4 +142,5 @@ Same-origin `/api` keeps refresh-token cookies working (`Secure` + `SameSite=Str
 
 - Dev compose (`docker-compose.yml`) stays for local; use **`docker-compose.prod.yml`** on the VPS.
 - Heavy AWS/Terraform path remains in `DEPLOYMENT.md` (optional).
-- Support email in product stubs: update to your real inbox if not using `support@syncquote.com` / `noreply@faizanmalik.me`.
+- Email: set `RESEND_API_KEY` in `.env.production` with `EMAIL_FROM=noreply@faizanmalik.me` (domain already verified in Resend).
+- Support: `support@faizanmalik.me` in product stubs.

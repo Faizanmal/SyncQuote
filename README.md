@@ -30,7 +30,7 @@ Transform static proposals into interactive, collaborative, and trackable web li
 - **Authentication**: JWT + Google OAuth
 - **Payments**: Stripe (Billing + Connect)
 - **Real-time**: Socket.io
-- **Email**: SendGrid
+- **Email**: Resend (SendGrid optional fallback)
 - **Storage**: AWS S3 / Cloudflare R2
 - **Monitoring**: Sentry + Pino logging
 - **API Docs**: Swagger/OpenAPI
@@ -150,7 +150,8 @@ JWT_REFRESH_SECRET=your-refresh-secret
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 STRIPE_SECRET_KEY=sk_test_...
-SENDGRID_API_KEY=SG...
+RESEND_API_KEY=re_...
+EMAIL_FROM=noreply@faizanmalik.me
 AWS_ACCESS_KEY_ID=your-aws-key
 AWS_SECRET_ACCESS_KEY=your-aws-secret
 S3_BUCKET=syncquote-assets

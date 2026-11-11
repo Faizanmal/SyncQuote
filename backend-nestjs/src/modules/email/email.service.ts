@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Resend } from 'resend';
 import sgMail from '@sendgrid/mail';
 
 export interface SendEmailOptions {
@@ -9,16 +10,95 @@ export interface SendEmailOptions {
   from?: { email: string; name: string };
 }
 
+type EmailProvider = 'resend' | 'sendgrid' | null;
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
+  private readonly provider: EmailProvider;
+  private readonly resend: Resend | null = null;
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (apiKey) {
-      sgMail.setApiKey(apiKey);
+    const resendKey = this.configService.get<string>('RESEND_API_KEY')?.trim();
+    const sendgridKey = this.configService.get<string>('SENDGRID_API_KEY')?.trim();
+
+    if (resendKey) {
+      this.resend = new Resend(resendKey);
+      this.provider = 'resend';
+      this.logger.log('Email provider: Resend');
+    } else if (sendgridKey) {
+      sgMail.setApiKey(sendgridKey);
+      this.provider = 'sendgrid';
+      this.logger.log('Email provider: SendGrid');
     } else {
-      this.logger.warn('SendGrid API key not configured. Email sending will be disabled.');
+      this.provider = null;
+      this.logger.warn(
+        'No email provider configured (set RESEND_API_KEY or SENDGRID_API_KEY). Email sending disabled.',
+      );
+    }
+  }
+
+  private defaultFrom() {
+    return {
+      email: this.configService.get<string>('EMAIL_FROM', 'noreply@faizanmalik.me'),
+      name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
+    };
+  }
+
+  private isConfigured(): boolean {
+    return this.provider !== null;
+  }
+
+  /**
+   * Deliver via Resend (preferred) or SendGrid.
+   * @returns true if accepted by provider; false if skipped (no provider).
+   */
+  private async deliver(options: SendEmailOptions): Promise<boolean> {
+    if (!this.isConfigured()) {
+      this.logger.warn(`Email skipped (no provider): ${options.subject} → ${options.to}`);
+      return false;
+    }
+
+    const from = options.from || this.defaultFrom();
+
+    try {
+      if (this.provider === 'resend' && this.resend) {
+        const { error } = await this.resend.emails.send({
+          from: `${from.name} <${from.email}>`,
+          to: [options.to],
+          subject: options.subject,
+          html: options.html,
+        });
+        if (error) {
+          throw new Error(error.message || 'Resend API error');
+        }
+      } else if (this.provider === 'sendgrid') {
+        await sgMail.send({
+          to: options.to,
+          from,
+          subject: options.subject,
+          html: options.html,
+        });
+      }
+
+      this.logger.log(`Email sent via ${this.provider} to ${options.to}: ${options.subject}`);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Failed to send email to ${options.to}: ${(error as Error).message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Soft deliver — logs and returns false on failure instead of throwing.
+   */
+  private async deliverSoft(options: SendEmailOptions): Promise<boolean> {
+    try {
+      return await this.deliver(options);
+    } catch {
+      return false;
     }
   }
 
@@ -26,22 +106,9 @@ export class EmailService {
    * Generic send method for automation workflows
    */
   async send(options: SendEmailOptions): Promise<void> {
-    const msg = {
-      to: options.to,
-      from: options.from || {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
-      subject: options.subject,
-      html: options.html,
-    };
-
-    try {
-      await sgMail.send(msg);
-      this.logger.log(`Email sent to ${options.to}: ${options.subject}`);
-    } catch (error) {
-      this.logger.error(`Failed to send email to ${options.to}: ${(error as Error).message}`);
-      throw error;
+    const sent = await this.deliver(options);
+    if (!sent) {
+      throw new Error('Email provider not configured');
     }
   }
 
@@ -56,12 +123,8 @@ export class EmailService {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
 
-    const msg = {
+    await this.deliver({
       to: email,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: 'Verify Your SyncQuote Account',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -78,27 +141,15 @@ export class EmailService {
           </p>
         </div>
       `,
-    };
-
-    try {
-      await sgMail.send(msg);
-      this.logger.log(`Verification email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send verification email: ${(error as Error).message}`);
-      throw error;
-    }
+    });
   }
 
   async sendPasswordResetEmail(email: string, token: string) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
-    const msg = {
+    await this.deliver({
       to: email,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: 'Reset Your SyncQuote Password',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -115,19 +166,11 @@ export class EmailService {
           </p>
         </div>
       `,
-    };
-
-    try {
-      await sgMail.send(msg);
-      this.logger.log(`Password reset email sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send password reset email: ${(error as Error).message}`);
-      throw error;
-    }
+    });
   }
 
   /**
-   * @returns true when SendGrid accepted the message; false when email is skipped (no API key).
+   * @returns true when provider accepted the message; false when email is skipped (no API key).
    */
   async sendProposalToClient(options: {
     to: string;
@@ -138,12 +181,8 @@ export class EmailService {
     companyName?: string | null;
   }): Promise<boolean> {
     const fromName = options.companyName || options.senderName || 'SyncQuote';
-    const msg = {
+    return this.deliver({
       to: options.to,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: `${options.senderName} shared a proposal: ${options.proposalTitle}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -160,46 +199,23 @@ export class EmailService {
           <p style="color: #6b7280; font-size: 14px;">Sent via ${fromName} on SyncQuote</p>
         </div>
       `,
-    };
-
-    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (!apiKey) {
-      this.logger.warn(
-        `SendGrid not configured — proposal email skipped for ${options.to} (${options.proposalUrl})`,
-      );
-      return false;
-    }
-
-    await sgMail.send(msg);
-    this.logger.log(`Proposal email sent to ${options.to}: ${options.proposalTitle}`);
-    return true;
+    });
   }
 
   async sendProposalViewedNotification(email: string, proposalTitle: string, proposalUrl: string) {
-    const msg = {
+    return this.deliverSoft({
       to: email,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: `Your proposal "${proposalTitle}" has been viewed!`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>🎉 Great news!</h2>
+          <h2>Great news!</h2>
           <p>Your proposal <strong>"${proposalTitle}"</strong> has been viewed by your client.</p>
           <a href="${proposalUrl}" style="display: inline-block; background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 16px 0;">
             View Proposal
           </a>
         </div>
       `,
-    };
-
-    try {
-      await sgMail.send(msg);
-      this.logger.log(`Proposal viewed notification sent to ${email}`);
-    } catch (error) {
-      this.logger.error(`Failed to send proposal viewed notification: ${(error as Error).message}`);
-    }
+    });
   }
 
   async sendProposalApprovedNotification(
@@ -207,20 +223,8 @@ export class EmailService {
     proposalTitle: string,
     proposalUrl: string,
   ) {
-    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (!apiKey) {
-      this.logger.warn(
-        `SendGrid not configured — approved notification skipped for ${email}`,
-      );
-      return false;
-    }
-
-    const msg = {
+    return this.deliverSoft({
       to: email,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: `Your proposal "${proposalTitle}" was accepted`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -232,18 +236,7 @@ export class EmailService {
           </a>
         </div>
       `,
-    };
-
-    try {
-      await sgMail.send(msg);
-      this.logger.log(`Proposal approved notification sent to ${email}`);
-      return true;
-    } catch (error) {
-      this.logger.error(
-        `Failed to send proposal approved notification: ${(error as Error).message}`,
-      );
-      return false;
-    }
+    });
   }
 
   async sendPaymentReceivedNotification(
@@ -253,25 +246,13 @@ export class EmailService {
     currency: string,
     proposalUrl: string,
   ) {
-    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (!apiKey) {
-      this.logger.warn(
-        `SendGrid not configured — payment notification skipped for ${email}`,
-      );
-      return false;
-    }
-
     const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency || 'USD',
     }).format(amount);
 
-    const msg = {
+    return this.deliverSoft({
       to: email,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: `Payment received for "${proposalTitle}"`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -282,35 +263,14 @@ export class EmailService {
           </a>
         </div>
       `,
-    };
-
-    try {
-      await sgMail.send(msg);
-      this.logger.log(`Payment received notification sent to ${email}`);
-      return true;
-    } catch (error) {
-      this.logger.error(
-        `Failed to send payment notification: ${(error as Error).message}`,
-      );
-      return false;
-    }
+    });
   }
 
   async sendNotificationEmail(email: string, userName: string, title: string, message: string) {
-    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (!apiKey) {
-      this.logger.warn(`SendGrid not configured — notification email skipped for ${email}`);
-      return false;
-    }
-
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
 
-    const msg = {
+    return this.deliverSoft({
       to: email,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: title,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -325,16 +285,7 @@ export class EmailService {
           </p>
         </div>
       `,
-    };
-
-    try {
-      await sgMail.send(msg);
-      this.logger.log(`Notification email sent to ${email}`);
-      return true;
-    } catch (error) {
-      this.logger.error(`Failed to send notification email: ${(error as Error).message}`);
-      return false;
-    }
+    });
   }
 
   async sendTeamInvitationEmail(
@@ -350,12 +301,8 @@ export class EmailService {
       ? `<p style="background:#f3f4f6;padding:12px;border-radius:6px;">${message}</p>`
       : '';
 
-    const msg = {
+    await this.deliver({
       to: email,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: `${inviterName} invited you to join ${teamName} on SyncQuote`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -369,21 +316,14 @@ export class EmailService {
           <p>This invitation expires in 7 days.</p>
         </div>
       `,
-    };
-
-    await sgMail.send(msg);
-    this.logger.log(`Team invitation email sent to ${email}`);
+    });
   }
 
   async sendTeamAddedEmail(email: string, teamName: string, inviterName: string) {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
 
-    const msg = {
+    await this.deliver({
       to: email,
-      from: {
-        email: this.configService.get<string>('EMAIL_FROM', 'noreply@syncquote.com'),
-        name: this.configService.get<string>('EMAIL_FROM_NAME', 'SyncQuote'),
-      },
       subject: `You were added to ${teamName} on SyncQuote`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -394,9 +334,6 @@ export class EmailService {
           </a>
         </div>
       `,
-    };
-
-    await sgMail.send(msg);
-    this.logger.log(`Team added email sent to ${email}`);
+    });
   }
 }

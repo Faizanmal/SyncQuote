@@ -30,7 +30,7 @@ Env checklist: `demo-script-private.md`.
 
 Set at least:
 
-- API: `DATABASE_URL`, `JWT_*`, `FRONTEND_URL`, `STRIPE_*`, `SENDGRID_*` (optional), `SENTRY_DSN` (optional)
+- API: `DATABASE_URL`, `JWT_*`, `FRONTEND_URL`, `STRIPE_*`, `RESEND_API_KEY` (optional), `SENTRY_DSN` (optional)
 - FE: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 
 ## Health
