@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -41,9 +41,9 @@ interface AnalyticsMetrics {
   totalViews: number
   uniqueVisitors: number
   activeUsers: number
-  responseTime: number
-  clientSatisfaction: number
-  revenueGrowth: number
+  responseTime: number | null
+  clientSatisfaction: number | null
+  revenueGrowth: number | null
 }
 
 interface ConversionMetrics {
@@ -63,7 +63,6 @@ interface GeographicData {
 export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState('7d')
   const [selectedMetric, setSelectedMetric] = useState('revenue')
-  const [realTimeMetrics, setRealTimeMetrics] = useState<AnalyticsMetrics | null>(null)
 
   // Fetch analytics data
   const { data: metrics } = useQuery({
@@ -97,90 +96,62 @@ export default function AnalyticsPage() {
     queryFn: () => api.get(`/analytics/geographic?range=${timeRange}`).then(res => res.data),
   })
 
-  // Real-time updates via WebSocket
-  useEffect(() => {
-    // Simulated real-time updates - replace with actual WebSocket
-    const interval = setInterval(() => {
-      if (metrics) {
-        setRealTimeMetrics({
-          ...metrics,
-          totalViews: metrics.totalViews + Math.floor(Math.random() * 5),
-          activeUsers: Math.floor(Math.random() * 50) + 20,
-          responseTime: Math.floor(Math.random() * 200) + 150,
-        })
-      }
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [metrics])
-
   const metricCards = [
     {
       title: 'Total Revenue',
-      value: realTimeMetrics?.totalRevenue || metrics?.totalRevenue || 0,
-      change: realTimeMetrics?.revenueGrowth || metrics?.revenueGrowth || 0,
+      value: metrics?.totalRevenue ?? 0,
       icon: DollarSign,
       format: 'currency',
       color: 'text-green-600',
     },
     {
-      title: 'Monthly Revenue',
-      value: realTimeMetrics?.monthlyRevenue || metrics?.monthlyRevenue || 0,
-      change: 12.5,
+      title: 'Revenue (selected period)',
+      value: metrics?.monthlyRevenue ?? 0,
       icon: TrendingUp,
       format: 'currency',
       color: 'text-blue-600',
     },
     {
       title: 'Total Proposals',
-      value: realTimeMetrics?.totalProposals || metrics?.totalProposals || 0,
-      change: 8.2,
+      value: metrics?.totalProposals ?? 0,
       icon: FileText,
       format: 'number',
       color: 'text-purple-600',
     },
     {
       title: 'Conversion Rate',
-      value: realTimeMetrics?.conversionRate || metrics?.conversionRate || 0,
-      change: 2.1,
+      value: metrics?.conversionRate ?? 0,
       icon: Target,
       format: 'percentage',
       color: 'text-orange-600',
     },
     {
       title: 'Total Views',
-      value: realTimeMetrics?.totalViews || metrics?.totalViews || 0,
-      change: 15.3,
+      value: metrics?.totalViews ?? 0,
       icon: Eye,
       format: 'number',
       color: 'text-indigo-600',
-      realTime: true,
     },
     {
-      title: 'Active Users',
-      value: realTimeMetrics?.activeUsers || metrics?.activeUsers || 0,
-      change: 5.7,
+      title: 'Proposal Sessions',
+      value: metrics?.activeUsers ?? 0,
       icon: Users,
       format: 'number',
       color: 'text-emerald-600',
-      realTime: true,
     },
     {
       title: 'Avg. View Time',
-      value: realTimeMetrics?.averageViewTime || metrics?.averageViewTime || 0,
-      change: -3.2,
+      value: metrics?.averageViewTime ?? 0,
       icon: Clock,
       format: 'time',
       color: 'text-yellow-600',
     },
     {
       title: 'Response Time',
-      value: realTimeMetrics?.responseTime || metrics?.responseTime || 0,
-      change: -8.1,
+      value: metrics?.responseTime ?? null,
       icon: Zap,
       format: 'ms',
       color: 'text-red-600',
-      realTime: true,
     },
   ]
 
@@ -234,27 +205,18 @@ export default function AnalyticsPage() {
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
               <div className="flex items-center space-x-1">
-                {metric.realTime && (
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                )}
                 <metric.icon className={`h-4 w-4 ${metric.color}`} />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                <CountUp
+                {metric.value == null ? '—' : <CountUp
                   end={metric.value}
                   duration={2}
                   formattingFn={(value: number) => formatValue(value, metric.format)}
-                />
+                />}
               </div>
-              <div className="flex items-center text-xs text-muted-foreground">
-                <TrendingUp className={`mr-1 h-3 w-3 ${metric.change >= 0 ? 'text-green-500' : 'text-red-500'}`} />
-                <span className={metric.change >= 0 ? 'text-green-500' : 'text-red-500'}>
-                  {metric.change >= 0 ? '+' : ''}{metric.change.toFixed(1)}%
-                </span>
-                <span className="ml-1">from last period</span>
-              </div>
+              <p className="text-xs text-muted-foreground">Based on recorded account data</p>
             </CardContent>
           </Card>
         ))}
@@ -381,13 +343,7 @@ export default function AnalyticsPage() {
                     <Tooltip />
                     <Funnel
                       dataKey="value"
-                      data={funnelData || [
-                        { name: 'Proposal Viewed', value: 1000, fill: '#8884d8' },
-                        { name: 'Engaged (>30s)', value: 750, fill: '#82ca9d' },
-                        { name: 'Downloaded PDF', value: 500, fill: '#ffc658' },
-                        { name: 'Provided Signature', value: 300, fill: '#ff7300' },
-                        { name: 'Approved', value: 200, fill: '#00C49F' },
-                      ]}
+                      data={funnelData || []}
                       isAnimationActive
                     >
                       <LabelList position="center" fill="#fff" stroke="none" />
@@ -404,12 +360,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {(conversionData || [
-                    { stage: 'View to Engagement', count: 750, percentage: 75, dropoff: 25 },
-                    { stage: 'Engagement to Download', count: 500, percentage: 66.7, dropoff: 33.3 },
-                    { stage: 'Download to Signature', count: 300, percentage: 60, dropoff: 40 },
-                    { stage: 'Signature to Approval', count: 200, percentage: 66.7, dropoff: 33.3 },
-                  ]).map((metric: ConversionMetrics) => (
+                  {(conversionData || []).map((metric: ConversionMetrics) => (
                     <div key={metric.stage} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
                         <p className="font-medium">{metric.stage}</p>
@@ -423,6 +374,7 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                   ))}
+                  {(conversionData || []).length === 0 && <p className="text-sm text-muted-foreground">No proposal conversion data for this period.</p>}
                 </div>
               </CardContent>
             </Card>
@@ -437,13 +389,7 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={userBehaviorData || [
-                  { action: 'View Proposal', count: 1200, avgTime: 120, conversionRate: 15 },
-                  { action: 'Download PDF', count: 450, avgTime: 5, conversionRate: 67 },
-                  { action: 'Add Comment', count: 280, avgTime: 90, conversionRate: 45 },
-                  { action: 'Sign Document', count: 190, avgTime: 180, conversionRate: 89 },
-                  { action: 'Share Proposal', count: 150, avgTime: 30, conversionRate: 23 },
-                ]}>
+                <BarChart data={userBehaviorData || []}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="action" />
                   <YAxis yAxisId="left" />
@@ -454,6 +400,7 @@ export default function AnalyticsPage() {
                   <Bar yAxisId="right" dataKey="conversionRate" fill="#82ca9d" name="Conversion Rate %" />
                 </BarChart>
               </ResponsiveContainer>
+              {(!userBehaviorData || userBehaviorData.length === 0) && <p className="text-sm text-muted-foreground">No proposal behavior data for this period.</p>}
             </CardContent>
           </Card>
         </TabsContent>
@@ -467,13 +414,7 @@ export default function AnalyticsPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {(geographicData || [
-                    { country: 'United States', visits: 2450, conversions: 425, revenue: 85000 },
-                    { country: 'Canada', visits: 1200, conversions: 180, revenue: 36000 },
-                    { country: 'United Kingdom', visits: 890, conversions: 125, revenue: 25000 },
-                    { country: 'Australia', visits: 650, conversions: 95, revenue: 19000 },
-                    { country: 'Germany', visits: 520, conversions: 75, revenue: 15000 },
-                  ]).map((geo: GeographicData) => (
+                  {(geographicData || []).map((geo: GeographicData) => (
                     <div key={geo.country} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-6 bg-gray-200 rounded flex items-center justify-center text-xs font-bold">
@@ -492,6 +433,7 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                   ))}
+                  {(geographicData || []).length === 0 && <p className="text-sm text-muted-foreground">No geographic data for this period.</p>}
                 </div>
               </CardContent>
             </Card>
@@ -499,75 +441,9 @@ export default function AnalyticsPage() {
         </TabsContent>
 
         <TabsContent value="realtime" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse mr-2" />
-                  Live Visitors
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">
-                  <CountUp end={realTimeMetrics?.activeUsers || 23} duration={1} />
-                </div>
-                <p className="text-sm text-muted-foreground">Currently active</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse mr-2" />
-                  Response Time
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">
-                  <CountUp end={realTimeMetrics?.responseTime || 185} duration={1} />ms
-                </div>
-                <p className="text-sm text-muted-foreground">Average server response</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <div className="h-2 w-2 bg-orange-500 rounded-full animate-pulse mr-2" />
-                  Page Views
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">
-                  <CountUp end={realTimeMetrics?.totalViews || 1847} duration={1} />
-                </div>
-                <p className="text-sm text-muted-foreground">Today</p>
-              </CardContent>
-            </Card>
-          </div>
-
           <Card>
-            <CardHeader>
-              <CardTitle>Live Activity Feed</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {/* Simulated real-time activity feed */}
-                {Array.from({ length: 10 }).map((_, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-2 rounded border">
-                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                    <div className="flex-1">
-                      <p className="text-sm">
-                        User from <span className="font-medium">New York</span> viewed proposal 
-                        <span className="font-medium"> &quot;Q4 Marketing Strategy&quot;</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {30} seconds ago
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Live visitor tracking is not available yet.
             </CardContent>
           </Card>
         </TabsContent>

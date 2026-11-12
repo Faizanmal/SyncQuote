@@ -110,116 +110,6 @@ interface ContractTemplate {
   createdAt: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const mockContracts: Contract[] = [
-  {
-    id: '1',
-    title: 'Website Development Agreement',
-    description: 'Full-stack website development services contract',
-    proposalId: 'prop-1',
-    proposalTitle: 'Website Redesign Project',
-    clientName: 'Acme Corporation',
-    clientEmail: 'legal@acme.com',
-    status: 'signed',
-    effectiveDate: '2024-02-01',
-    expirationDate: '2025-01-31',
-    signedAt: '2024-01-28T14:30:00Z',
-    signedBy: 'John Smith, CEO',
-    createdAt: '2024-01-15T10:00:00Z',
-    updatedAt: '2024-01-28T14:30:00Z',
-  },
-  {
-    id: '2',
-    title: 'Mobile App Development Contract',
-    description: 'Native mobile application development for iOS and Android',
-    proposalId: 'prop-2',
-    proposalTitle: 'Mobile App Development',
-    clientName: 'TechStart Inc',
-    clientEmail: 'contracts@techstart.io',
-    status: 'pending_signature',
-    effectiveDate: '2024-02-15',
-    expirationDate: '2024-08-15',
-    createdAt: '2024-02-01T09:00:00Z',
-    updatedAt: '2024-02-05T16:00:00Z',
-  },
-  {
-    id: '3',
-    title: 'E-commerce Platform Agreement',
-    description: 'Custom e-commerce platform development and maintenance',
-    proposalId: 'prop-3',
-    proposalTitle: 'E-commerce Platform',
-    clientName: 'RetailMax LLC',
-    clientEmail: 'legal@retailmax.com',
-    status: 'pending_review',
-    templateId: 'tmpl-1',
-    templateName: 'Standard Development Agreement',
-    createdAt: '2024-02-10T11:00:00Z',
-    updatedAt: '2024-02-10T11:00:00Z',
-  },
-  {
-    id: '4',
-    title: 'Cloud Migration Services',
-    description: 'Enterprise cloud migration and support contract',
-    proposalId: 'prop-4',
-    proposalTitle: 'Cloud Migration Services',
-    clientName: 'DataFlow Systems',
-    clientEmail: 'procurement@dataflow.io',
-    status: 'draft',
-    createdAt: '2024-02-12T08:00:00Z',
-    updatedAt: '2024-02-12T08:00:00Z',
-  },
-];
-
-const mockTemplates: ContractTemplate[] = [
-  {
-    id: 'tmpl-1',
-    name: 'Standard Development Agreement',
-    description: 'A comprehensive agreement for software development projects',
-    category: 'Development',
-    content: '# Development Agreement\n\nThis Agreement is entered into by...',
-    variables: [
-      { name: 'client_name', type: 'text', label: 'Client Name', required: true },
-      { name: 'project_name', type: 'text', label: 'Project Name', required: true },
-      { name: 'start_date', type: 'date', label: 'Start Date', required: true },
-      { name: 'total_value', type: 'number', label: 'Total Value', required: true },
-    ],
-    isTeamTemplate: true,
-    usageCount: 45,
-    createdAt: '2023-06-15T10:00:00Z',
-  },
-  {
-    id: 'tmpl-2',
-    name: 'Consulting Services Agreement',
-    description: 'Template for consulting and advisory services',
-    category: 'Consulting',
-    content: '# Consulting Agreement\n\nThis Consulting Agreement...',
-    variables: [
-      { name: 'client_name', type: 'text', label: 'Client Name', required: true },
-      { name: 'hourly_rate', type: 'number', label: 'Hourly Rate', required: true },
-      { name: 'scope', type: 'text', label: 'Scope of Work', required: true },
-    ],
-    isTeamTemplate: true,
-    usageCount: 28,
-    createdAt: '2023-08-20T14:00:00Z',
-  },
-  {
-    id: 'tmpl-3',
-    name: 'NDA - Mutual',
-    description: 'Mutual non-disclosure agreement template',
-    category: 'Legal',
-    content: '# Mutual Non-Disclosure Agreement\n\nThis NDA is entered into...',
-    variables: [
-      { name: 'party_a', type: 'text', label: 'First Party Name', required: true },
-      { name: 'party_b', type: 'text', label: 'Second Party Name', required: true },
-      { name: 'effective_date', type: 'date', label: 'Effective Date', required: true },
-      { name: 'term_years', type: 'number', label: 'Term (Years)', required: true, defaultValue: 2 },
-    ],
-    isTeamTemplate: true,
-    usageCount: 89,
-    createdAt: '2023-05-10T09:00:00Z',
-  },
-];
-
 export function ContractManagement() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('contracts');
@@ -251,7 +141,7 @@ export function ContractManagement() {
   });
 
   // Fetch templates
-  const { data: templates = mockTemplates } = useQuery({
+  const { data: templates = [] } = useQuery({
     queryKey: ['contract-templates'],
     queryFn: async () => {
       const { data } = await api.get('/contracts/templates');

@@ -96,9 +96,9 @@ interface EmailCampaign {
   status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'paused'
   scheduledAt?: string
   sentAt?: string
-  openRate: number
-  clickRate: number
-  deliveryRate: number
+  openRate: number | null
+  clickRate: number | null
+  deliveryRate: number | null
   createdAt: string
 }
 
@@ -326,7 +326,7 @@ export default function NotificationsPage() {
     notification.message.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Real-time notifications via WebSocket (simulated)
+  // Refresh the notification list periodically.
   useEffect(() => {
     const interval = setInterval(() => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] })
@@ -366,7 +366,7 @@ export default function NotificationsPage() {
           <CardContent>
             <div className="text-2xl font-bold">{analytics?.totalSent || 0}</div>
             <p className="text-xs text-muted-foreground">
-              +{analytics?.sentGrowth || 0}% from last month
+              Growth comparison unavailable
             </p>
           </CardContent>
         </Card>
@@ -377,9 +377,9 @@ export default function NotificationsPage() {
             <Eye className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.openRate || 0}%</div>
+            <div className="text-2xl font-bold">{analytics?.openRate == null ? '—' : `${analytics.openRate}%`}</div>
             <p className="text-xs text-muted-foreground">
-              +{analytics?.openRateGrowth || 0}% from last month
+              Open tracking unavailable
             </p>
           </CardContent>
         </Card>
@@ -390,9 +390,9 @@ export default function NotificationsPage() {
             <Target className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.clickRate || 0}%</div>
+            <div className="text-2xl font-bold">{analytics?.clickRate == null ? '—' : `${analytics.clickRate}%`}</div>
             <p className="text-xs text-muted-foreground">
-              +{analytics?.clickRateGrowth || 0}% from last month
+              Click tracking unavailable
             </p>
           </CardContent>
         </Card>
@@ -892,8 +892,8 @@ export default function NotificationsPage() {
                     <TableCell>
                       {campaign.status === 'sent' && (
                         <div className="text-sm">
-                          <p>Open: {campaign.openRate}%</p>
-                          <p>Click: {campaign.clickRate}%</p>
+                          <p>Open: {campaign.openRate == null ? '—' : `${campaign.openRate}%`}</p>
+                          <p>Click: {campaign.clickRate == null ? '—' : `${campaign.clickRate}%`}</p>
                         </div>
                       )}
                     </TableCell>

@@ -68,8 +68,8 @@ export class IntegrationsCatalogService {
       return {
         ...item,
         status: existing?.status || 'inactive',
-        lastSync: existing?.lastSync || new Date().toISOString(),
-        syncedRecords: existing?.syncedRecords || 0,
+        lastSync: existing?.lastSync || null,
+        syncedRecords: 0,
         errorCount: existing?.errorCount || 0,
         config: existing?.config || {},
       };
@@ -139,7 +139,7 @@ export class IntegrationsCatalogService {
   async sync(userId: string, id: string) {
     return this.update(userId, id, {
       lastSync: new Date().toISOString(),
-      syncedRecords: Math.floor(Math.random() * 40) + 1,
+      syncedRecords: 0,
       status: 'active',
     });
   }

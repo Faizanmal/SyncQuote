@@ -94,10 +94,10 @@ interface MonitoringIntegration {
   id: string
   name: string
   type: 'datadog' | 'newrelic' | 'sentry' | 'prometheus' | 'grafana' | 'pingdom'
-  status: 'active' | 'inactive' | 'error'
-  lastSync: string
-  metricsCount: number
-  alertsCount: number
+  status: 'active' | 'inactive' | 'error' | 'configured'
+  lastSync: string | null
+  metricsCount: number | null
+  alertsCount: number | null
   config: Record<string, unknown>
   logo: string
 }
@@ -271,31 +271,9 @@ export default function MonitoringPage() {
     return 'text-red-500'
   }
 
-  // Sample chart data
-  const performanceData = [
-    { time: '00:00', responseTime: 120, throughput: 850, errorRate: 0.5 },
-    { time: '04:00', responseTime: 110, throughput: 920, errorRate: 0.3 },
-    { time: '08:00', responseTime: 180, throughput: 1200, errorRate: 1.2 },
-    { time: '12:00', responseTime: 220, throughput: 1450, errorRate: 2.1 },
-    { time: '16:00', responseTime: 190, throughput: 1350, errorRate: 1.8 },
-    { time: '20:00', responseTime: 140, throughput: 1100, errorRate: 0.9 },
-  ]
-
-  const resourceData = [
-    { time: '00:00', cpu: 25, memory: 60, disk: 45 },
-    { time: '04:00', cpu: 20, memory: 58, disk: 47 },
-    { time: '08:00', cpu: 45, memory: 72, disk: 52 },
-    { time: '12:00', cpu: 75, memory: 85, disk: 58 },
-    { time: '16:00', cpu: 65, memory: 80, disk: 55 },
-    { time: '20:00', cpu: 35, memory: 65, disk: 48 },
-  ]
-
-  const errorDistribution = [
-    { name: '4xx Errors', value: 45, color: '#fbbf24' },
-    { name: '5xx Errors', value: 25, color: '#ef4444' },
-    { name: 'Database', value: 20, color: '#8b5cf6' },
-    { name: 'Network', value: 10, color: '#06b6d4' },
-  ]
+  const performanceData: Array<Record<string, number | string>> = []
+  const resourceData: Array<Record<string, number | string>> = []
+  const errorDistribution: Array<{ name: string; value: number; color: string }> = []
 
   // Auto-refresh effect
   useEffect(() => {
@@ -360,10 +338,10 @@ export default function MonitoringPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-500">
-              <CountUp end={uptime?.percentage || 99.9} decimals={2} suffix="%" />
+              {uptime?.percentage == null ? '—' : <CountUp end={uptime.percentage} decimals={2} suffix="%" />}
             </div>
             <p className="text-xs text-muted-foreground">
-              {uptime?.streak || 45} days streak
+              {uptime?.streak ?? 0} days since process start
             </p>
           </CardContent>
         </Card>
@@ -375,10 +353,10 @@ export default function MonitoringPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <CountUp end={systemMetrics?.avgResponseTime || 125} suffix="ms" />
+              {systemMetrics?.avgResponseTime == null ? '—' : <CountUp end={systemMetrics.avgResponseTime} suffix="ms" />}
             </div>
             <p className="text-xs text-muted-foreground">
-              -15ms from yesterday
+              Response time collection unavailable
             </p>
           </CardContent>
         </Card>
@@ -390,10 +368,10 @@ export default function MonitoringPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <CountUp end={systemMetrics?.throughput || 1250} suffix="/min" />
+              {systemMetrics?.throughput == null ? '—' : <CountUp end={systemMetrics.throughput} suffix="/min" />}
             </div>
             <p className="text-xs text-muted-foreground">
-              +8% from last hour
+              Throughput collection unavailable
             </p>
           </CardContent>
         </Card>
@@ -405,10 +383,10 @@ export default function MonitoringPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <CountUp end={systemMetrics?.errorRate || 0.8} decimals={1} suffix="%" />
+              {systemMetrics?.errorRate == null ? '—' : <CountUp end={systemMetrics.errorRate} decimals={1} suffix="%" />}
             </div>
             <p className="text-xs text-muted-foreground">
-              Target: &lt; 1%
+              Error rate collection unavailable
             </p>
           </CardContent>
         </Card>
@@ -420,10 +398,10 @@ export default function MonitoringPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <CountUp end={systemMetrics?.activeUsers || 1847} />
+              {systemMetrics?.activeUsers == null ? '—' : <CountUp end={systemMetrics.activeUsers} />}
             </div>
             <p className="text-xs text-muted-foreground">
-              Peak: 2,150 users
+              Active user tracking unavailable
             </p>
           </CardContent>
         </Card>
@@ -434,11 +412,11 @@ export default function MonitoringPage() {
             <Heart className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getHealthColor(systemMetrics?.healthScore || 92)}`}>
-              <CountUp end={systemMetrics?.healthScore || 92} suffix="/100" />
+            <div className={`text-2xl font-bold ${systemMetrics?.healthScore == null ? '' : getHealthColor(systemMetrics.healthScore)}`}>
+              {systemMetrics?.healthScore == null ? '—' : <CountUp end={systemMetrics.healthScore} suffix="/100" />}
             </div>
             <p className="text-xs text-muted-foreground">
-              Excellent health
+              Health score unavailable
             </p>
           </CardContent>
         </Card>
@@ -470,9 +448,9 @@ export default function MonitoringPage() {
                       <Cpu className="h-4 w-4 text-blue-500" />
                       <span className="text-sm">CPU Usage</span>
                     </div>
-                    <span className="text-sm font-medium">{systemMetrics?.cpu?.usage || 45}%</span>
+                    <span className="text-sm font-medium">{systemMetrics?.cpu?.usage ?? '—'}{systemMetrics?.cpu?.usage == null ? '' : '%'}</span>
                   </div>
-                  <Progress value={systemMetrics?.cpu?.usage || 45} className="h-2" />
+                  <Progress value={systemMetrics?.cpu?.usage ?? 0} className="h-2" />
                 </div>
 
                 <div className="space-y-2">
@@ -481,9 +459,9 @@ export default function MonitoringPage() {
                       <MemoryStick className="h-4 w-4 text-green-500" />
                       <span className="text-sm">Memory Usage</span>
                     </div>
-                    <span className="text-sm font-medium">{systemMetrics?.memory?.usage || 68}%</span>
+                    <span className="text-sm font-medium">{systemMetrics?.memory?.usage ?? '—'}{systemMetrics?.memory?.usage == null ? '' : '%'}</span>
                   </div>
-                  <Progress value={systemMetrics?.memory?.usage || 68} className="h-2" />
+                  <Progress value={systemMetrics?.memory?.usage ?? 0} className="h-2" />
                 </div>
 
                 <div className="space-y-2">
@@ -492,9 +470,9 @@ export default function MonitoringPage() {
                       <HardDrive className="h-4 w-4 text-purple-500" />
                       <span className="text-sm">Disk Usage</span>
                     </div>
-                    <span className="text-sm font-medium">{systemMetrics?.disk?.usage || 52}%</span>
+                    <span className="text-sm font-medium">{systemMetrics?.disk?.usage ?? '—'}{systemMetrics?.disk?.usage == null ? '' : '%'}</span>
                   </div>
-                  <Progress value={systemMetrics?.disk?.usage || 52} className="h-2" />
+                  {systemMetrics?.disk?.usage != null && <Progress value={systemMetrics.disk.usage} className="h-2" />}
                 </div>
 
                 <div className="space-y-2">
@@ -503,9 +481,9 @@ export default function MonitoringPage() {
                       <Network className="h-4 w-4 text-orange-500" />
                       <span className="text-sm">Network I/O</span>
                     </div>
-                    <span className="text-sm font-medium">{systemMetrics?.network?.usage || 35}%</span>
+                    <span className="text-sm font-medium">{systemMetrics?.network?.usage ?? '—'}{systemMetrics?.network?.usage == null ? '' : '%'}</span>
                   </div>
-                  <Progress value={systemMetrics?.network?.usage || 35} className="h-2" />
+                  {systemMetrics?.network?.usage != null && <Progress value={systemMetrics.network.usage} className="h-2" />}
                 </div>
               </CardContent>
             </Card>
@@ -525,6 +503,7 @@ export default function MonitoringPage() {
                     <Line type="monotone" dataKey="responseTime" stroke="#3b82f6" strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
+                <p className="text-sm text-muted-foreground">Historical performance data is not being collected.</p>
               </CardContent>
             </Card>
           </div>
@@ -546,6 +525,7 @@ export default function MonitoringPage() {
                   <Area type="monotone" dataKey="disk" stackId="3" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.6} />
                 </AreaChart>
               </ResponsiveContainer>
+              <p className="text-sm text-muted-foreground">Historical resource data is not being collected.</p>
             </CardContent>
           </Card>
 
@@ -572,15 +552,15 @@ export default function MonitoringPage() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Metrics:</span>
-                        <span>{integration.metricsCount.toLocaleString()}</span>
+                        <span>{integration.metricsCount?.toLocaleString() ?? '—'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Alerts:</span>
-                        <span>{integration.alertsCount}</span>
+                        <span>{integration.alertsCount ?? '—'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Last Sync:</span>
-                        <span>{integration.lastSync}</span>
+                        <span>{integration.lastSync ?? '—'}</span>
                       </div>
                     </div>
                   </CardContent>

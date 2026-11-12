@@ -463,29 +463,7 @@ export function CrmIntegrationDashboard() {
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-75">
-                  <div className="space-y-4">
-                    {[
-                      { time: '2 minutes ago', action: 'Full sync completed', status: 'success', details: '45 contacts, 12 deals synced' },
-                      { time: '1 hour ago', action: 'Webhook received', status: 'success', details: 'Contact updated: john@example.com' },
-                      { time: '3 hours ago', action: 'Full sync completed', status: 'success', details: '43 contacts, 11 deals synced' },
-                      { time: '1 day ago', action: 'Sync failed', status: 'error', details: 'Authentication expired' },
-                    ].map((log, index) => (
-                      <div key={index} className="flex items-start gap-3 pb-3 border-b last:border-0">
-                        {log.status === 'success' ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5" />
-                        ) : (
-                          <XCircle className="w-5 h-5 text-destructive mt-0.5" />
-                        )}
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{log.action}</span>
-                            <span className="text-xs text-muted-foreground">{log.time}</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{log.details}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-sm text-muted-foreground">No synchronization history available.</p>
                 </ScrollArea>
               </CardContent>
             </Card>

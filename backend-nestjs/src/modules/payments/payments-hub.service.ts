@@ -29,18 +29,18 @@ export class PaymentsHubService {
 
     const totalRevenue = (succeeded._sum.amount || 0) + invoiceStats.totalRevenue;
     const successRate =
-      paymentTotals._count > 0 ? (succeeded._count / paymentTotals._count) * 100 : 100;
+      paymentTotals._count > 0 ? (succeeded._count / paymentTotals._count) * 100 : null;
 
     return {
       totalRevenue,
-      revenueGrowth: 0,
+      revenueGrowth: null,
       mrr: activeSubs ? invoiceStats.paidThisMonth : 0,
-      mrrGrowth: 0,
+      mrrGrowth: null,
       activeSubscriptions: activeSubs,
-      subscriptionGrowth: 0,
-      churnRate: 0,
+      subscriptionGrowth: null,
+      churnRate: null,
       successRate,
-      successRateGrowth: 0,
+      successRateGrowth: null,
     };
   }
 
@@ -65,8 +65,8 @@ export class PaymentsHubService {
       items: inv.lineItems,
       notes: inv.notes,
       terms: inv.paymentTerms,
-      remindersSent: 0,
-      autoCollection: false,
+      remindersSent: null,
+      autoCollection: null,
       createdAt: inv.createdAt,
     }));
   }
@@ -114,9 +114,9 @@ export class PaymentsHubService {
       currency: payment.currency,
       customerName: payment.payerName || payment.payerEmail,
       description: `${payment.type} for ${payment.proposal.title}`,
-      paymentMethod: 'card',
-      processingFee: 0,
-      netAmount: payment.amount,
+      paymentMethod: null,
+      processingFee: null,
+      netAmount: null,
       metadata: payment.metadata || {},
       createdAt: payment.createdAt,
       settledAt: payment.paidAt,
@@ -125,6 +125,17 @@ export class PaymentsHubService {
 
   async listCustomers(userId: string, search?: string) {
     const { data: invoices } = await this.invoiceService.getInvoicesByUser(userId, { limit: 100 });
+    const subscriptions = await this.prisma.clientSubscription.findMany({
+      where: { userId },
+      select: { customerEmail: true },
+    });
+    const subscriptionsByEmail = new Map<string, number>();
+    for (const subscription of subscriptions) {
+      subscriptionsByEmail.set(
+        subscription.customerEmail,
+        (subscriptionsByEmail.get(subscription.customerEmail) || 0) + 1,
+      );
+    }
     const byEmail = new Map<string, typeof invoices>();
     for (const invoice of invoices) {
       const list = byEmail.get(invoice.clientEmail) || [];
@@ -152,10 +163,10 @@ export class PaymentsHubService {
           .reduce((s, inv) => s + inv.amountDue, 0),
         totalSpent: paid.reduce((s, inv) => s + inv.totalAmount, 0),
         lifetimeValue: paid.reduce((s, inv) => s + inv.totalAmount, 0),
-        subscriptions: 0,
+        subscriptions: subscriptionsByEmail.get(email) || 0,
         invoices: list.length,
         lastPayment: paid[0]?.paidDate,
-        riskLevel: 'low' as const,
+        riskLevel: 'unknown' as const,
         tags: [],
         createdAt: list[0].createdAt,
       };
@@ -189,8 +200,8 @@ export class PaymentsHubService {
       isPopular: plan.isPopular,
       isActive: plan.isActive,
       subscriberCount: plan._count.subscriptions,
-      revenue: 0,
-      conversionRate: 0,
+      revenue: null,
+      conversionRate: null,
       createdAt: plan.createdAt,
     }));
   }
@@ -229,7 +240,7 @@ export class PaymentsHubService {
       currentPeriodStart: sub.currentPeriodStart,
       currentPeriodEnd: sub.currentPeriodEnd,
       nextPayment: sub.nextPayment,
-      paymentMethod: 'invoice',
+      paymentMethod: null,
       discounts: [],
       createdAt: sub.createdAt,
       pausedAt: sub.pausedAt,

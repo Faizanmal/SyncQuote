@@ -164,7 +164,7 @@ export class AnalyticsService {
 
   async getDashboardMetrics(userId: string, range = '7d') {
     const start = this.rangeStart(range);
-    const [proposalRows, paidInvoices, sessionRows, comments] = await Promise.all([
+    const [proposalRows, paidInvoices, sessionRows] = await Promise.all([
       this.prisma.$queryRaw<CountRow[]>`
         SELECT
           COUNT(*)::int AS total,
@@ -187,9 +187,6 @@ export class AnalyticsService {
         INNER JOIN "Proposal" p ON p.id = s."proposalId"
         WHERE p."userId" = ${userId} AND s."startedAt" >= ${start}
       `,
-      this.prisma.comment.count({
-        where: { proposal: { userId }, createdAt: { gte: start } },
-      }),
     ]);
 
     const proposal = this.firstRow(proposalRows) || {};
@@ -212,9 +209,9 @@ export class AnalyticsService {
       totalViews,
       uniqueVisitors: sqlNumber(session.uniqueVisitors),
       activeUsers: sqlNumber(session.sessions),
-      responseTime: 180,
-      clientSatisfaction: comments > 0 ? 4.2 : 0,
-      revenueGrowth: 0,
+      responseTime: null,
+      clientSatisfaction: null,
+      revenueGrowth: null,
     };
   }
 
@@ -309,9 +306,9 @@ export class AnalyticsService {
       proposals > 0 ? Math.round((count / proposals) * 1000) / 10 : 0;
 
     return [
-      { action: 'View Proposal', count: views, avgTime: 120, conversionRate: rate(views) },
-      { action: 'Add Comment', count: comments, avgTime: 90, conversionRate: rate(comments) },
-      { action: 'Approved', count: approved, avgTime: 180, conversionRate: rate(approved) },
+      { action: 'View Proposal', count: views, conversionRate: rate(views) },
+      { action: 'Add Comment', count: comments, conversionRate: rate(comments) },
+      { action: 'Approved', count: approved, conversionRate: rate(approved) },
     ];
   }
 

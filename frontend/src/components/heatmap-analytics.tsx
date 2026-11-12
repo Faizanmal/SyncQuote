@@ -165,23 +165,6 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
         ctx.fillStyle = `rgba(59, 130, 246, ${alpha})`;
         ctx.fillRect(0, y, canvas.width, nextY - y);
       });
-    } else if (selectedView === 'attention') {
-      // Render attention zones
-      heatmapData.engagement.hotspots.forEach((hotspot) => {
-        // Placeholder coordinates - would be actual element positions
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 50);
-        const color = hotspot.isHighEngagement ? '147, 51, 234' : '59, 130, 246';
-        gradient.addColorStop(0, `rgba(${color}, ${opacity / 100})`);
-        gradient.addColorStop(1, `rgba(${color}, 0)`);
-
-        ctx.beginPath();
-        ctx.fillStyle = gradient;
-        ctx.arc(x, y, 50, 0, Math.PI * 2);
-        ctx.fill();
-      });
     }
   }, [heatmapData, selectedView, opacity]);
 
@@ -373,6 +356,11 @@ export function HeatmapAnalytics({ proposalId }: { proposalId?: string }) {
                     <div className="h-24 bg-muted rounded mt-8" />
                   </div>
                 </div>
+                {selectedView === 'attention' && (
+                  <div className="absolute inset-x-4 top-4 z-10 rounded bg-background/90 p-3 text-center text-sm text-muted-foreground">
+                    Attention hotspot positions are not available yet.
+                  </div>
+                )}
                 {/* Heatmap overlay */}
                 <canvas
                   ref={canvasRef}

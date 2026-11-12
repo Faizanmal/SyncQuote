@@ -94,98 +94,6 @@ interface InvoiceStats {
   paidThisMonth: number;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const mockInvoices: Invoice[] = [
-  {
-    id: '1',
-    invoiceNumber: 'INV-2024-001',
-    proposalId: 'prop-1',
-    proposalTitle: 'Website Redesign Project',
-    clientName: 'Acme Corporation',
-    clientEmail: 'billing@acme.com',
-    status: 'paid',
-    issueDate: '2024-01-15',
-    dueDate: '2024-02-14',
-    subtotal: 15000,
-    tax: 1500,
-    discount: 500,
-    total: 16000,
-    amountPaid: 16000,
-    amountDue: 0,
-    currency: 'USD',
-    paymentTerms: 'net_30',
-    createdAt: '2024-01-15T10:00:00Z',
-  },
-  {
-    id: '2',
-    invoiceNumber: 'INV-2024-002',
-    proposalId: 'prop-2',
-    proposalTitle: 'Mobile App Development',
-    clientName: 'TechStart Inc',
-    clientEmail: 'finance@techstart.io',
-    status: 'overdue',
-    issueDate: '2024-01-20',
-    dueDate: '2024-02-04',
-    subtotal: 25000,
-    tax: 2500,
-    discount: 0,
-    total: 27500,
-    amountPaid: 0,
-    amountDue: 27500,
-    currency: 'USD',
-    paymentTerms: 'net_15',
-    createdAt: '2024-01-20T14:30:00Z',
-  },
-  {
-    id: '3',
-    invoiceNumber: 'INV-2024-003',
-    proposalId: 'prop-3',
-    proposalTitle: 'E-commerce Platform',
-    clientName: 'RetailMax LLC',
-    clientEmail: 'accounts@retailmax.com',
-    status: 'sent',
-    issueDate: '2024-02-01',
-    dueDate: '2024-03-02',
-    subtotal: 45000,
-    tax: 4500,
-    discount: 2250,
-    total: 47250,
-    amountPaid: 0,
-    amountDue: 47250,
-    currency: 'USD',
-    paymentTerms: 'net_30',
-    createdAt: '2024-02-01T09:00:00Z',
-  },
-  {
-    id: '4',
-    invoiceNumber: 'INV-2024-004',
-    proposalId: 'prop-4',
-    proposalTitle: 'Cloud Migration Services',
-    clientName: 'DataFlow Systems',
-    clientEmail: 'billing@dataflow.io',
-    status: 'partially_paid',
-    issueDate: '2024-02-05',
-    dueDate: '2024-03-06',
-    subtotal: 35000,
-    tax: 3500,
-    discount: 0,
-    total: 38500,
-    amountPaid: 19250,
-    amountDue: 19250,
-    currency: 'USD',
-    paymentTerms: 'net_30',
-    createdAt: '2024-02-05T11:00:00Z',
-  },
-];
-
-const mockStats: InvoiceStats = {
-  totalInvoices: 24,
-  totalRevenue: 385000,
-  pendingAmount: 94000,
-  overdueAmount: 27500,
-  paidThisMonth: 63500,
-};
-
 export function InvoiceManagement() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('all');
@@ -221,7 +129,7 @@ export function InvoiceManagement() {
   });
 
   // Fetch stats
-  const { data: stats = mockStats } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['invoice-stats'],
     queryFn: async () => {
       const { data } = await api.get('/invoices/stats');
@@ -350,7 +258,7 @@ export function InvoiceManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Invoices</p>
-                <p className="text-2xl font-bold">{stats.totalInvoices}</p>
+                <p className="text-2xl font-bold">{stats?.totalInvoices ?? 0}</p>
               </div>
               <Receipt className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -361,7 +269,7 @@ export function InvoiceManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats?.totalRevenue ?? 0)}</p>
               </div>
               <TrendingUp className="h-8 w-8 text-green-500" />
             </div>
@@ -372,7 +280,7 @@ export function InvoiceManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Pending</p>
-                <p className="text-2xl font-bold">{formatCurrency(stats.pendingAmount)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(stats?.pendingAmount ?? 0)}</p>
               </div>
               <Clock className="h-8 w-8 text-yellow-500" />
             </div>
@@ -383,7 +291,7 @@ export function InvoiceManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Overdue</p>
-                <p className="text-2xl font-bold text-red-500">{formatCurrency(stats.overdueAmount)}</p>
+                <p className="text-2xl font-bold text-red-500">{formatCurrency(stats?.overdueAmount ?? 0)}</p>
               </div>
               <AlertCircle className="h-8 w-8 text-red-500" />
             </div>
@@ -394,7 +302,7 @@ export function InvoiceManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Paid (This Month)</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.paidThisMonth)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats?.paidThisMonth ?? 0)}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-500" />
             </div>

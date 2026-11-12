@@ -65,7 +65,7 @@ interface AuditLogEntry {
   userAgent: string
   location: string
   timestamp: string
-  riskLevel: 'low' | 'medium' | 'high'
+  riskLevel: 'low' | 'medium' | 'high' | 'unknown'
   details: Record<string, unknown>
 }
 

@@ -28,8 +28,7 @@ import {
   Edit,
   Trash2,
   Eye,
-  Ban,
-  Activity
+  Ban
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -797,26 +796,7 @@ export default function TeamPage() {
           <h3 className="text-lg font-medium">Activity Log</h3>
           <Card>
             <CardContent className="pt-6">
-              <div className="space-y-4">
-                {/* Activity feed items */}
-                {Array.from({ length: 10 }).map((_, index) => (
-                  <div key={index} className="flex items-start space-x-3 p-3 rounded border">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>JD</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="text-sm">
-                        <span className="font-medium">John Doe</span> invited{' '}
-                        <span className="font-medium">jane@example.com</span> to the workspace
-                      </p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Activity className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">2 hours ago</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <p className="text-sm text-muted-foreground">No recent team activity.</p>
             </CardContent>
           </Card>
         </TabsContent>

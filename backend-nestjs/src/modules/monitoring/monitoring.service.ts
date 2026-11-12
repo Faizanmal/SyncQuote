@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import * as os from 'os';
@@ -10,7 +10,7 @@ export class MonitoringService {
     private configService: ConfigService,
   ) {}
 
-  async getMetrics(userId: string, range = '1h', env = 'production') {
+  async getMetrics(_userId: string, range = '1h', env = 'production') {
     const mem = process.memoryUsage();
     const heapUsed = mem.heapUsed;
     const heapTotal = mem.heapTotal || 1;
@@ -18,38 +18,22 @@ export class MonitoringService {
     const load = os.loadavg()[0] || 0;
     const cpuCount = os.cpus()?.length || 1;
     const cpuUsage = Math.min(100, Math.round((load / cpuCount) * 100));
-    const uptimeSeconds = process.uptime();
-
-    const [proposalCount, openAlerts, errorCount, recentViews] = await Promise.all([
-      this.prisma.proposal.count({ where: { userId } }),
-      this.prisma.monitoringAlert.count({ where: { userId, status: { not: 'resolved' } } }),
-      this.prisma.monitoringErrorLog.count({ where: { userId, resolved: false } }),
-      this.prisma.proposal.aggregate({
-        where: { userId },
-        _sum: { viewCount: true },
-      }),
-    ]);
-
-    const errorRate =
-      proposalCount > 0 ? Math.round((errorCount / Math.max(proposalCount, 1)) * 10) / 10 : 0;
-    const healthScore = Math.max(0, 100 - openAlerts * 8 - Math.round(errorRate * 5));
-
     return {
       range,
       env,
-      avgResponseTime: Math.round(80 + cpuUsage * 1.2),
-      throughput: Math.max(1, proposalCount * 12 + Math.round(uptimeSeconds / 60)),
-      errorRate,
-      activeUsers: recentViews._sum.viewCount || 0,
-      healthScore,
+      avgResponseTime: null,
+      throughput: null,
+      errorRate: null,
+      activeUsers: null,
+      healthScore: null,
       cpu: { usage: cpuUsage },
       memory: { usage: memoryUsage },
-      disk: { usage: Math.min(95, 30 + Math.round(heapUsed / (1024 * 1024 * 20))) },
-      network: { usage: Math.min(100, 20 + cpuUsage) },
+      disk: null,
+      network: null,
     };
   }
 
-  async getPerformance(range = '1h') {
+  async getPerformance(_range = '1h') {
     const mem = process.memoryUsage();
     const memoryUsage = Math.min(100, Math.round((mem.heapUsed / (mem.heapTotal || 1)) * 100));
     const load = os.loadavg()[0] || 0;
@@ -65,7 +49,7 @@ export class MonitoringService {
         target: 70,
         unit: '%',
         trend: cpuUsage > 70 ? 'up' : cpuUsage < 30 ? 'down' : 'stable',
-        history: this.historySeries(cpuUsage, range),
+        history: [],
         threshold: { warning: 70, critical: 90 },
       },
       {
@@ -76,30 +60,8 @@ export class MonitoringService {
         target: 80,
         unit: '%',
         trend: memoryUsage > 80 ? 'up' : 'stable',
-        history: this.historySeries(memoryUsage, range),
+        history: [],
         threshold: { warning: 80, critical: 95 },
-      },
-      {
-        id: 'response-time',
-        name: 'API response time',
-        category: 'backend',
-        value: Math.round(80 + cpuUsage * 1.2),
-        target: 200,
-        unit: 'ms',
-        trend: 'stable',
-        history: this.historySeries(80 + cpuUsage, range),
-        threshold: { warning: 300, critical: 800 },
-      },
-      {
-        id: 'error-rate',
-        name: 'Error rate',
-        category: 'backend',
-        value: 0.4,
-        target: 1,
-        unit: '%',
-        trend: 'down',
-        history: this.historySeries(0.4, range),
-        threshold: { warning: 1, critical: 5 },
       },
     ];
   }
@@ -108,8 +70,8 @@ export class MonitoringService {
     const seconds = process.uptime();
     const days = Math.floor(seconds / 86400);
     return {
-      percentage: 99.9,
-      streak: Math.max(1, days),
+      percentage: null,
+      streak: days,
       since: new Date(Date.now() - seconds * 1000).toISOString(),
     };
   }
@@ -121,10 +83,10 @@ export class MonitoringService {
         id: 'sentry',
         name: 'Sentry',
         type: 'sentry',
-        status: sentry ? 'active' : 'inactive',
-        lastSync: new Date().toISOString(),
-        metricsCount: sentry ? 12 : 0,
-        alertsCount: sentry ? 2 : 0,
+        status: sentry ? 'configured' : 'inactive',
+        lastSync: null,
+        metricsCount: null,
+        alertsCount: null,
         config: { configured: sentry },
         logo: '',
       },
@@ -133,9 +95,9 @@ export class MonitoringService {
         name: 'Prometheus',
         type: 'prometheus',
         status: 'inactive',
-        lastSync: new Date().toISOString(),
-        metricsCount: 0,
-        alertsCount: 0,
+        lastSync: null,
+        metricsCount: null,
+        alertsCount: null,
         config: {},
         logo: '',
       },
@@ -238,25 +200,7 @@ export class MonitoringService {
       orderBy: { deployedAt: 'desc' },
     });
 
-    if (existing.length > 0) {
-      return existing.map((deployment) => this.serializeDeployment(deployment));
-    }
-
-    const created = await this.prisma.monitoringDeployment.create({
-      data: {
-        userId,
-        version: '1.0.0',
-        environment: env || 'production',
-        status: 'success',
-        deployedBy: 'system',
-        duration: 42,
-        changes: ['Initial API deployment'],
-        rollbackAvailable: false,
-        healthScore: 96,
-      },
-    });
-
-    return [this.serializeDeployment(created)];
+    return existing.map((deployment) => this.serializeDeployment(deployment));
   }
 
   async rollbackDeployment(userId: string, deploymentId: string) {
@@ -266,27 +210,7 @@ export class MonitoringService {
     if (!deployment) {
       throw new NotFoundException('Deployment not found');
     }
-
-    await this.prisma.monitoringDeployment.update({
-      where: { id: deploymentId },
-      data: { status: 'rolled-back', rollbackAvailable: false },
-    });
-
-    return this.serializeDeployment(
-      await this.prisma.monitoringDeployment.create({
-        data: {
-          userId,
-          version: `${deployment.version}-rollback`,
-          environment: deployment.environment,
-          status: 'success',
-          deployedBy: 'system',
-          duration: 20,
-          changes: [`Rolled back ${deployment.version}`],
-          rollbackAvailable: false,
-          healthScore: 90,
-        },
-      }),
-    );
+    throw new NotImplementedException('Deployment rollback is not connected to a deployment provider');
   }
 
   private serializeDeployment(deployment: {
@@ -306,13 +230,5 @@ export class MonitoringService {
       changes: Array.isArray(deployment.changes) ? deployment.changes : [],
       deployedAt: deployment.deployedAt.toISOString(),
     };
-  }
-
-  private historySeries(current: number, range: string) {
-    const points = range === '7d' || range === '30d' ? 12 : 6;
-    return Array.from({ length: points }).map((_, index) => ({
-      timestamp: new Date(Date.now() - (points - index) * 3600_000).toISOString(),
-      value: Math.max(0, Math.round((current + Math.sin(index) * 8) * 10) / 10),
-    }));
   }
 }

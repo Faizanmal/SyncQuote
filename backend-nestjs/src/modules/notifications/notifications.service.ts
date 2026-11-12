@@ -175,7 +175,12 @@ export class NotificationsService {
 
   async listCampaigns(userId: string) {
     const meta = await this.readMeta(userId);
-    return meta.notificationCampaigns || [];
+    return (meta.notificationCampaigns || []).map((campaign: any) => ({
+      ...campaign,
+      openRate: null,
+      clickRate: null,
+      deliveryRate: null,
+    }));
   }
 
   async createCampaign(userId: string, dto: any) {
@@ -192,9 +197,9 @@ export class NotificationsService {
           : [],
       status: dto.scheduledAt ? 'scheduled' : 'draft',
       scheduledAt: dto.scheduledAt,
-      openRate: 0,
-      clickRate: 0,
-      deliveryRate: 0,
+      openRate: null,
+      clickRate: null,
+      deliveryRate: null,
       createdAt: new Date().toISOString(),
     };
     meta.notificationCampaigns = [...(meta.notificationCampaigns || []), campaign];
@@ -206,7 +211,7 @@ export class NotificationsService {
     const meta = await this.readMeta(userId);
     meta.notificationCampaigns = (meta.notificationCampaigns || []).map((campaign: any) =>
       campaign.id === campaignId
-        ? { ...campaign, status: 'sent', sentAt: new Date().toISOString(), deliveryRate: 100 }
+        ? { ...campaign, status: 'sent', sentAt: new Date().toISOString(), deliveryRate: null }
         : campaign,
     );
     await this.writeMeta(userId, meta);
@@ -271,11 +276,11 @@ export class NotificationsService {
     const sent = campaigns.filter((campaign: any) => campaign.status === 'sent').length;
     return {
       totalSent: sent,
-      sentGrowth: 0,
-      openRate: sent ? 42 : 0,
-      openRateGrowth: 0,
-      clickRate: sent ? 11 : 0,
-      clickRateGrowth: 0,
+      sentGrowth: null,
+      openRate: null,
+      openRateGrowth: null,
+      clickRate: null,
+      clickRateGrowth: null,
     };
   }
 

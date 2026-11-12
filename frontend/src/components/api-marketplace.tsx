@@ -146,177 +146,6 @@ const categoryIcons: Record<string, React.ReactNode> = {
   other: <Package className="h-5 w-5" />,
 };
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const mockApps: MarketplaceApp[] = [
-  {
-    id: '1',
-    name: 'HubSpot CRM Sync',
-    description: 'Seamlessly sync proposals and contacts with HubSpot CRM.',
-    longDescription: 'The HubSpot CRM Sync integration allows you to automatically synchronize your proposals, contacts, and deals between SyncQuote and HubSpot. Track proposal views, acceptances, and rejections directly in your HubSpot dashboard.',
-    category: 'crm',
-    icon: '🔶',
-    developer: { name: 'SyncQuote Team', verified: true },
-    rating: 4.8,
-    reviewCount: 156,
-    installCount: 2450,
-    permissions: ['Read proposals', 'Access contacts', 'Sync data'],
-    featured: true,
-    installed: false,
-    version: '2.3.1',
-    lastUpdated: '2024-02-01',
-    pricing: 'free',
-  },
-  {
-    id: '2',
-    name: 'Salesforce Connector',
-    description: 'Enterprise-grade Salesforce integration for proposal management.',
-    category: 'crm',
-    icon: '☁️',
-    developer: { name: 'SyncQuote Team', verified: true },
-    rating: 4.7,
-    reviewCount: 89,
-    installCount: 1890,
-    permissions: ['Read proposals', 'Access contacts', 'Sync deals', 'Custom fields'],
-    featured: true,
-    installed: true,
-    version: '3.1.0',
-    lastUpdated: '2024-01-28',
-    pricing: 'paid',
-    priceMonthly: 29,
-  },
-  {
-    id: '3',
-    name: 'Slack Notifications',
-    description: 'Get real-time proposal notifications in your Slack workspace.',
-    category: 'communication',
-    icon: '💬',
-    developer: { name: 'IntegratePro', verified: true },
-    rating: 4.9,
-    reviewCount: 234,
-    installCount: 5670,
-    permissions: ['Send notifications', 'Read proposal events'],
-    featured: true,
-    installed: true,
-    version: '1.8.0',
-    lastUpdated: '2024-02-05',
-    pricing: 'free',
-  },
-  {
-    id: '4',
-    name: 'AI Content Generator',
-    description: 'Generate professional proposal content using GPT-4.',
-    category: 'ai',
-    icon: '🤖',
-    developer: { name: 'AI Labs', verified: true },
-    rating: 4.6,
-    reviewCount: 178,
-    installCount: 3240,
-    permissions: ['Read proposals', 'Generate content', 'Access templates'],
-    featured: true,
-    installed: false,
-    version: '2.0.0',
-    lastUpdated: '2024-02-10',
-    pricing: 'freemium',
-    priceMonthly: 19,
-  },
-  {
-    id: '5',
-    name: 'Stripe Payments',
-    description: 'Accept payments directly on your proposals with Stripe.',
-    category: 'payments',
-    icon: '💳',
-    developer: { name: 'SyncQuote Team', verified: true },
-    rating: 4.9,
-    reviewCount: 312,
-    installCount: 8900,
-    permissions: ['Process payments', 'Read proposals', 'Manage invoices'],
-    featured: false,
-    installed: false,
-    version: '4.2.1',
-    lastUpdated: '2024-02-08',
-    pricing: 'free',
-  },
-  {
-    id: '6',
-    name: 'Google Drive Storage',
-    description: 'Store and sync proposal documents with Google Drive.',
-    category: 'storage',
-    icon: '📁',
-    developer: { name: 'CloudSync', verified: false },
-    rating: 4.4,
-    reviewCount: 67,
-    installCount: 1230,
-    permissions: ['Read files', 'Write files', 'Sync documents'],
-    featured: false,
-    installed: false,
-    version: '1.5.0',
-    lastUpdated: '2024-01-20',
-    pricing: 'free',
-  },
-  {
-    id: '7',
-    name: 'Zapier Automation',
-    description: 'Connect SyncQuote to 5000+ apps with Zapier.',
-    category: 'automation',
-    icon: '⚡',
-    developer: { name: 'Zapier', verified: true },
-    rating: 4.5,
-    reviewCount: 145,
-    installCount: 4560,
-    permissions: ['Webhook access', 'Read proposals', 'Trigger events'],
-    featured: false,
-    installed: false,
-    version: '2.1.0',
-    lastUpdated: '2024-02-03',
-    pricing: 'free',
-  },
-  {
-    id: '8',
-    name: 'Advanced Analytics',
-    description: 'Deep insights into proposal performance and client behavior.',
-    category: 'analytics',
-    icon: '📊',
-    developer: { name: 'DataViz Pro', verified: true },
-    rating: 4.7,
-    reviewCount: 98,
-    installCount: 2100,
-    permissions: ['Read analytics', 'Access reports', 'Export data'],
-    featured: false,
-    installed: false,
-    version: '1.9.0',
-    lastUpdated: '2024-01-25',
-    pricing: 'paid',
-    priceMonthly: 15,
-  },
-];
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const mockInstalledApps: InstalledApp[] = [
-  {
-    id: 'inst-1',
-    appId: '2',
-    appName: 'Salesforce Connector',
-    appIcon: '☁️',
-    status: 'active',
-    installedAt: '2024-01-15T10:00:00Z',
-    lastUsedAt: '2024-02-12T14:30:00Z',
-  },
-  {
-    id: 'inst-2',
-    appId: '3',
-    appName: 'Slack Notifications',
-    appIcon: '💬',
-    status: 'active',
-    installedAt: '2024-01-20T09:00:00Z',
-    lastUsedAt: '2024-02-12T16:00:00Z',
-    configuration: {
-      channel: '#proposals',
-      notifyOnView: true,
-      notifyOnSign: true,
-    },
-  },
-];
-
 export function ApiMarketplace() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<string>('browse');
@@ -532,6 +361,9 @@ export function ApiMarketplace() {
                 </Card>
               ))}
             </div>
+            {featuredApps.length === 0 && (
+              <p className="text-sm text-muted-foreground">No featured apps are published yet.</p>
+            )}
           </div>
 
           {/* Search and Filters */}
@@ -592,7 +424,9 @@ export function ApiMarketplace() {
           </div>
 
           {/* Apps Grid/List */}
-          {viewMode === 'grid' ? (
+          {filteredApps.length === 0 ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">No published apps are available yet.</p>
+          ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredApps.map((app) => (
                 <Card key={app.id} className="relative overflow-hidden">

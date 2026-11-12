@@ -42,7 +42,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { ContractManagement } from '@/components/contract-management'
-import { LineChart as RechartsLineChart, Line, AreaChart, Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import CountUp from 'react-countup'
 
 interface Invoice {
@@ -63,8 +63,8 @@ interface Invoice {
   notes?: string
   terms?: string
   paymentLink?: string
-  remindersSent: number
-  autoCollection: boolean
+  remindersSent: number | null
+  autoCollection: boolean | null
   createdAt: string
 }
 
@@ -108,7 +108,7 @@ interface Subscription {
   cancelledAt?: string
   pausedAt?: string
   nextPayment: string
-  paymentMethod: string
+  paymentMethod: string | null
   discounts: SubscriptionDiscount[]
   usage?: SubscriptionUsage[]
   createdAt: string
@@ -145,8 +145,8 @@ interface PaymentPlan {
   isPopular: boolean
   isActive: boolean
   subscriberCount: number
-  revenue: number
-  conversionRate: number
+  revenue: number | null
+  conversionRate: number | null
   createdAt: string
 }
 
@@ -159,9 +159,9 @@ interface Transaction {
   customerId?: string
   customerName?: string
   description: string
-  paymentMethod: string
-  processingFee: number
-  netAmount: number
+  paymentMethod: string | null
+  processingFee: number | null
+  netAmount: number | null
   metadata: Record<string, unknown>
   createdAt: string
   settledAt?: string
@@ -203,7 +203,7 @@ interface Customer {
   subscriptions: number
   invoices: number
   lastPayment?: string
-  riskLevel: 'low' | 'medium' | 'high'
+  riskLevel: 'low' | 'medium' | 'high' | 'unknown'
   tags: string[]
   notes?: string
   createdAt: string
@@ -437,31 +437,17 @@ export default function PaymentsPage() {
     }).format(amount / 100)
   }
 
-  // Sample chart data
-  const revenueData = [
-    { month: 'Jan', revenue: 12500, subscriptions: 8200, oneTime: 4300 },
-    { month: 'Feb', revenue: 15200, subscriptions: 9800, oneTime: 5400 },
-    { month: 'Mar', revenue: 18900, subscriptions: 12100, oneTime: 6800 },
-    { month: 'Apr', revenue: 22100, subscriptions: 14300, oneTime: 7800 },
-    { month: 'May', revenue: 25800, subscriptions: 16900, oneTime: 8900 },
-    { month: 'Jun', revenue: 28400, subscriptions: 18200, oneTime: 10200 },
-  ]
-
-  const paymentMethodData = [
-    { name: 'Credit Cards', value: 65, color: '#3b82f6' },
-    { name: 'Bank Transfer', value: 20, color: '#10b981' },
-    { name: 'PayPal', value: 10, color: '#f59e0b' },
-    { name: 'Other', value: 5, color: '#8b5cf6' },
-  ]
-
-  const churnData = [
-    { month: 'Jan', churn: 3.2, newCustomers: 45, lostCustomers: 12 },
-    { month: 'Feb', churn: 2.8, newCustomers: 52, lostCustomers: 14 },
-    { month: 'Mar', churn: 4.1, newCustomers: 38, lostCustomers: 18 },
-    { month: 'Apr', churn: 2.5, newCustomers: 61, lostCustomers: 15 },
-    { month: 'May', churn: 3.7, newCustomers: 48, lostCustomers: 20 },
-    { month: 'Jun', churn: 2.1, newCustomers: 67, lostCustomers: 13 },
-  ]
+  const revenueByMonth = (transactions || [])
+    .filter((transaction) => transaction.type === 'payment' && transaction.status === 'succeeded')
+    .reduce<Record<string, { month: string; subscriptions: number; oneTime: number }>>((months, transaction) => {
+      const date = new Date(transaction.createdAt)
+      const key = `${date.getFullYear()}-${date.getMonth()}`
+      const month = date.toLocaleString('en-US', { month: 'short' })
+      months[key] ??= { month, subscriptions: 0, oneTime: 0 }
+      months[key].oneTime += transaction.amount
+      return months
+    }, {})
+  const revenueData = Object.values(revenueByMonth).slice(-6)
 
   return (
     <div className="flex-1 space-y-6 p-6">
@@ -508,13 +494,13 @@ export default function PaymentsPage() {
           <CardContent>
             <div className="text-2xl font-bold text-green-500">
               <CountUp 
-                end={paymentOverview?.totalRevenue || 284000} 
+                end={paymentOverview?.totalRevenue ?? 0}
                 prefix="$" 
                 separator="," 
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              +{paymentOverview?.revenueGrowth || 12}% from last period
+              Growth comparison unavailable
             </p>
           </CardContent>
         </Card>
@@ -527,13 +513,13 @@ export default function PaymentsPage() {
           <CardContent>
             <div className="text-2xl font-bold">
               <CountUp 
-                end={paymentOverview?.mrr || 182000} 
+                end={paymentOverview?.mrr ?? 0}
                 prefix="$" 
                 separator="," 
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              +{paymentOverview?.mrrGrowth || 8}% MRR growth
+              Growth comparison unavailable
             </p>
           </CardContent>
         </Card>
@@ -545,10 +531,10 @@ export default function PaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <CountUp end={paymentOverview?.activeSubscriptions || 1247} />
+              <CountUp end={paymentOverview?.activeSubscriptions ?? 0} />
             </div>
             <p className="text-xs text-muted-foreground">
-              +{paymentOverview?.subscriptionGrowth || 5}% this month
+              Based on current records
             </p>
           </CardContent>
         </Card>
@@ -560,7 +546,7 @@ export default function PaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <CountUp end={paymentOverview?.churnRate || 2.8} decimals={1} suffix="%" />
+              {paymentOverview?.churnRate == null ? '—' : <CountUp end={paymentOverview.churnRate} decimals={1} suffix="%" />}
             </div>
             <p className="text-xs text-muted-foreground">
               Target: &lt; 5%
@@ -575,10 +561,10 @@ export default function PaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              <CountUp end={paymentOverview?.successRate || 97.2} decimals={1} suffix="%" />
+              {paymentOverview?.successRate == null ? '—' : <CountUp end={paymentOverview.successRate} decimals={1} suffix="%" />}
             </div>
             <p className="text-xs text-muted-foreground">
-              +{paymentOverview?.successRateGrowth || 0.5}% improvement
+              Based on recorded payments
             </p>
           </CardContent>
         </Card>
@@ -602,7 +588,9 @@ export default function PaymentsPage() {
                 <CardTitle>Revenue Trends</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+                {revenueData.length === 0 ? (
+                  <div className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">No completed payments yet.</div>
+                ) : <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
@@ -613,10 +601,9 @@ export default function PaymentsPage() {
                         return [`$${num.toLocaleString()}`, ''];
                       }}
                     />
-                    <Area type="monotone" dataKey="subscriptions" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} />
                     <Area type="monotone" dataKey="oneTime" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
                   </AreaChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer>}
               </CardContent>
             </Card>
 
@@ -625,38 +612,8 @@ export default function PaymentsPage() {
               <CardHeader>
                 <CardTitle>Payment Methods</CardTitle>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <RechartsPieChart>
-                    <Pie
-                      data={paymentMethodData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={120}
-                      dataKey="value"
-                    >
-                      {paymentMethodData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value}%`, '']} />
-                  </RechartsPieChart>
-                </ResponsiveContainer>
-                <div className="mt-4 space-y-2">
-                  {paymentMethodData.map((entry, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
-                      <div className="flex items-center space-x-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: entry.color }}
-                        />
-                        <span>{entry.name}</span>
-                      </div>
-                      <span>{entry.value}%</span>
-                    </div>
-                  ))}
-                </div>
+              <CardContent className="flex h-[300px] items-center justify-center text-sm text-muted-foreground">
+                Payment method breakdown is not available yet.
               </CardContent>
             </Card>
           </div>
@@ -666,19 +623,8 @@ export default function PaymentsPage() {
             <CardHeader>
               <CardTitle>Customer Churn Analysis</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <RechartsLineChart data={churnData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis yAxisId="left" />
-                  <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
-                  <Bar yAxisId="right" dataKey="newCustomers" fill="#10b981" opacity={0.7} />
-                  <Bar yAxisId="right" dataKey="lostCustomers" fill="#ef4444" opacity={0.7} />
-                  <Line yAxisId="left" type="monotone" dataKey="churn" stroke="#f59e0b" strokeWidth={3} />
-                </RechartsLineChart>
-              </ResponsiveContainer>
+            <CardContent className="flex h-[120px] items-center justify-center text-sm text-muted-foreground">
+              Churn history is not available yet.
             </CardContent>
           </Card>
 
@@ -822,11 +768,11 @@ export default function PaymentsPage() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Revenue:</span>
-                          <span>{formatCurrency(plan.revenue, plan.currency)}</span>
+                          <span>{plan.revenue == null ? '—' : formatCurrency(plan.revenue, plan.currency)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Conversion:</span>
-                          <span>{plan.conversionRate}%</span>
+                          <span>{plan.conversionRate == null ? '—' : `${plan.conversionRate}%`}</span>
                         </div>
                       </div>
 
@@ -1004,7 +950,7 @@ export default function PaymentsPage() {
                         {invoice.dueDate}
                         {invoice.status === 'overdue' && (
                           <p className="text-red-500 text-xs">
-                            {invoice.remindersSent} reminders sent
+                            {invoice.remindersSent == null ? 'Reminder history unavailable' : `${invoice.remindersSent} reminders sent`}
                           </p>
                         )}
                       </div>
@@ -1081,9 +1027,9 @@ export default function PaymentsPage() {
                         <SelectValue placeholder="Select customer" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">John Doe - Acme Corp</SelectItem>
-                        <SelectItem value="2">Jane Smith - Tech Solutions</SelectItem>
-                        <SelectItem value="3">Bob Johnson - StartupXYZ</SelectItem>
+                        {(customers || []).map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>{customer.name} ({customer.email})</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     {subscriptionErrors.customerId && (
@@ -1097,9 +1043,9 @@ export default function PaymentsPage() {
                         <SelectValue placeholder="Select plan" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">Starter - $29/month</SelectItem>
-                        <SelectItem value="2">Professional - $99/month</SelectItem>
-                        <SelectItem value="3">Enterprise - $299/month</SelectItem>
+                        {(plans || []).map((plan) => (
+                          <SelectItem key={plan.id} value={plan.id}>{plan.name} ({plan.interval})</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     {subscriptionErrors.planId && (
@@ -1191,7 +1137,7 @@ export default function PaymentsPage() {
                       <div className="text-sm">
                         {subscription.nextPayment}
                         <p className="text-muted-foreground text-xs">
-                          {subscription.paymentMethod}
+                          {subscription.paymentMethod || '—'}
                         </p>
                       </div>
                     </TableCell>
@@ -1289,7 +1235,7 @@ export default function PaymentsPage() {
                           {formatCurrency(transaction.amount, transaction.currency)}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Net: {formatCurrency(transaction.netAmount, transaction.currency)}
+                          Net: {transaction.netAmount == null ? '—' : formatCurrency(transaction.netAmount, transaction.currency)}
                         </p>
                       </div>
                     </TableCell>
@@ -1299,7 +1245,7 @@ export default function PaymentsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">{transaction.paymentMethod}</div>
+                      <div className="text-sm">{transaction.paymentMethod || '—'}</div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">

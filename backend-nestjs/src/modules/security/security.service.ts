@@ -108,7 +108,7 @@ export class SecurityService {
       userAgent: log.userAgent || '',
       location: '',
       timestamp: log.createdAt.toISOString(),
-      riskLevel: 'low',
+      riskLevel: 'unknown',
       details: log.changes || {},
     }));
   }
