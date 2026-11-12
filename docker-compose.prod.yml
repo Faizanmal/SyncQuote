@@ -22,8 +22,10 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - frontend
-      - backend
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
     networks:
       - syncquote
 
@@ -65,11 +67,25 @@ services:
       NODE_ENV: production
       PORT: 3001
       API_PREFIX: api
-      DATABASE_URL: postgresql://${POSTGRES_USER:-syncquote}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-syncquote}?schema=public
+      # Must point at the compose service name "postgres" (not localhost).
+      # Set in .env.production — URL-encode special chars in the password.
+      DATABASE_URL: ${DATABASE_URL}
       REDIS_HOST: redis
-      REDIS_PORT: 6379
+      REDIS_PORT: "6379"
       FRONTEND_URL: ${FRONTEND_URL:-https://syncquote.faizanmalik.me}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://syncquote.faizanmalik.me}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:3001/api/v1/health/ping',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 120s
     networks:
       - syncquote
     expose:

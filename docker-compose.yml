@@ -1,4 +1,5 @@
-version: '3.8'
+# Local development only. On the VPS use:
+# docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 
 services:
   # PostgreSQL Database

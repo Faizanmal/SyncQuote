@@ -57,7 +57,19 @@ Generate secrets:
 ```bash
 openssl rand -hex 32   # JWT_ACCESS_SECRET
 openssl rand -hex 32   # JWT_REFRESH_SECRET
-openssl rand -hex 24   # POSTGRES_PASSWORD
+openssl rand -hex 24   # POSTGRES_PASSWORD  (use the same value in DATABASE_URL)
+```
+
+Set `DATABASE_URL` to the **Docker network** host (not localhost):
+
+```env
+DATABASE_URL=postgresql://syncquote:YOUR_PASSWORD@postgres:5432/syncquote?schema=public
+```
+
+If the backend container is unhealthy, inspect logs first:
+
+```bash
+docker logs syncquote-backend --tail 200
 ```
 
 Domain defaults already use `syncquote.faizanmalik.me`. Keep:
@@ -82,6 +94,33 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 ```
 
 First boot runs Prisma migrations automatically.
+
+### Recovery: entrypoint permission denied / frontend interrupted
+
+If `docker compose up -d --build frontend` reports
+`exec: "./docker-entrypoint.sh": permission denied`, it selected the local
+development file. Its backend source bind mount hides the entrypoint that was
+made executable during the image build. The frontend is then interrupted by
+the backend failure; its build may have succeeded.
+
+After updating the server checkout with the entrypoint fix, use the production
+file explicitly for every VPS command:
+
+```bash
+# Keep the existing database password in .env.production and DATABASE_URL.
+# Changing POSTGRES_PASSWORD does not change an initialized database password.
+docker compose -f docker-compose.prod.yml --env-file .env.production config --quiet
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.production ps
+docker compose -f docker-compose.prod.yml --env-file .env.production logs --tail=100 backend frontend
+```
+
+The image entrypoint now lives outside `/app`, normalizes Windows line endings,
+and runs through `/bin/sh`. Development command overrides run the requested
+watch command. The production file uses the standalone frontend image without
+source bind mounts. Do not use `down -v` during recovery: it deletes database
+volumes. The missing buildx warning did not cause this startup failure; both
+builds completed using the classic builder.
 
 ---
 

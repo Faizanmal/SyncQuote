@@ -5,6 +5,7 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 RUN npm ci
 COPY . .
@@ -33,6 +34,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
 
 COPY package*.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
 # Production deps + prisma CLI (needed for migrate deploy on boot)
 RUN npm ci --omit=dev && \
@@ -41,9 +43,11 @@ RUN npm ci --omit=dev && \
     npm cache clean --force
 
 COPY --from=builder /app/dist ./dist
-COPY docker-entrypoint.sh ./docker-entrypoint.sh
+COPY docker-entrypoint.sh /usr/local/bin/syncquote-entrypoint.sh
 
-RUN chmod +x docker-entrypoint.sh && \
+# Keep startup outside /app so development bind mounts cannot hide it.
+RUN sed -i 's/\r$//' /usr/local/bin/syncquote-entrypoint.sh && \
+    chmod 755 /usr/local/bin/syncquote-entrypoint.sh && \
     addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001 && \
     chown -R nestjs:nodejs /app
@@ -52,7 +56,8 @@ USER nestjs
 
 EXPOSE 3001
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+# Generous start period: migrations + Nest boot
+HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
   CMD node -e "require('http').get('http://127.0.0.1:3001/api/v1/health/ping', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/syncquote-entrypoint.sh"]
