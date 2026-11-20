@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,7 @@ import {
   Send,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 interface Proposal {
   id: string;
@@ -65,6 +66,7 @@ const PAGE_SIZE = 20;
 export default function ProposalsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['proposals', page, searchTerm],
@@ -82,6 +84,19 @@ export default function ProposalsPage() {
 
   const proposals = unwrapList<Proposal>(data);
   const pagination = unwrapPagination(data);
+
+  const deleteProposal = useMutation({
+    mutationFn: async (proposalId: string) => {
+      await api.delete(`/proposals/${proposalId}`);
+    },
+    onSuccess: () => {
+      toast.success('Proposal deleted');
+      void queryClient.invalidateQueries({ queryKey: ['proposals'] });
+    },
+    onError: () => {
+      toast.error('Failed to delete proposal');
+    },
+  });
 
   const copyLink = (slug: string) => {
     const url = `${window.location.origin}/p/${slug}`;
@@ -220,7 +235,11 @@ export default function ProposalsPage() {
                               Send
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            disabled={deleteProposal.isPending}
+                            onClick={() => deleteProposal.mutate(proposal.id)}
+                          >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                           </DropdownMenuItem>

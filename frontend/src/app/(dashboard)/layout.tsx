@@ -9,14 +9,19 @@ import { AppSidebar } from '@/components/app-sidebar';
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state: AuthState) => state.isAuthenticated);
+  const hasHydrated = useAuthStore((state: AuthState) => state.hasHydrated);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/signin');
-    }
-  }, [isAuthenticated, router]);
+    void useAuthStore.persist.rehydrate();
+  }, []);
 
-  if (!isAuthenticated) {
+  useEffect(() => {
+    if (hasHydrated && !isAuthenticated) {
+      router.replace('/signin');
+    }
+  }, [hasHydrated, isAuthenticated, router]);
+
+  if (!hasHydrated || !isAuthenticated) {
     return null;
   }
 

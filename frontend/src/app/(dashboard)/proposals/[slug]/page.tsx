@@ -83,6 +83,7 @@ export default function ProposalDetailsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['proposals', slug] });
       queryClient.invalidateQueries({ queryKey: ['proposals', 'recent'] });
+      queryClient.invalidateQueries({ queryKey: ['proposals'] });
       toast.success('Proposal updated successfully');
 
       if (data.slug && data.slug !== slug) {
@@ -116,6 +117,7 @@ export default function ProposalDetailsPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['proposals', slug] });
       queryClient.invalidateQueries({ queryKey: ['proposals', 'recent'] });
+      queryClient.invalidateQueries({ queryKey: ['proposals'] });
       const emailNote =
         data.emailSent === false
           ? ' Email was skipped (no email provider). Public link copied if available.'
